@@ -1,0 +1,360 @@
+:root {
+  --bg: #090b12;
+  --bg-soft: #111628;
+  --text: #e9eefb;
+  --muted: #a6afc8;
+  --accent: #65f3ba;
+  --accent-2: #3c8dff;
+  --card: rgba(17, 22, 40, 0.62);
+  --border: rgba(255, 255, 255, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 15% -10%, #1f2f5f 0, transparent 40%),
+    radial-gradient(circle at 85% 0%, #114943 0, transparent 35%), var(--bg);
+  min-height: 100%;
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+}
+
+.bg-orb {
+  position: fixed;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(55px);
+  opacity: 0.33;
+}
+
+.bg-orb-1 {
+  width: 340px;
+  height: 340px;
+  background: var(--accent-2);
+  top: -80px;
+  left: -120px;
+}
+
+.bg-orb-2 {
+  width: 280px;
+  height: 280px;
+  background: var(--accent);
+  bottom: -80px;
+  right: -60px;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem clamp(1rem, 3vw, 3rem);
+  background: rgba(9, 11, 18, 0.78);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+
+.logo {
+  color: var(--text);
+  text-decoration: none;
+  font-family: "Sora", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+nav a:hover {
+  color: var(--accent);
+}
+
+main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1rem clamp(1rem, 3vw, 2.5rem) 5rem;
+}
+
+.section {
+  margin-top: 4rem;
+}
+
+.hero {
+  min-height: calc(100vh - 90px);
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  align-items: center;
+  gap: 2rem;
+}
+
+.eyebrow {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Sora", sans-serif;
+  line-height: 1.1;
+  margin: 0.25rem 0 0.8rem;
+}
+
+h1 {
+  font-size: clamp(2rem, 6vw, 4.1rem);
+}
+
+h1 span {
+  color: var(--accent);
+}
+
+h2 {
+  font-size: clamp(1.4rem, 3.2vw, 2.4rem);
+}
+
+p {
+  color: var(--muted);
+  line-height: 1.68;
+  margin: 0;
+}
+
+.lead {
+  max-width: 56ch;
+}
+
+.hero-cta {
+  margin-top: 1.4rem;
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.72rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  text-decoration: none;
+  font-weight: 700;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: linear-gradient(120deg, var(--accent), #77ffcf);
+  color: #09120f;
+}
+
+.btn-ghost {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.hero-image {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  border-radius: 1.2rem;
+  padding: 0.75rem;
+  transform: rotate(-1.6deg);
+}
+
+.hero-image img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 0.9rem;
+  display: block;
+}
+
+.about,
+#skills,
+#projects,
+.contact {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: clamp(1.1rem, 3vw, 1.7rem);
+}
+
+.facts {
+  list-style: none;
+  padding: 0;
+  margin: 1.1rem 0 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.facts li {
+  color: var(--text);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.chips span {
+  padding: 0.42rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(101, 243, 186, 0.12);
+  border: 1px solid rgba(101, 243, 186, 0.4);
+  color: #d9ffef;
+  font-size: 0.95rem;
+}
+
+.project-grid {
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.project-card {
+  border: 1px solid var(--border);
+  border-radius: 0.95rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  gap: 0.8rem;
+}
+
+.project-tech {
+  color: #d2f9ea;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.project-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.project-links a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.project-links a:hover {
+  color: #9cfddb;
+}
+
+.contact-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.social-links,
+.footer-links {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.social-links {
+  margin-top: 1rem;
+}
+
+.social-links a,
+.footer-links a {
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.38rem 0.7rem;
+  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.social-links a:hover,
+.footer-links a:hover {
+  color: var(--accent);
+  border-color: rgba(101, 243, 186, 0.6);
+  transform: translateY(-1px);
+}
+
+footer {
+  padding: 2.2rem 1rem 2.8rem;
+  text-align: center;
+  color: var(--muted);
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 920px) {
+  .hero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    margin-top: 1.2rem;
+  }
+
+  .hero-image {
+    max-width: 530px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  nav {
+    gap: 0.7rem;
+    font-size: 0.9rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .site-header {
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+}
