@@ -33,8 +33,8 @@ export default function Projects() {
     <section className="space-y-8 py-8">
       <div>
         <p className="text-sm uppercase tracking-widest text-blue-600">Featured Work</p>
-        <h1 className="font-display text-5xl font-bold text-slate-900">Projects</h1>
-        <p className="mt-2 text-xl text-slate-600">Real work and practical products from my GitHub.</p>
+        <h1 className="font-display text-4xl font-bold text-slate-900 sm:text-5xl">Projects</h1>
+        <p className="mt-2 text-base text-slate-600 sm:text-lg">Real work and practical products from my GitHub.</p>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -42,8 +42,8 @@ export default function Projects() {
           <article key={project.title} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
             <img src={project.image} alt={project.title} className="h-44 w-full object-cover" />
             <div className="space-y-3 p-5">
-              <h2 className="font-display text-3xl font-semibold text-slate-900">{project.title}</h2>
-              <p className="text-xl text-slate-600">{project.description}</p>
+              <h2 className="font-display text-2xl font-semibold text-slate-900">{project.title}</h2>
+              <p className="text-base text-slate-600 sm:text-lg">{project.description}</p>
               <div className="flex flex-wrap gap-2">
                 {project.stack.map((tag) => (
                   <span key={tag} className="rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-sm font-medium text-slate-700">

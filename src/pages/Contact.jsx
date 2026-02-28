@@ -3,12 +3,12 @@ export default function Contact() {
     <section className="grid gap-6 py-8 lg:grid-cols-[1fr_1.1fr]">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm uppercase tracking-widest text-blue-600">Contact</p>
-        <h1 className="mt-2 font-display text-5xl font-bold text-slate-900">Let&apos;s Build Something Solid</h1>
-        <p className="mt-4 text-xl text-slate-600">
+        <h1 className="mt-2 font-display text-4xl font-bold text-slate-900 sm:text-5xl">Let&apos;s Build Something Solid</h1>
+        <p className="mt-4 text-base text-slate-600 sm:text-lg">
           Open to freelance projects, collaborations, and long-term product work.
         </p>
 
-        <dl className="mt-6 space-y-3 text-lg text-slate-700">
+        <dl className="mt-6 space-y-3 text-base text-slate-700 sm:text-lg">
           <div>
             <dt className="text-slate-500">Email</dt>
             <dd>
@@ -35,7 +35,7 @@ export default function Contact() {
         }}
         className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
       >
-        <h2 className="font-display text-3xl font-semibold text-slate-900">Send a Message</h2>
+        <h2 className="font-display text-2xl font-semibold text-slate-900 sm:text-3xl">Send a Message</h2>
         <div className="mt-4 grid gap-4">
           <label className="grid gap-1 text-sm text-slate-700">
             Name

@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 border-t border-slate-200 pt-10 md:grid-cols-3">
           <div>
-            <h3 className="font-display text-2xl font-bold text-slate-900">Chinedu David</h3>
+            <h3 className="font-display text-2xl font-bold text-slate-900">Sirdavid Portfolio</h3>
             <p className="mt-3 max-w-sm text-slate-600">
               Building practical, high-impact digital experiences with strong attention to performance and clean execution.
             </p>
@@ -30,7 +30,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 border-t border-slate-200 pt-6 text-center text-sm text-slate-500">
-          © {new Date().getFullYear()} Chinedu David. All rights reserved.
+          © {new Date().getFullYear()} Sirdavid Portfolio. All rights reserved.
         </div>
       </div>
     </footer>

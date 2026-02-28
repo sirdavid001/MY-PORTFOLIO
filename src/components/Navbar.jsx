@@ -20,8 +20,8 @@ export default function Navbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <NavLink to="/" className="font-display text-3xl font-bold tracking-tight text-slate-900">
-          Chinedu David
+        <NavLink to="/" className="font-display text-lg font-bold tracking-tight text-slate-900 sm:text-2xl">
+          Sirdavid Portfolio
         </NavLink>
 
         <button
