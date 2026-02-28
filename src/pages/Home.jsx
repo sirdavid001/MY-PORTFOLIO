@@ -31,16 +31,16 @@ const principles = [
 ];
 
 const tech = [
-  { name: "React", icon: SiReact },
-  { name: "TypeScript", icon: SiTypescript },
-  { name: "Node.js", icon: SiNodedotjs },
-  { name: "Next.js", icon: SiNextdotjs },
-  { name: "Tailwind CSS", icon: SiTailwindcss },
-  { name: "JavaScript", icon: SiJavascript },
-  { name: "HTML", icon: SiHtml5 },
-  { name: "CSS", icon: SiCss3 },
-  { name: "Python", icon: SiPython },
-  { name: "Git", icon: SiGit },
+  { name: "React", icon: SiReact, color: "#61DAFB" },
+  { name: "TypeScript", icon: SiTypescript, color: "#3178C6" },
+  { name: "Node.js", icon: SiNodedotjs, color: "#5FA04E" },
+  { name: "Next.js", icon: SiNextdotjs, color: "#111111" },
+  { name: "Tailwind CSS", icon: SiTailwindcss, color: "#06B6D4" },
+  { name: "JavaScript", icon: SiJavascript, color: "#F7DF1E" },
+  { name: "HTML", icon: SiHtml5, color: "#E34F26" },
+  { name: "CSS", icon: SiCss3, color: "#1572B6" },
+  { name: "Python", icon: SiPython, color: "#3776AB" },
+  { name: "Git", icon: SiGit, color: "#F05032" },
 ];
 
 export default function Home() {
@@ -113,7 +113,11 @@ export default function Home() {
               key={item.name}
               className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm sm:px-5 sm:text-base"
             >
-              <item.icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+              <item.icon
+                className="h-4 w-4 sm:h-5 sm:w-5"
+                aria-hidden="true"
+                style={{ color: item.color }}
+              />
               {item.name}
             </span>
           ))}
