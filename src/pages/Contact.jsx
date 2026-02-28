@@ -2,6 +2,8 @@ import { useState } from "react";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none ring-blue-300/60 placeholder:text-slate-400 focus:ring";
+const selectClass =
+  "mt-1 w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-3 pr-10 text-slate-900 outline-none ring-blue-300/60 transition hover:border-slate-400 focus:border-blue-500 focus:ring";
 
 const defaultForm = {
   clientType: "Individual",
@@ -52,6 +54,14 @@ ${formData.features}`
     );
 
     window.location.href = `mailto:itssirdavid@gmail.com?subject=${subject}&body=${body}`;
+  }
+
+  function SelectArrow() {
+    return (
+      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">
+        ▾
+      </span>
+    );
   }
 
   return (
@@ -211,21 +221,24 @@ ${formData.features}`
 
           <label className="mt-4 block text-sm font-medium text-slate-700">
             Project Type *
-            <select
-              name="projectType"
-              value={formData.projectType}
-              onChange={handleChange}
-              required
-              className={inputClass}
-            >
-              <option value="">Select a project type</option>
-              <option>Portfolio Website</option>
-              <option>Business Website</option>
-              <option>Web App</option>
-              <option>Landing Page</option>
-              <option>Dashboard</option>
-              <option>Other</option>
-            </select>
+            <div className="relative">
+              <select
+                name="projectType"
+                value={formData.projectType}
+                onChange={handleChange}
+                required
+                className={selectClass}
+              >
+                <option value="">Select a project type</option>
+                <option>Portfolio Website</option>
+                <option>Business Website</option>
+                <option>Web App</option>
+                <option>Landing Page</option>
+                <option>Dashboard</option>
+                <option>Other</option>
+              </select>
+              <SelectArrow />
+            </div>
           </label>
 
           <label className="mt-4 block text-sm font-medium text-slate-700">
@@ -257,37 +270,43 @@ ${formData.features}`
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-medium text-slate-700">
               Budget Range *
-              <select
-                name="budget"
-                value={formData.budget}
-                onChange={handleChange}
-                required
-                className={inputClass}
-              >
-                <option value="">Select budget range</option>
-                <option>$100 - $300</option>
-                <option>$300 - $700</option>
-                <option>$700 - $1,500</option>
-                <option>$1,500+</option>
-                <option>Custom</option>
-              </select>
+              <div className="relative">
+                <select
+                  name="budget"
+                  value={formData.budget}
+                  onChange={handleChange}
+                  required
+                  className={selectClass}
+                >
+                  <option value="">Select budget range</option>
+                  <option>$100 - $300</option>
+                  <option>$300 - $700</option>
+                  <option>$700 - $1,500</option>
+                  <option>$1,500+</option>
+                  <option>Custom</option>
+                </select>
+                <SelectArrow />
+              </div>
             </label>
 
             <label className="text-sm font-medium text-slate-700">
               Desired Timeline *
-              <select
-                name="timeline"
-                value={formData.timeline}
-                onChange={handleChange}
-                required
-                className={inputClass}
-              >
-                <option value="">Select timeline</option>
-                <option>ASAP (1-2 weeks)</option>
-                <option>Short Term (3-4 weeks)</option>
-                <option>Medium Term (1-2 months)</option>
-                <option>Flexible</option>
-              </select>
+              <div className="relative">
+                <select
+                  name="timeline"
+                  value={formData.timeline}
+                  onChange={handleChange}
+                  required
+                  className={selectClass}
+                >
+                  <option value="">Select timeline</option>
+                  <option>ASAP (1-2 weeks)</option>
+                  <option>Short Term (3-4 weeks)</option>
+                  <option>Medium Term (1-2 months)</option>
+                  <option>Flexible</option>
+                </select>
+                <SelectArrow />
+              </div>
             </label>
           </div>
 
