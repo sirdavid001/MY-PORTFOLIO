@@ -127,6 +127,7 @@ Specific requirements:
 ${formData.features}`
     );
 
+    alert("Request prepared. Your email app will open so you can send your project brief.");
     window.location.href = `mailto:itssirdavid@gmail.com?subject=${subject}&body=${body}`;
   }
 
@@ -141,11 +142,9 @@ ${formData.features}`
   return (
     <section className="py-8 sm:py-12">
       <div className="mx-auto mb-10 max-w-4xl text-center">
-        <h1 className="font-display text-4xl font-bold text-slate-900 sm:text-6xl">
-          Let&apos;s Build Something Great Together
-        </h1>
+        <h1 className="font-display text-4xl font-bold text-slate-900 sm:text-6xl">Tell Me About Your Project</h1>
         <p className="mx-auto mt-4 max-w-2xl text-base text-slate-600 sm:text-xl">
-          Share your project details and budget so I can understand your needs and provide the best solution.
+          Share your goals, requirements, timeline, and budget so I can propose the right solution.
         </p>
       </div>
 
@@ -213,7 +212,7 @@ ${formData.features}`
         </aside>
 
         <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-display text-4xl font-bold text-slate-900">Tell Me About Your Project</h2>
+          <h2 className="font-display text-4xl font-bold text-slate-900">Project Request Form</h2>
 
           <p className="mt-4 text-sm font-medium text-slate-700">I am a/an</p>
           <div className="mt-2 grid grid-cols-2 gap-3">
@@ -226,7 +225,10 @@ ${formData.features}`
                   : "border-slate-300 bg-white text-slate-700"
               }`}
             >
-              Individual
+              <span className="inline-flex items-center gap-2">
+                <span aria-hidden="true">👤</span>
+                <span>Individual</span>
+              </span>
             </button>
             <button
               type="button"
@@ -237,7 +239,10 @@ ${formData.features}`
                   : "border-slate-300 bg-white text-slate-700"
               }`}
             >
-              Organization
+              <span className="inline-flex items-center gap-2">
+                <span aria-hidden="true">🏢</span>
+                <span>Organization</span>
+              </span>
             </button>
           </div>
 
@@ -312,11 +317,12 @@ ${formData.features}`
                 className={selectClass}
               >
                 <option value="">Select a project type</option>
-                <option>Portfolio Website</option>
-                <option>Business Website</option>
+                <option>Website</option>
                 <option>Web App</option>
-                <option>Landing Page</option>
-                <option>Dashboard</option>
+                <option>E-commerce</option>
+                <option>Mobile App</option>
+                <option>Redesign</option>
+                <option>Maintenance</option>
                 <option>Other</option>
               </select>
               <SelectArrow />
@@ -324,27 +330,27 @@ ${formData.features}`
           </label>
 
           <label className="mt-4 block text-sm font-medium text-slate-700">
-            What do you want to build? *
+            Detailed Project Description *
             <textarea
               rows="4"
               name="goals"
               value={formData.goals}
               onChange={handleChange}
               required
-              placeholder="Describe your project vision, goals, and what problem it solves..."
+              placeholder="Describe your vision, goals, target users, and what success looks like."
               className={inputClass}
             />
           </label>
 
           <label className="mt-4 block text-sm font-medium text-slate-700">
-            Specific Requirements or Features
+            Specific Requirements
             <textarea
               rows="3"
               name="features"
               value={formData.features}
               onChange={handleChange}
               required
-              placeholder="e.g., user authentication, payment integration, admin dashboard, API integration..."
+              placeholder="e.g. authentication, payments, dashboard, notifications, API integration"
               className={inputClass}
             />
           </label>
