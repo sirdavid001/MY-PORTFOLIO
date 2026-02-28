@@ -1,4 +1,16 @@
 import { Link } from "react-router-dom";
+import {
+  SiCss3,
+  SiGit,
+  SiHtml5,
+  SiJavascript,
+  SiNextdotjs,
+  SiNodedotjs,
+  SiPython,
+  SiReact,
+  SiTailwindcss,
+  SiTypescript,
+} from "react-icons/si";
 
 const principles = [
   {
@@ -18,7 +30,18 @@ const principles = [
   },
 ];
 
-const tech = ["React", "TypeScript", "Node.js", "Next.js", "Tailwind CSS", "JavaScript", "Git", "REST APIs"];
+const tech = [
+  { name: "React", icon: SiReact },
+  { name: "TypeScript", icon: SiTypescript },
+  { name: "Node.js", icon: SiNodedotjs },
+  { name: "Next.js", icon: SiNextdotjs },
+  { name: "Tailwind CSS", icon: SiTailwindcss },
+  { name: "JavaScript", icon: SiJavascript },
+  { name: "HTML", icon: SiHtml5 },
+  { name: "CSS", icon: SiCss3 },
+  { name: "Python", icon: SiPython },
+  { name: "Git", icon: SiGit },
+];
 
 export default function Home() {
   return (
@@ -87,10 +110,11 @@ export default function Home() {
         <div className="mx-auto mt-9 flex max-w-4xl flex-wrap items-center justify-center gap-3">
           {tech.map((item) => (
             <span
-              key={item}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm sm:px-5 sm:text-base"
+              key={item.name}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm sm:px-5 sm:text-base"
             >
-              {item}
+              <item.icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+              {item.name}
             </span>
           ))}
         </div>
