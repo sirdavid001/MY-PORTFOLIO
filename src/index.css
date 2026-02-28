@@ -5,12 +5,13 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   font-family: "Space Grotesk", sans-serif;
+  background: #f3f4f6;
 }
 
 * {

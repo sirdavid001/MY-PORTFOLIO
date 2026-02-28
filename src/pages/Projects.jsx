@@ -30,22 +30,23 @@ const projects = [
 
 export default function Projects() {
   return (
-    <section className="space-y-6">
+    <section className="space-y-8 py-8">
       <div>
-        <p className="text-sm uppercase tracking-widest text-emerald-200">Featured Work</p>
-        <h1 className="font-display text-4xl font-bold text-white sm:text-5xl">Projects</h1>
+        <p className="text-sm uppercase tracking-widest text-blue-600">Featured Work</p>
+        <h1 className="font-display text-5xl font-bold text-slate-900">Projects</h1>
+        <p className="mt-2 text-xl text-slate-600">Real work and practical products from my GitHub.</p>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {projects.map((project) => (
-          <article key={project.title} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-glow backdrop-blur">
+          <article key={project.title} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
             <img src={project.image} alt={project.title} className="h-44 w-full object-cover" />
             <div className="space-y-3 p-5">
-              <h2 className="font-display text-xl font-semibold text-white">{project.title}</h2>
-              <p className="text-slate-300">{project.description}</p>
+              <h2 className="font-display text-3xl font-semibold text-slate-900">{project.title}</h2>
+              <p className="text-xl text-slate-600">{project.description}</p>
               <div className="flex flex-wrap gap-2">
                 {project.stack.map((tag) => (
-                  <span key={tag} className="rounded-full border border-emerald-300/35 bg-emerald-300/10 px-2.5 py-1 text-xs font-medium text-emerald-100">
+                  <span key={tag} className="rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-sm font-medium text-slate-700">
                     {tag}
                   </span>
                 ))}
@@ -54,7 +55,7 @@ export default function Projects() {
                 href={project.code}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
                 View Code
               </a>
