@@ -1,16 +1,45 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none ring-blue-300/60 placeholder:text-slate-400 focus:ring";
 const selectClass =
   "mt-1 w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-3 pr-10 text-slate-900 outline-none ring-blue-300/60 transition hover:border-slate-400 focus:border-blue-500 focus:ring";
 
+const COUNTRY_OPTIONS = [
+  { code: "US", name: "United States", currency: "USD", usdRate: 1 },
+  { code: "NG", name: "Nigeria", currency: "NGN", usdRate: 1600 },
+  { code: "GB", name: "United Kingdom", currency: "GBP", usdRate: 0.79 },
+  { code: "CA", name: "Canada", currency: "CAD", usdRate: 1.35 },
+  { code: "DE", name: "Germany", currency: "EUR", usdRate: 0.92 },
+  { code: "FR", name: "France", currency: "EUR", usdRate: 0.92 },
+  { code: "AE", name: "United Arab Emirates", currency: "AED", usdRate: 3.67 },
+  { code: "IN", name: "India", currency: "INR", usdRate: 83 },
+  { code: "KE", name: "Kenya", currency: "KES", usdRate: 129 },
+  { code: "GH", name: "Ghana", currency: "GHS", usdRate: 15.6 },
+  { code: "ZA", name: "South Africa", currency: "ZAR", usdRate: 18.6 },
+];
+
+function roundMoney(value) {
+  if (value < 1000) return Math.round(value / 10) * 10;
+  if (value < 10000) return Math.round(value / 100) * 100;
+  if (value < 100000) return Math.round(value / 500) * 500;
+  return Math.round(value / 1000) * 1000;
+}
+
+function formatCurrency(amount, currency) {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 const defaultForm = {
   clientType: "Individual",
+  countryCode: "US",
   fullName: "",
   email: "",
   phone: "",
-  organization: "",
   projectType: "",
   goals: "",
   features: "",
@@ -22,9 +51,40 @@ const defaultForm = {
 export default function Contact() {
   const [formData, setFormData] = useState(defaultForm);
 
+  useEffect(() => {
+    const locale = navigator.language || "";
+    const region = locale.includes("-") ? locale.split("-")[1]?.toUpperCase() : "";
+    if (region && COUNTRY_OPTIONS.some((country) => country.code === region)) {
+      setFormData((prev) => ({ ...prev, countryCode: region }));
+    }
+  }, []);
+
+  const selectedCountry =
+    COUNTRY_OPTIONS.find((country) => country.code === formData.countryCode) || COUNTRY_OPTIONS[0];
+
+  const budgetOptions = useMemo(() => {
+    const baseMin = roundMoney(250 * selectedCountry.usdRate);
+    const tier2 = roundMoney(baseMin * 2);
+    const tier3 = roundMoney(baseMin * 4);
+    const tier4 = roundMoney(baseMin * 8);
+
+    return [
+      { value: "tier1", label: `${formatCurrency(baseMin, selectedCountry.currency)} - ${formatCurrency(tier2, selectedCountry.currency)}` },
+      { value: "tier2", label: `${formatCurrency(tier2, selectedCountry.currency)} - ${formatCurrency(tier3, selectedCountry.currency)}` },
+      { value: "tier3", label: `${formatCurrency(tier3, selectedCountry.currency)} - ${formatCurrency(tier4, selectedCountry.currency)}` },
+      { value: "tier4", label: `${formatCurrency(tier4, selectedCountry.currency)}+` },
+      { value: "custom", label: "Custom" },
+    ];
+  }, [selectedCountry]);
+
   function handleChange(event) {
     const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      if (name === "countryCode") {
+        return { ...prev, countryCode: value, budget: "", customBudget: "" };
+      }
+      return { ...prev, [name]: value };
+    });
   }
 
   function setClientType(type) {
@@ -33,7 +93,19 @@ export default function Contact() {
 
   function handleSubmit(event) {
     event.preventDefault();
-    const budgetValue = formData.budget === "Custom" ? formData.customBudget : formData.budget;
+    const minBudget = roundMoney(250 * selectedCountry.usdRate);
+    const customBudgetAmount = Number(String(formData.customBudget).replace(/[^0-9.]/g, ""));
+
+    if (formData.budget === "custom" && (!customBudgetAmount || customBudgetAmount < minBudget)) {
+      alert(
+        `Minimum budget is ${formatCurrency(minBudget, selectedCountry.currency)} for ${selectedCountry.name}.`
+      );
+      return;
+    }
+
+    const pickedBudget = budgetOptions.find((option) => option.value === formData.budget);
+    const budgetValue =
+      formData.budget === "custom" ? formData.customBudget : pickedBudget?.label || "Not specified";
 
     const subject = encodeURIComponent(`Project Request - ${formData.projectType || "New Inquiry"}`);
     const body = encodeURIComponent(
@@ -41,7 +113,9 @@ export default function Contact() {
 Full Name: ${formData.fullName}
 Email: ${formData.email}
 Phone: ${formData.phone || "N/A"}
-Organization: ${formData.organization || "N/A"}
+Organization: ${formData.clientType === "Organization" ? formData.fullName : "N/A"}
+Country: ${selectedCountry.name}
+Currency: ${selectedCountry.currency}
 Project Type: ${formData.projectType}
 Budget: ${budgetValue || "Not specified"}
 Timeline: ${formData.timeline}
@@ -169,13 +243,13 @@ ${formData.features}`
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-medium text-slate-700">
-              Your Name *
+              {formData.clientType === "Organization" ? "Organization Name *" : "Your Name *"}
               <input
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleChange}
                 required
-                placeholder="John Doe"
+                placeholder={formData.clientType === "Organization" ? "Your organization name" : "John Doe"}
                 className={inputClass}
               />
             </label>
@@ -194,30 +268,38 @@ ${formData.features}`
             </label>
           </div>
 
-          <label className="mt-4 block text-sm font-medium text-slate-700">
-            Phone Number (Optional)
-            <input
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="+234 800 000 0000"
-              className={inputClass}
-            />
-          </label>
-
-          {formData.clientType === "Organization" && (
-            <label className="mt-4 block text-sm font-medium text-slate-700">
-              Organization Name *
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium text-slate-700">
+              Phone Number (Optional)
               <input
-                name="organization"
-                value={formData.organization}
+                name="phone"
+                value={formData.phone}
                 onChange={handleChange}
-                required
-                placeholder="Your organization name"
+                placeholder="+234 800 000 0000"
                 className={inputClass}
               />
             </label>
-          )}
+
+            <label className="text-sm font-medium text-slate-700">
+              Country *
+              <div className="relative">
+                <select
+                  name="countryCode"
+                  value={formData.countryCode}
+                  onChange={handleChange}
+                  required
+                  className={selectClass}
+                >
+                  {COUNTRY_OPTIONS.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
+                <SelectArrow />
+              </div>
+            </label>
+          </div>
 
           <label className="mt-4 block text-sm font-medium text-slate-700">
             Project Type *
@@ -278,12 +360,12 @@ ${formData.features}`
                   required
                   className={selectClass}
                 >
-                  <option value="">Select budget range</option>
-                  <option>$100 - $300</option>
-                  <option>$300 - $700</option>
-                  <option>$700 - $1,500</option>
-                  <option>$1,500+</option>
-                  <option>Custom</option>
+                  <option value="">Select budget range (min {formatCurrency(roundMoney(250 * selectedCountry.usdRate), selectedCountry.currency)})</option>
+                  {budgetOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
                 <SelectArrow />
               </div>
@@ -310,7 +392,7 @@ ${formData.features}`
             </label>
           </div>
 
-          {formData.budget === "Custom" && (
+          {formData.budget === "custom" && (
             <label className="mt-4 block text-sm font-medium text-slate-700">
               Custom Budget *
               <input
@@ -318,7 +400,8 @@ ${formData.features}`
                 value={formData.customBudget}
                 onChange={handleChange}
                 required
-                placeholder="Enter your budget"
+                inputMode="decimal"
+                placeholder={`Enter amount (minimum ${formatCurrency(roundMoney(250 * selectedCountry.usdRate), selectedCountry.currency)})`}
                 className={inputClass}
               />
             </label>
