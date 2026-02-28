@@ -5,19 +5,25 @@ const inputClass =
 const selectClass =
   "mt-1 w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-3 pr-10 text-slate-900 outline-none ring-blue-300/60 transition hover:border-slate-400 focus:border-blue-500 focus:ring";
 
-const COUNTRY_OPTIONS = [
-  { code: "US", name: "United States", currency: "USD", usdRate: 1 },
-  { code: "NG", name: "Nigeria", currency: "NGN", usdRate: 1600 },
-  { code: "GB", name: "United Kingdom", currency: "GBP", usdRate: 0.79 },
-  { code: "CA", name: "Canada", currency: "CAD", usdRate: 1.35 },
-  { code: "DE", name: "Germany", currency: "EUR", usdRate: 0.92 },
-  { code: "FR", name: "France", currency: "EUR", usdRate: 0.92 },
-  { code: "AE", name: "United Arab Emirates", currency: "AED", usdRate: 3.67 },
-  { code: "IN", name: "India", currency: "INR", usdRate: 83 },
-  { code: "KE", name: "Kenya", currency: "KES", usdRate: 129 },
-  { code: "GH", name: "Ghana", currency: "GHS", usdRate: 15.6 },
-  { code: "ZA", name: "South Africa", currency: "ZAR", usdRate: 18.6 },
-];
+const COUNTRY_CURRENCY_CONFIG = {
+  US: { currency: "USD", usdRate: 1 },
+  NG: { currency: "NGN", usdRate: 1600 },
+  GB: { currency: "GBP", usdRate: 0.79 },
+  CA: { currency: "CAD", usdRate: 1.35 },
+  DE: { currency: "EUR", usdRate: 0.92 },
+  FR: { currency: "EUR", usdRate: 0.92 },
+  AE: { currency: "AED", usdRate: 3.67 },
+  IN: { currency: "INR", usdRate: 83 },
+  KE: { currency: "KES", usdRate: 129 },
+  GH: { currency: "GHS", usdRate: 15.6 },
+  ZA: { currency: "ZAR", usdRate: 18.6 },
+};
+
+function countryCodeToFlag(code) {
+  return code
+    .toUpperCase()
+    .replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
+}
 
 function roundMoney(value) {
   if (value < 1000) return Math.round(value / 10) * 10;
@@ -50,32 +56,52 @@ const defaultForm = {
 
 export default function Contact() {
   const [formData, setFormData] = useState(defaultForm);
+  const [countryOptions, setCountryOptions] = useState([
+    { code: "US", name: "United States", flag: countryCodeToFlag("US") },
+  ]);
+
+  const selectedCountry =
+    countryOptions.find((country) => country.code === formData.countryCode) || countryOptions[0];
+  const selectedCurrency = COUNTRY_CURRENCY_CONFIG[formData.countryCode] || { currency: "USD", usdRate: 1 };
 
   useEffect(() => {
-    const locale = navigator.language || "";
+    const locale = navigator.language || "en";
+    const displayNames = new Intl.DisplayNames([locale], { type: "region" });
+    const regions =
+      typeof Intl.supportedValuesOf === "function"
+        ? Intl.supportedValuesOf("region")
+            .filter((code) => /^[A-Z]{2}$/.test(code))
+            .sort((a, b) => (displayNames.of(a) || a).localeCompare(displayNames.of(b) || b))
+        : ["US", "GB", "CA", "DE", "FR", "NG", "IN", "AE", "ZA"];
+
+    const countries = regions.map((code) => ({
+      code,
+      name: displayNames.of(code) || code,
+      flag: countryCodeToFlag(code),
+    }));
+
+    setCountryOptions(countries);
+
     const region = locale.includes("-") ? locale.split("-")[1]?.toUpperCase() : "";
-    if (region && COUNTRY_OPTIONS.some((country) => country.code === region)) {
+    if (region && countries.some((country) => country.code === region)) {
       setFormData((prev) => ({ ...prev, countryCode: region }));
     }
   }, []);
 
-  const selectedCountry =
-    COUNTRY_OPTIONS.find((country) => country.code === formData.countryCode) || COUNTRY_OPTIONS[0];
-
   const budgetOptions = useMemo(() => {
-    const baseMin = roundMoney(250 * selectedCountry.usdRate);
+    const baseMin = roundMoney(250 * selectedCurrency.usdRate);
     const tier2 = roundMoney(baseMin * 2);
     const tier3 = roundMoney(baseMin * 4);
     const tier4 = roundMoney(baseMin * 8);
 
     return [
-      { value: "tier1", label: `${formatCurrency(baseMin, selectedCountry.currency)} - ${formatCurrency(tier2, selectedCountry.currency)}` },
-      { value: "tier2", label: `${formatCurrency(tier2, selectedCountry.currency)} - ${formatCurrency(tier3, selectedCountry.currency)}` },
-      { value: "tier3", label: `${formatCurrency(tier3, selectedCountry.currency)} - ${formatCurrency(tier4, selectedCountry.currency)}` },
-      { value: "tier4", label: `${formatCurrency(tier4, selectedCountry.currency)}+` },
+      { value: "tier1", label: `${formatCurrency(baseMin, selectedCurrency.currency)} - ${formatCurrency(tier2, selectedCurrency.currency)}` },
+      { value: "tier2", label: `${formatCurrency(tier2, selectedCurrency.currency)} - ${formatCurrency(tier3, selectedCurrency.currency)}` },
+      { value: "tier3", label: `${formatCurrency(tier3, selectedCurrency.currency)} - ${formatCurrency(tier4, selectedCurrency.currency)}` },
+      { value: "tier4", label: `${formatCurrency(tier4, selectedCurrency.currency)}+` },
       { value: "custom", label: "Custom" },
     ];
-  }, [selectedCountry]);
+  }, [selectedCurrency]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -93,12 +119,12 @@ export default function Contact() {
 
   function handleSubmit(event) {
     event.preventDefault();
-    const minBudget = roundMoney(250 * selectedCountry.usdRate);
+    const minBudget = roundMoney(250 * selectedCurrency.usdRate);
     const customBudgetAmount = Number(String(formData.customBudget).replace(/[^0-9.]/g, ""));
 
     if (formData.budget === "custom" && (!customBudgetAmount || customBudgetAmount < minBudget)) {
       alert(
-        `Minimum budget is ${formatCurrency(minBudget, selectedCountry.currency)} for ${selectedCountry.name}.`
+        `Minimum budget is ${formatCurrency(minBudget, selectedCurrency.currency)} for ${selectedCountry.name}.`
       );
       return;
     }
@@ -115,7 +141,7 @@ Email: ${formData.email}
 Phone: ${formData.phone || "N/A"}
 Organization: ${formData.clientType === "Organization" ? formData.fullName : "N/A"}
 Country: ${selectedCountry.name}
-Currency: ${selectedCountry.currency}
+Currency: ${selectedCurrency.currency}
 Project Type: ${formData.projectType}
 Budget: ${budgetValue || "Not specified"}
 Timeline: ${formData.timeline}
@@ -304,9 +330,9 @@ ${formData.features}`
                   required
                   className={selectClass}
                 >
-                  {COUNTRY_OPTIONS.map((country) => (
+                  {countryOptions.map((country) => (
                     <option key={country.code} value={country.code}>
-                      {country.name}
+                      {country.flag} {country.name}
                     </option>
                   ))}
                 </select>
@@ -375,7 +401,7 @@ ${formData.features}`
                   required
                   className={selectClass}
                 >
-                  <option value="">Select budget range (min {formatCurrency(roundMoney(250 * selectedCountry.usdRate), selectedCountry.currency)})</option>
+                  <option value="">Select budget range (min {formatCurrency(roundMoney(250 * selectedCurrency.usdRate), selectedCurrency.currency)})</option>
                   {budgetOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -416,7 +442,7 @@ ${formData.features}`
                 onChange={handleChange}
                 required
                 inputMode="decimal"
-                placeholder={`Enter amount (minimum ${formatCurrency(roundMoney(250 * selectedCountry.usdRate), selectedCountry.currency)})`}
+                placeholder={`Enter amount (minimum ${formatCurrency(roundMoney(250 * selectedCurrency.usdRate), selectedCurrency.currency)})`}
                 className={inputClass}
               />
             </label>
