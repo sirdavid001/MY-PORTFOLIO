@@ -11,13 +11,18 @@ const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]
 
 export default function App() {
   const hostname = typeof window !== "undefined" ? window.location.hostname : "";
-  const subdomain = hostname.split(".")[0]?.toLowerCase();
-  const isBusinessSubdomain = BUSINESS_SUBDOMAINS.has(subdomain);
+  const hostLabels = hostname
+    .split(".")
+    .map((value) => value.toLowerCase().trim())
+    .filter(Boolean);
+  const isBusinessSubdomain = hostLabels.some((label) => BUSINESS_SUBDOMAINS.has(label));
 
   if (isBusinessSubdomain) {
     return (
       <Routes>
         <Route path="/admin" element={<AdminApp />} />
+        <Route path="/" element={<ShopApp />} />
+        <Route path="/cart" element={<ShopApp />} />
         <Route path="*" element={<ShopApp />} />
       </Routes>
     );
@@ -31,6 +36,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="*" element={<Home />} />
         </Routes>
       </main>
       <Footer />
