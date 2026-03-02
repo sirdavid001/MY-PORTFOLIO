@@ -94,6 +94,9 @@ export default function ShopApp() {
   const [pricingMode, setPricingMode] = useState("auto");
   const [manualCountryCode, setManualCountryCode] = useState("US");
   const [manualCurrency, setManualCurrency] = useState("USD");
+  const [resolvedPaystackPublicKey, setResolvedPaystackPublicKey] = useState(
+    () => import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ""
+  );
 
   useEffect(() => {
     setCart(loadFromStorage("sirdavidshop:cart", {}));
@@ -125,6 +128,31 @@ export default function ShopApp() {
       })
     );
   }, [pricingMode, manualCountryCode, manualCurrency]);
+
+  useEffect(() => {
+    if (resolvedPaystackPublicKey) return undefined;
+
+    let cancelled = false;
+
+    async function fetchPaystackPublicKey() {
+      try {
+        const response = await fetch("/api/payments/paystack/public-key");
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!cancelled && data?.ok && typeof data.key === "string" && data.key.trim()) {
+          setResolvedPaystackPublicKey(data.key.trim());
+        }
+      } catch {
+        // Keep UI behavior unchanged; checkout will show missing-key message when needed.
+      }
+    }
+
+    fetchPaystackPublicKey();
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedPaystackPublicKey]);
 
   async function sendOrderNotification(order) {
     setSendStatus({ state: "sending", message: "Sending order notification..." });
@@ -185,7 +213,6 @@ export default function ShopApp() {
 
       persistOrder(paidOrder);
       setLastOrder(paidOrder);
-      setView("success");
       clearCart();
       setPaymentStatus({ state: "paid", message: "Payment verified successfully." });
       await sendOrderNotification(paidOrder);
@@ -231,7 +258,7 @@ export default function ShopApp() {
       return undefined;
     }
 
-    const paystackPublicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+    const paystackPublicKey = resolvedPaystackPublicKey;
     if (!paystackPublicKey) {
       setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
       return undefined;
@@ -326,7 +353,7 @@ export default function ShopApp() {
       const container = document.getElementById("paystack-apple-pay");
       if (container) container.innerHTML = "";
     };
-  }, [activePricing.currency, cartItems.length, checkout.email, checkout.paymentMethod, total]);
+  }, [activePricing.currency, cartItems.length, checkout.email, checkout.paymentMethod, resolvedPaystackPublicKey, total]);
 
   const activePricing = useMemo(() => {
     if (pricingMode === "auto") {
@@ -501,7 +528,7 @@ export default function ShopApp() {
           : createOrderDraft("pending_confirmation");
 
     if (checkout.paymentMethod === "Card payment") {
-      const paystackPublicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+      const paystackPublicKey = resolvedPaystackPublicKey;
       if (!paystackPublicKey) {
         setCheckoutErrors((prev) => ({
           ...prev,
@@ -553,7 +580,6 @@ export default function ShopApp() {
 
     setLastOrder(order);
     clearCart();
-    setView("success");
     await sendOrderNotification(order);
   }
 
@@ -577,17 +603,17 @@ export default function ShopApp() {
             </span>
             <button
               type="button"
-              onClick={() => setView(view === "checkout" ? "catalog" : "checkout")}
+              onClick={() => navigate(isCartPage ? "/" : "/cart")}
               className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
             >
-              Cart ({cartCount})
+              {isCartPage ? "Back To Store" : `Cart (${cartCount})`}
             </button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {view === "success" && lastOrder ? (
+        {lastOrder ? (
           <section className="mx-auto max-w-3xl rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
               {lastOrder.paymentStatus === "awaiting_transfer"
@@ -648,10 +674,10 @@ export default function ShopApp() {
               <button
                 type="button"
                 onClick={() => {
-                  setView("catalog");
                   setLastOrder(null);
                   setSendStatus({ state: "idle", message: "" });
                   setPaymentStatus({ state: "idle", message: "" });
+                  navigate("/");
                 }}
                 className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
@@ -660,7 +686,8 @@ export default function ShopApp() {
             </div>
           </section>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+          <div className={isCartPage ? "mx-auto max-w-3xl" : "grid gap-6 lg:grid-cols-[1.6fr_1fr]"}>
+            {!isCartPage && (
             <section>
               <section className="overflow-hidden rounded-3xl bg-slate-900 px-6 py-10 text-white sm:px-10">
                 <p className="text-sm uppercase tracking-[0.2em] text-cyan-300">Trusted Devices</p>
@@ -784,8 +811,9 @@ export default function ShopApp() {
                 ))}
               </section>
             </section>
+            )}
 
-            <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-2xl font-semibold text-slate-900">Your Cart</h2>
                 {cartItems.length > 0 && (
@@ -849,12 +877,12 @@ export default function ShopApp() {
                 </div>
               </div>
 
-              {view === "checkout" || cartItems.length > 0 ? (
+              {isCartPage || cartItems.length > 0 ? (
                 <form onSubmit={handlePlaceOrder} className="mt-6 space-y-3 border-t border-slate-200 pt-4">
                   <h3 className="font-display text-xl font-semibold text-slate-900">Checkout</h3>
 
                   {checkoutErrors.cart && <p className="text-sm text-rose-600">{checkoutErrors.cart}</p>}
-                  {paymentStatus.state !== "idle" && view !== "success" && (
+                  {paymentStatus.state !== "idle" && (
                     <p className={`text-sm ${paymentStatus.state === "error" ? "text-rose-600" : "text-blue-700"}`}>
                       {paymentStatus.message}
                     </p>
