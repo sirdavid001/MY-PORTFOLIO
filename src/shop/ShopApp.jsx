@@ -1,24 +1,236 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
 import { products } from "./products";
 
 const categories = ["All", "Phones", "Laptops", "Accessories", "Gaming", "Wearables"];
+const sortOptions = [
+  { value: "featured", label: "Featured" },
+  { value: "price-low", label: "Price: Low to High" },
+  { value: "price-high", label: "Price: High to Low" },
+  { value: "name-asc", label: "Name: A-Z" },
+];
+
+const inputClass =
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
+
+const defaultCheckout = {
+  fullName: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  country: "",
+  paymentMethod: "Pay on delivery",
+  notes: "",
+};
+
+function loadFromStorage(key, fallback) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function toPrice(basePriceUsd, pricingContext) {
+  return basePriceUsd * pricingContext.exchangeRate * pricingContext.factor;
+}
 
 export default function ShopApp() {
   const pricingContext = usePricingContext();
   const [activeCategory, setActiveCategory] = useState("All");
-  const [cartCount, setCartCount] = useState(0);
+  const [conditionFilter, setConditionFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("featured");
+  const [cart, setCart] = useState({});
+  const [view, setView] = useState("catalog");
+  const [checkout, setCheckout] = useState(defaultCheckout);
+  const [checkoutErrors, setCheckoutErrors] = useState({});
+  const [lastOrder, setLastOrder] = useState(null);
+  const [sendStatus, setSendStatus] = useState({ state: "idle", message: "" });
+
+  useEffect(() => {
+    setCart(loadFromStorage("sirdavidshop:cart", {}));
+    const savedCheckout = loadFromStorage("sirdavidshop:checkout", null);
+    if (savedCheckout) setCheckout({ ...defaultCheckout, ...savedCheckout });
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("sirdavidshop:cart", JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    window.localStorage.setItem("sirdavidshop:checkout", JSON.stringify(checkout));
+  }, [checkout]);
 
   const visibleProducts = useMemo(() => {
-    if (activeCategory === "All") return products;
-    return products.filter((product) => product.category === activeCategory);
-  }, [activeCategory]);
+    const query = search.trim().toLowerCase();
+    const filtered = products.filter((product) => {
+      const categoryMatch = activeCategory === "All" || product.category === activeCategory;
+      const conditionMatch =
+        conditionFilter === "All" ||
+        (conditionFilter === "New" ? product.condition.startsWith("New") : product.condition.startsWith("Used"));
+      const searchMatch =
+        query.length === 0 ||
+        product.name.toLowerCase().includes(query) ||
+        product.brand.toLowerCase().includes(query) ||
+        product.details.toLowerCase().includes(query);
+      return categoryMatch && conditionMatch && searchMatch;
+    });
 
-  const displayPrice = (basePriceUsd) => {
-    const localized = basePriceUsd * pricingContext.exchangeRate * pricingContext.factor;
-    return formatMoney(localized, pricingContext.currency);
-  };
+    if (sortBy === "price-low") {
+      return [...filtered].sort(
+        (a, b) => toPrice(a.basePriceUsd, pricingContext) - toPrice(b.basePriceUsd, pricingContext)
+      );
+    }
+    if (sortBy === "price-high") {
+      return [...filtered].sort(
+        (a, b) => toPrice(b.basePriceUsd, pricingContext) - toPrice(a.basePriceUsd, pricingContext)
+      );
+    }
+    if (sortBy === "name-asc") {
+      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return filtered;
+  }, [activeCategory, conditionFilter, search, sortBy, pricingContext]);
+
+  const cartItems = useMemo(() => {
+    return Object.entries(cart)
+      .map(([productId, quantity]) => {
+        const product = products.find((item) => item.id === productId);
+        if (!product || quantity <= 0) return null;
+        const unitPrice = toPrice(product.basePriceUsd, pricingContext);
+        return {
+          ...product,
+          quantity,
+          unitPrice,
+          totalPrice: unitPrice * quantity,
+        };
+      })
+      .filter(Boolean);
+  }, [cart, pricingContext]);
+
+  const cartCount = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
+    [cartItems]
+  );
+
+  const subtotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.totalPrice, 0),
+    [cartItems]
+  );
+
+  const shipping = subtotal > 0 ? Math.max(15 * pricingContext.exchangeRate, subtotal * 0.03) : 0;
+  const total = subtotal + shipping;
+
+  function addToCart(productId) {
+    setCart((prev) => {
+      const current = prev[productId] || 0;
+      const product = products.find((item) => item.id === productId);
+      const max = product?.stock || 20;
+      return { ...prev, [productId]: Math.min(current + 1, max) };
+    });
+  }
+
+  function updateQuantity(productId, nextQuantity) {
+    const product = products.find((item) => item.id === productId);
+    const max = product?.stock || 20;
+    const clamped = Math.max(0, Math.min(nextQuantity, max));
+    setCart((prev) => {
+      if (clamped === 0) {
+        const copy = { ...prev };
+        delete copy[productId];
+        return copy;
+      }
+      return { ...prev, [productId]: clamped };
+    });
+  }
+
+  function clearCart() {
+    setCart({});
+  }
+
+  function validateCheckout() {
+    const errors = {};
+    if (!checkout.fullName.trim()) errors.fullName = "Full name is required.";
+    if (!checkout.email.trim() || !/^\S+@\S+\.\S+$/.test(checkout.email)) {
+      errors.email = "Enter a valid email address.";
+    }
+    if (!checkout.phone.trim()) errors.phone = "Phone number is required.";
+    if (!checkout.address.trim()) errors.address = "Address is required.";
+    if (!checkout.city.trim()) errors.city = "City is required.";
+    if (!checkout.country.trim()) errors.country = "Country is required.";
+    if (cartItems.length === 0) errors.cart = "Cart is empty.";
+    setCheckoutErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  async function handlePlaceOrder(event) {
+    event.preventDefault();
+    if (!validateCheckout()) return;
+
+    const order = {
+      reference: `SD-${Date.now().toString().slice(-8)}`,
+      createdAt: new Date().toISOString(),
+      items: cartItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
+      subtotal,
+      shipping,
+      total,
+      checkout: { ...checkout },
+      currency: pricingContext.currency,
+      countryName: pricingContext.countryName,
+    };
+
+    const existingOrders = loadFromStorage("sirdavidshop:orders", []);
+    const nextOrders = [order, ...existingOrders];
+    window.localStorage.setItem("sirdavidshop:orders", JSON.stringify(nextOrders));
+
+    setLastOrder(order);
+    clearCart();
+    setView("success");
+
+    setSendStatus({ state: "sending", message: "Sending order notification..." });
+    try {
+      const response = await fetch("/api/send-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setSendStatus({
+          state: "error",
+          message: data?.error || "Order created, but email notification failed.",
+        });
+        return;
+      }
+
+      setSendStatus({
+        state: "sent",
+        message: "Order notification sent successfully.",
+      });
+    } catch {
+      setSendStatus({
+        state: "error",
+        message: "Order created, but notification endpoint is unreachable.",
+      });
+    }
+  }
+
+  function handleCheckoutFieldChange(event) {
+    const { name, value } = event.target;
+    setCheckout((prev) => ({ ...prev, [name]: value }));
+    setCheckoutErrors((prev) => ({ ...prev, [name]: undefined, cart: undefined }));
+  }
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-slate-900">
@@ -26,77 +238,306 @@ export default function ShopApp() {
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div>
             <p className="font-display text-2xl font-bold tracking-tight text-slate-900">Sirdavid Gadgets</p>
-            <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Store</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Storefront</p>
           </div>
           <div className="inline-flex items-center gap-3">
             <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 sm:inline-flex">
               {pricingContext.countryName} ({pricingContext.currency})
             </span>
-            <span className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+            <button
+              type="button"
+              onClick={() => setView(view === "checkout" ? "catalog" : "checkout")}
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            >
               Cart ({cartCount})
-            </span>
+            </button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <section className="overflow-hidden rounded-3xl bg-slate-900 px-6 py-10 text-white sm:px-10">
-          <p className="text-sm uppercase tracking-[0.2em] text-cyan-300">Trusted Devices</p>
-          <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
-            Buy New and Used Gadgets With Clear Pricing
-          </h1>
-          <p className="mt-4 max-w-3xl text-slate-200 sm:text-lg">
-            Every item is verified, condition-checked, and listed with market-aware pricing for your location.
-          </p>
-          <a
-            href="mailto:itssirdavid@gmail.com?subject=Store%20Order%20Request"
-            className="mt-7 inline-flex rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-300"
-          >
-            Start an Order
-          </a>
-        </section>
-
-        <section className="mt-10">
-          <div className="flex flex-wrap items-center gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setActiveCategory(category)}
-                className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                  activeCategory === category
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+        {view === "success" && lastOrder ? (
+          <section className="mx-auto max-w-3xl rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Order Placed</p>
+            <h1 className="mt-3 font-display text-4xl font-bold text-slate-900">Thank you for your order</h1>
+            <p className="mt-3 text-slate-600">
+              Reference <span className="font-semibold text-slate-900">{lastOrder.reference}</span> was created
+              successfully.
+            </p>
+            <p className="mt-2 text-slate-600">
+              Total: <span className="font-semibold text-slate-900">{formatMoney(lastOrder.total, lastOrder.currency)}</span>
+            </p>
+            {sendStatus.state !== "idle" && (
+              <p
+                className={`mt-3 text-sm ${
+                  sendStatus.state === "error" ? "text-rose-600" : "text-emerald-700"
                 }`}
               >
-                {category}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visibleProducts.map((product) => (
-            <article key={product.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h2>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                  {product.category}
-                </span>
-              </div>
-              <p className="mt-2 text-sm font-semibold text-blue-700">{product.condition}</p>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
-              <p className="mt-4 text-2xl font-bold text-slate-900">{displayPrice(product.basePriceUsd)}</p>
+                {sendStatus.message}
+              </p>
+            )}
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button
                 type="button"
-                onClick={() => setCartCount((count) => count + 1)}
-                className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                onClick={() => {
+                  setView("catalog");
+                  setLastOrder(null);
+                  setSendStatus({ state: "idle", message: "" });
+                }}
+                className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
-                Add to Cart
+                Continue Shopping
               </button>
-            </article>
-          ))}
-        </section>
+            </div>
+          </section>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+            <section>
+              <section className="overflow-hidden rounded-3xl bg-slate-900 px-6 py-10 text-white sm:px-10">
+                <p className="text-sm uppercase tracking-[0.2em] text-cyan-300">Trusted Devices</p>
+                <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
+                  New and Used Gadgets With Real Checkout Flow
+                </h1>
+                <p className="mt-4 max-w-3xl text-slate-200 sm:text-lg">
+                  Search, filter, add to cart, and place orders. Pricing is adjusted for each visitor location.
+                </p>
+              </section>
+
+              <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search products..."
+                    className={inputClass}
+                  />
+                  <select
+                    value={activeCategory}
+                    onChange={(event) => setActiveCategory(event.target.value)}
+                    className={inputClass}
+                  >
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={conditionFilter}
+                    onChange={(event) => setConditionFilter(event.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="All">All Conditions</option>
+                    <option value="New">New</option>
+                    <option value="Used">Used</option>
+                  </select>
+                  <select
+                    value={sortBy}
+                    onChange={(event) => setSortBy(event.target.value)}
+                    className={inputClass}
+                  >
+                    {sortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </section>
+
+              <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {visibleProducts.map((product) => (
+                  <article key={product.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <img src={product.image} alt={product.name} className="h-44 w-full object-cover" />
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-2">
+                        <h2 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h2>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                          {product.category}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm font-medium text-slate-500">{product.brand}</p>
+                      <p className="mt-2 text-sm font-semibold text-blue-700">{product.condition}</p>
+                      <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
+                      <div className="mt-4 flex items-center justify-between">
+                        <p className="text-2xl font-bold text-slate-900">
+                          {formatMoney(toPrice(product.basePriceUsd, pricingContext), pricingContext.currency)}
+                        </p>
+                        <p className="text-xs font-medium text-slate-500">{product.stock} in stock</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addToCart(product.id)}
+                        className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </section>
+            </section>
+
+            <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-2xl font-semibold text-slate-900">Your Cart</h2>
+                {cartItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearCart}
+                    className="text-sm font-semibold text-rose-600 hover:text-rose-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {cartItems.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-600">No items yet. Add products to start checkout.</p>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-slate-200 p-3">
+                      <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                      <p className="mt-1 text-xs text-slate-500">{formatMoney(item.unitPrice, pricingContext.currency)} each</p>
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            className="h-7 w-7 rounded-md border border-slate-300 text-slate-700"
+                          >
+                            -
+                          </button>
+                          <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            className="h-7 w-7 rounded-md border border-slate-300 text-slate-700"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {formatMoney(item.totalPrice, pricingContext.currency)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 space-y-2 border-t border-slate-200 pt-4 text-sm">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Subtotal</span>
+                  <span>{formatMoney(subtotal, pricingContext.currency)}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Shipping</span>
+                  <span>{formatMoney(shipping, pricingContext.currency)}</span>
+                </div>
+                <div className="flex items-center justify-between text-base font-bold text-slate-900">
+                  <span>Total</span>
+                  <span>{formatMoney(total, pricingContext.currency)}</span>
+                </div>
+              </div>
+
+              {view === "checkout" || cartItems.length > 0 ? (
+                <form onSubmit={handlePlaceOrder} className="mt-6 space-y-3 border-t border-slate-200 pt-4">
+                  <h3 className="font-display text-xl font-semibold text-slate-900">Checkout</h3>
+
+                  {checkoutErrors.cart && <p className="text-sm text-rose-600">{checkoutErrors.cart}</p>}
+
+                  <input
+                    name="fullName"
+                    value={checkout.fullName}
+                    onChange={handleCheckoutFieldChange}
+                    placeholder="Full name"
+                    className={inputClass}
+                  />
+                  {checkoutErrors.fullName && <p className="text-xs text-rose-600">{checkoutErrors.fullName}</p>}
+
+                  <input
+                    name="email"
+                    value={checkout.email}
+                    onChange={handleCheckoutFieldChange}
+                    placeholder="Email"
+                    className={inputClass}
+                  />
+                  {checkoutErrors.email && <p className="text-xs text-rose-600">{checkoutErrors.email}</p>}
+
+                  <input
+                    name="phone"
+                    value={checkout.phone}
+                    onChange={handleCheckoutFieldChange}
+                    placeholder="Phone"
+                    className={inputClass}
+                  />
+                  {checkoutErrors.phone && <p className="text-xs text-rose-600">{checkoutErrors.phone}</p>}
+
+                  <input
+                    name="address"
+                    value={checkout.address}
+                    onChange={handleCheckoutFieldChange}
+                    placeholder="Address"
+                    className={inputClass}
+                  />
+                  {checkoutErrors.address && <p className="text-xs text-rose-600">{checkoutErrors.address}</p>}
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <input
+                        name="city"
+                        value={checkout.city}
+                        onChange={handleCheckoutFieldChange}
+                        placeholder="City"
+                        className={inputClass}
+                      />
+                      {checkoutErrors.city && <p className="text-xs text-rose-600">{checkoutErrors.city}</p>}
+                    </div>
+                    <div>
+                      <input
+                        name="country"
+                        value={checkout.country}
+                        onChange={handleCheckoutFieldChange}
+                        placeholder="Country"
+                        className={inputClass}
+                      />
+                      {checkoutErrors.country && <p className="text-xs text-rose-600">{checkoutErrors.country}</p>}
+                    </div>
+                  </div>
+
+                  <select
+                    name="paymentMethod"
+                    value={checkout.paymentMethod}
+                    onChange={handleCheckoutFieldChange}
+                    className={inputClass}
+                  >
+                    <option>Pay on delivery</option>
+                    <option>Bank transfer</option>
+                    <option>Card payment</option>
+                  </select>
+
+                  <textarea
+                    name="notes"
+                    value={checkout.notes}
+                    onChange={handleCheckoutFieldChange}
+                    placeholder="Order notes (optional)"
+                    rows={3}
+                    className={inputClass}
+                  />
+
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-400"
+                  >
+                    Place Order
+                  </button>
+                </form>
+              ) : null}
+            </aside>
+          </div>
+        )}
       </main>
     </div>
   );
