@@ -227,6 +227,117 @@ export default function ShopApp() {
     }
   }
 
+  const activePricing = useMemo(() => {
+    if (pricingMode === "auto") {
+      return {
+        countryCode: pricingContext.countryCode,
+        countryName: pricingContext.countryName,
+        currency: pricingContext.currency,
+        exchangeRate: pricingContext.exchangeRate,
+        factor: pricingContext.factor,
+      };
+    }
+
+    const countryName =
+      pricingCountries.find((country) => country.code === manualCountryCode)?.name || manualCountryCode;
+    const currency = manualCurrency || getCurrencyForCountry(manualCountryCode, pricingContext.currency);
+    const exchangeRate = pricingContext.rates?.[currency] || (currency === "USD" ? 1 : pricingContext.exchangeRate);
+    const factor = getLocationFactor(manualCountryCode);
+
+    return {
+      countryCode: manualCountryCode,
+      countryName,
+      currency,
+      exchangeRate: exchangeRate || 1,
+      factor,
+    };
+  }, [manualCountryCode, manualCurrency, pricingContext, pricingMode]);
+
+  const currencyOptions = useMemo(() => {
+    const baseline = ["USD", "NGN", "GBP", "EUR", "CAD", "AED", "INR", "KES", "GHS", "ZAR"];
+    return Array.from(new Set([...baseline, pricingContext.currency, manualCurrency].filter(Boolean)));
+  }, [manualCurrency, pricingContext.currency]);
+
+  const visibleProducts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const filtered = products.filter((product) => {
+      const categoryMatch = activeCategory === "All" || product.category === activeCategory;
+      const conditionMatch =
+        conditionFilter === "All" ||
+        (conditionFilter === "New" ? product.condition.startsWith("New") : product.condition.startsWith("Used"));
+      const searchMatch =
+        query.length === 0 ||
+        product.name.toLowerCase().includes(query) ||
+        product.brand.toLowerCase().includes(query) ||
+        product.details.toLowerCase().includes(query);
+      return categoryMatch && conditionMatch && searchMatch;
+    });
+
+    if (sortBy === "price-low") {
+      return [...filtered].sort(
+        (a, b) => toPrice(a.basePriceUsd, activePricing) - toPrice(b.basePriceUsd, activePricing)
+      );
+    }
+    if (sortBy === "price-high") {
+      return [...filtered].sort(
+        (a, b) => toPrice(b.basePriceUsd, activePricing) - toPrice(a.basePriceUsd, activePricing)
+      );
+    }
+    if (sortBy === "name-asc") {
+      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return filtered;
+  }, [activeCategory, activePricing, conditionFilter, search, sortBy]);
+
+  const cartItems = useMemo(() => {
+    return Object.entries(cart)
+      .map(([productId, quantity]) => {
+        const product = products.find((item) => item.id === productId);
+        if (!product || quantity <= 0) return null;
+        const unitPrice = toPrice(product.basePriceUsd, activePricing);
+        return {
+          ...product,
+          quantity,
+          unitPrice,
+          totalPrice: unitPrice * quantity,
+        };
+      })
+      .filter(Boolean);
+  }, [activePricing, cart]);
+
+  const cartCount = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
+    [cartItems]
+  );
+
+  const subtotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.totalPrice, 0),
+    [cartItems]
+  );
+
+  const shipping = subtotal > 0 ? Math.max(15 * activePricing.exchangeRate, subtotal * 0.03) : 0;
+  const total = subtotal + shipping;
+
+  function createOrderDraft(paymentStatus = "pending_confirmation") {
+    return {
+      reference: `SD-${Date.now().toString().slice(-8)}`,
+      createdAt: new Date().toISOString(),
+      items: cartItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
+      subtotal,
+      shipping,
+      total,
+      checkout: { ...checkout },
+      currency: activePricing.currency,
+      countryName: activePricing.countryName,
+      paymentStatus,
+    };
+  }
+
   useEffect(() => {
     if (checkout.paymentMethod !== "Card payment") {
       setPaymentStatus({ state: "idle", message: "" });
@@ -355,117 +466,6 @@ export default function ShopApp() {
       if (container) container.innerHTML = "";
     };
   }, [activePricing.currency, cartItems.length, checkout.email, checkout.paymentMethod, resolvedPaystackPublicKey, total]);
-
-  const activePricing = useMemo(() => {
-    if (pricingMode === "auto") {
-      return {
-        countryCode: pricingContext.countryCode,
-        countryName: pricingContext.countryName,
-        currency: pricingContext.currency,
-        exchangeRate: pricingContext.exchangeRate,
-        factor: pricingContext.factor,
-      };
-    }
-
-    const countryName =
-      pricingCountries.find((country) => country.code === manualCountryCode)?.name || manualCountryCode;
-    const currency = manualCurrency || getCurrencyForCountry(manualCountryCode, pricingContext.currency);
-    const exchangeRate = pricingContext.rates?.[currency] || (currency === "USD" ? 1 : pricingContext.exchangeRate);
-    const factor = getLocationFactor(manualCountryCode);
-
-    return {
-      countryCode: manualCountryCode,
-      countryName,
-      currency,
-      exchangeRate: exchangeRate || 1,
-      factor,
-    };
-  }, [manualCountryCode, manualCurrency, pricingContext, pricingMode]);
-
-  const currencyOptions = useMemo(() => {
-    const baseline = ["USD", "NGN", "GBP", "EUR", "CAD", "AED", "INR", "KES", "GHS", "ZAR"];
-    return Array.from(new Set([...baseline, pricingContext.currency, manualCurrency].filter(Boolean)));
-  }, [manualCurrency, pricingContext.currency]);
-
-  const visibleProducts = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const filtered = products.filter((product) => {
-      const categoryMatch = activeCategory === "All" || product.category === activeCategory;
-      const conditionMatch =
-        conditionFilter === "All" ||
-        (conditionFilter === "New" ? product.condition.startsWith("New") : product.condition.startsWith("Used"));
-      const searchMatch =
-        query.length === 0 ||
-        product.name.toLowerCase().includes(query) ||
-        product.brand.toLowerCase().includes(query) ||
-        product.details.toLowerCase().includes(query);
-      return categoryMatch && conditionMatch && searchMatch;
-    });
-
-    if (sortBy === "price-low") {
-      return [...filtered].sort(
-        (a, b) => toPrice(a.basePriceUsd, activePricing) - toPrice(b.basePriceUsd, activePricing)
-      );
-    }
-    if (sortBy === "price-high") {
-      return [...filtered].sort(
-        (a, b) => toPrice(b.basePriceUsd, activePricing) - toPrice(a.basePriceUsd, activePricing)
-      );
-    }
-    if (sortBy === "name-asc") {
-      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-    }
-    return filtered;
-  }, [activeCategory, activePricing, conditionFilter, search, sortBy]);
-
-  const cartItems = useMemo(() => {
-    return Object.entries(cart)
-      .map(([productId, quantity]) => {
-        const product = products.find((item) => item.id === productId);
-        if (!product || quantity <= 0) return null;
-        const unitPrice = toPrice(product.basePriceUsd, activePricing);
-        return {
-          ...product,
-          quantity,
-          unitPrice,
-          totalPrice: unitPrice * quantity,
-        };
-      })
-      .filter(Boolean);
-  }, [activePricing, cart]);
-
-  const cartCount = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
-    [cartItems]
-  );
-
-  const subtotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.totalPrice, 0),
-    [cartItems]
-  );
-
-  const shipping = subtotal > 0 ? Math.max(15 * activePricing.exchangeRate, subtotal * 0.03) : 0;
-  const total = subtotal + shipping;
-
-  function createOrderDraft(paymentStatus = "pending_confirmation") {
-    return {
-      reference: `SD-${Date.now().toString().slice(-8)}`,
-      createdAt: new Date().toISOString(),
-      items: cartItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      })),
-      subtotal,
-      shipping,
-      total,
-      checkout: { ...checkout },
-      currency: activePricing.currency,
-      countryName: activePricing.countryName,
-      paymentStatus,
-    };
-  }
 
   function addToCart(productId) {
     setCart((prev) => {
