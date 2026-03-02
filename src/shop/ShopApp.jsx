@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { FaApplePay, FaWallet } from "react-icons/fa6";
 import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../lib/pricing";
 import { products } from "./products";
@@ -35,16 +36,22 @@ const defaultCheckout = {
   address: "",
   city: "",
   country: "",
-  paymentMethod: "Pay on delivery",
+  paymentMethod: "Paystack",
   notes: "",
-};
-const BANK_TRANSFER_DETAILS = {
-  bankName: "GTBank",
-  accountName: "Sirdavid Gadgets",
-  accountNumber: "0123456789",
 };
 const PAYSTACK_POPUP_SRC = "https://js.paystack.co/v2/inline.js";
 const SUPPORTED_PAYSTACK_CURRENCIES = new Set(["NGN", "USD"]);
+const PAYMENT_METHODS = [
+  {
+    value: "Apple Pay",
+    description: "Quick checkout on Safari/iOS devices.",
+  },
+  {
+    value: "Paystack",
+    description: "Cards, bank transfer, USSD, and more via Paystack.",
+  },
+];
+const ONLINE_PAYMENT_METHODS = new Set(PAYMENT_METHODS.map((method) => method.value));
 
 function loadFromStorage(key, fallback) {
   try {
@@ -102,7 +109,16 @@ export default function ShopApp() {
   useEffect(() => {
     setCart(loadFromStorage("sirdavidshop:cart", {}));
     const savedCheckout = loadFromStorage("sirdavidshop:checkout", null);
-    if (savedCheckout) setCheckout({ ...defaultCheckout, ...savedCheckout });
+    if (savedCheckout) {
+      const normalizedPaymentMethod = ONLINE_PAYMENT_METHODS.has(savedCheckout.paymentMethod)
+        ? savedCheckout.paymentMethod
+        : defaultCheckout.paymentMethod;
+      setCheckout({
+        ...defaultCheckout,
+        ...savedCheckout,
+        paymentMethod: normalizedPaymentMethod,
+      });
+    }
     const savedPricing = loadFromStorage("sirdavidshop:pricing", null);
     if (savedPricing) {
       setPricingMode(savedPricing.mode || "auto");
@@ -194,14 +210,14 @@ export default function ShopApp() {
   }
 
   async function finalizeCardPayment(order, reference) {
-    setPaymentStatus({ state: "verifying", message: "Verifying card/Apple Pay payment..." });
+    setPaymentStatus({ state: "verifying", message: "Verifying Apple Pay/Paystack payment..." });
     try {
       const response = await fetch(`/api/payments/paystack/verify?reference=${encodeURIComponent(reference)}`);
       const data = await response.json();
       if (!response.ok || !data?.ok || !data?.paid) {
         setPaymentStatus({
           state: "error",
-          message: data?.error || "Card/Apple Pay payment was not successful.",
+          message: data?.error || "Apple Pay/Paystack payment was not successful.",
         });
         return false;
       }
@@ -221,7 +237,7 @@ export default function ShopApp() {
     } catch {
       setPaymentStatus({
         state: "error",
-        message: "Unable to verify card/Apple Pay payment at the moment.",
+        message: "Unable to verify Apple Pay/Paystack payment at the moment.",
       });
       return false;
     }
@@ -339,7 +355,7 @@ export default function ShopApp() {
   }
 
   useEffect(() => {
-    if (checkout.paymentMethod !== "Card payment") {
+    if (!ONLINE_PAYMENT_METHODS.has(checkout.paymentMethod)) {
       setPaymentStatus({ state: "idle", message: "" });
       const container = document.getElementById("paystack-apple-pay");
       if (container) container.innerHTML = "";
@@ -349,7 +365,7 @@ export default function ShopApp() {
     if (!checkout.email || !/^\S+@\S+\.\S+$/.test(checkout.email)) {
       setPaymentStatus({
         state: "info",
-        message: "Enter a valid email to load Apple Pay/Card options.",
+        message: "Enter a valid email to load Apple Pay/Paystack options.",
       });
       return undefined;
     }
@@ -357,7 +373,7 @@ export default function ShopApp() {
     if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
       setPaymentStatus({
         state: "error",
-        message: "Card/Apple Pay currently supports NGN or USD only.",
+        message: "Apple Pay/Paystack currently supports NGN or USD only.",
       });
       return undefined;
     }
@@ -365,7 +381,7 @@ export default function ShopApp() {
     if (cartItems.length === 0 || total <= 0) {
       setPaymentStatus({
         state: "info",
-        message: "Add an item to cart to enable Apple Pay/Card options.",
+        message: "Add an item to cart to enable Apple Pay/Paystack options.",
       });
       return undefined;
     }
@@ -379,7 +395,7 @@ export default function ShopApp() {
     let cancelled = false;
 
     async function mountPaymentRequest() {
-      setPaymentStatus({ state: "initializing", message: "Loading Apple Pay/Card options..." });
+      setPaymentStatus({ state: "initializing", message: "Loading Apple Pay/Paystack options..." });
       try {
         const container = document.getElementById("paystack-apple-pay");
         if (container) container.innerHTML = "";
@@ -444,7 +460,7 @@ export default function ShopApp() {
             } else {
               setPaymentStatus({
                 state: "ready",
-                message: "Apple Pay unavailable here. Use More payment options.",
+                message: "Apple Pay unavailable on this device. Use Paystack checkout.",
               });
             }
           },
@@ -453,7 +469,7 @@ export default function ShopApp() {
         if (cancelled) return;
         setPaymentStatus({
           state: "error",
-          message: "Unable to initialize Apple Pay/Card options.",
+          message: "Unable to initialize Apple Pay/Paystack options.",
         });
       }
     }
@@ -513,75 +529,70 @@ export default function ShopApp() {
     event.preventDefault();
     if (!validateCheckout()) return;
 
-    if (checkout.paymentMethod === "Card payment" && !SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
+    if (!ONLINE_PAYMENT_METHODS.has(checkout.paymentMethod)) {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: "Card/Apple Pay currently supports NGN or USD only.",
+        paymentMethod: "Choose Apple Pay or Paystack.",
       }));
       return;
     }
 
-    const order =
-      checkout.paymentMethod === "Bank transfer"
-        ? createOrderDraft("awaiting_transfer")
-        : checkout.paymentMethod === "Card payment"
-          ? createOrderDraft("pending_gateway")
-          : createOrderDraft("pending_confirmation");
-
-    if (checkout.paymentMethod === "Card payment") {
-      const paystackPublicKey = resolvedPaystackPublicKey;
-      if (!paystackPublicKey) {
-        setCheckoutErrors((prev) => ({
-          ...prev,
-          paymentMethod: "Card/Apple Pay is not configured. Missing public key.",
-        }));
-        setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
-        return;
-      }
-
-      setPaymentStatus({ state: "initializing", message: "Opening Paystack checkout..." });
-      try {
-        const PaystackPop = await loadPaystackScript();
-        if (!PaystackPop) {
-          setPaymentStatus({ state: "error", message: "Unable to initialize Paystack popup." });
-          return;
-        }
-
-        const paymentReference = `PS-${order.reference}-${Date.now()}`;
-        const popup = new PaystackPop();
-        await popup.checkout({
-          key: paystackPublicKey,
-          email: order.checkout.email,
-          amount: Math.round(order.total * 100),
-          currency: order.currency || "NGN",
-          ref: paymentReference,
-          metadata: {
-            order_reference: order.reference,
-            customer_name: order.checkout.fullName || "",
-          },
-          onSuccess: async (transaction) => {
-            await finalizeCardPayment(order, transaction?.reference || paymentReference);
-          },
-          onCancel: () => {
-            setPaymentStatus({ state: "error", message: "Payment popup was closed before completion." });
-          },
-        });
-        return;
-      } catch {
-        setCheckoutErrors((prev) => ({
-          ...prev,
-          paymentMethod: "Unable to initialize card/Apple Pay payment.",
-        }));
-        setPaymentStatus({ state: "error", message: "Unable to initialize card/Apple Pay payment." });
-        return;
-      }
+    if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
+      setCheckoutErrors((prev) => ({
+        ...prev,
+        paymentMethod: "Apple Pay/Paystack currently supports NGN or USD only.",
+      }));
+      return;
     }
 
-    persistOrder(order);
+    const order = createOrderDraft("pending_gateway");
+    const paystackPublicKey = resolvedPaystackPublicKey;
+    if (!paystackPublicKey) {
+      setCheckoutErrors((prev) => ({
+        ...prev,
+        paymentMethod: "Apple Pay/Paystack is not configured. Missing public key.",
+      }));
+      setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
+      return;
+    }
 
-    setLastOrder(order);
-    clearCart();
-    await sendOrderNotification(order);
+    setPaymentStatus({ state: "initializing", message: "Opening Paystack checkout..." });
+    try {
+      const PaystackPop = await loadPaystackScript();
+      if (!PaystackPop) {
+        setPaymentStatus({ state: "error", message: "Unable to initialize Paystack popup." });
+        return;
+      }
+
+      const paymentReference = `PS-${order.reference}-${Date.now()}`;
+      const popup = new PaystackPop();
+      await popup.checkout({
+        key: paystackPublicKey,
+        email: order.checkout.email,
+        amount: Math.round(order.total * 100),
+        currency: order.currency || "NGN",
+        ref: paymentReference,
+        metadata: {
+          order_reference: order.reference,
+          customer_name: order.checkout.fullName || "",
+          payment_method: order.checkout.paymentMethod || "Paystack",
+        },
+        onSuccess: async (transaction) => {
+          await finalizeCardPayment(order, transaction?.reference || paymentReference);
+        },
+        onCancel: () => {
+          setPaymentStatus({ state: "error", message: "Payment popup was closed before completion." });
+        },
+      });
+      return;
+    } catch {
+      setCheckoutErrors((prev) => ({
+        ...prev,
+        paymentMethod: "Unable to initialize Apple Pay/Paystack payment.",
+      }));
+      setPaymentStatus({ state: "error", message: "Unable to initialize Apple Pay/Paystack payment." });
+      return;
+    }
   }
 
   function handleCheckoutFieldChange(event) {
@@ -627,18 +638,10 @@ export default function ShopApp() {
         {lastOrder ? (
           <section className="mx-auto max-w-3xl rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              {lastOrder.paymentStatus === "awaiting_transfer"
-                ? "Awaiting Payment"
-                : lastOrder.paymentStatus === "paid"
-                  ? "Payment Successful"
-                  : "Order Placed"}
+              {lastOrder.paymentStatus === "paid" ? "Payment Successful" : "Order Placed"}
             </p>
             <h1 className="mt-3 font-display text-4xl font-bold text-slate-900">
-              {lastOrder.paymentStatus === "awaiting_transfer"
-                ? "Complete Your Bank Transfer"
-                : lastOrder.paymentStatus === "paid"
-                  ? "Payment Confirmed"
-                : "Thank you for your order"}
+              {lastOrder.paymentStatus === "paid" ? "Payment Confirmed" : "Thank you for your order"}
             </h1>
             <p className="mt-3 text-slate-600">
               Reference <span className="font-semibold text-slate-900">{lastOrder.reference}</span> was created
@@ -647,20 +650,9 @@ export default function ShopApp() {
             <p className="mt-2 text-slate-600">
               Total: <span className="font-semibold text-slate-900">{formatMoney(lastOrder.total, lastOrder.currency)}</span>
             </p>
-            {lastOrder.checkout.paymentMethod === "Bank transfer" && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left text-sm text-amber-900">
-                <p className="font-semibold">Bank Transfer Details</p>
-                <p className="mt-1">Bank: {BANK_TRANSFER_DETAILS.bankName}</p>
-                <p>Account Name: {BANK_TRANSFER_DETAILS.accountName}</p>
-                <p>Account Number: {BANK_TRANSFER_DETAILS.accountNumber}</p>
-                <p className="mt-2">
-                  Use reference <span className="font-semibold">{lastOrder.reference}</span> in your transfer note.
-                </p>
-              </div>
-            )}
-            {lastOrder.checkout.paymentMethod === "Card payment" && (
+            {ONLINE_PAYMENT_METHODS.has(lastOrder.checkout.paymentMethod) && (
               <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-left text-sm text-blue-900">
-                <p className="font-semibold">Card/Apple Pay Completed</p>
+                <p className="font-semibold">{lastOrder.checkout.paymentMethod} Completed</p>
                 <p className="mt-1">
                   Paystack verified this payment for reference{" "}
                   <span className="font-semibold">{lastOrder.paymentReference || lastOrder.reference}</span>.
@@ -958,34 +950,74 @@ export default function ShopApp() {
                     </div>
                   </div>
 
-                  <select
-                    name="paymentMethod"
-                    value={checkout.paymentMethod}
-                    onChange={handleCheckoutFieldChange}
-                    className={inputClass}
-                  >
-                    <option>Pay on delivery</option>
-                    <option>Bank transfer</option>
-                    <option>Card payment</option>
-                  </select>
-                  {checkout.paymentMethod === "Card payment" && (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-xs font-semibold text-slate-700">Apple Pay / Card Quick Pay</p>
-                      <div id="paystack-apple-pay" className="mt-2" />
-                      <button
-                        id="paystack-other-channels"
-                        type="button"
-                        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                      >
-                        More payment options
-                      </button>
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">Payment Method</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {PAYMENT_METHODS.map((method) => {
+                        const selected = checkout.paymentMethod === method.value;
+                        return (
+                          <button
+                            key={method.value}
+                            type="button"
+                            onClick={() => {
+                              setCheckout((prev) => ({ ...prev, paymentMethod: method.value }));
+                              setCheckoutErrors((prev) => ({ ...prev, paymentMethod: undefined }));
+                            }}
+                            className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${
+                              selected
+                                ? "border-cyan-500 bg-cyan-50/70 shadow-sm"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                            }`}
+                          >
+                            <span
+                              className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${
+                                method.value === "Apple Pay" ? "bg-slate-900 text-white" : "bg-emerald-600 text-white"
+                              }`}
+                            >
+                              {method.value === "Apple Pay" ? (
+                                <FaApplePay className="text-lg" />
+                              ) : (
+                                <FaWallet className="text-sm" />
+                              )}
+                            </span>
+                            <span className="flex-1">
+                              <span className="block text-sm font-semibold text-slate-900">{method.value}</span>
+                              <span className="mt-0.5 block text-xs text-slate-500">{method.description}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-slate-700">Apple Pay / Paystack Quick Checkout</p>
+                      <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+                        Secure
+                      </span>
+                    </div>
+                    <div id="paystack-apple-pay" className="mt-2" />
+                    <button
+                      id="paystack-other-channels"
+                      type="button"
+                      className="mt-2 flex w-full items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-3 py-2.5 text-left text-white shadow-sm transition hover:from-emerald-500 hover:to-green-500"
+                    >
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+                        <FaWallet className="text-sm" />
+                      </span>
+                      <span className="flex-1">
+                        <span className="block text-sm font-semibold">Paystack Checkout</span>
+                        <span className="block text-xs text-emerald-100">Open secure payment options</span>
+                      </span>
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">Open</span>
+                    </button>
+                  </div>
                   {checkoutErrors.paymentMethod && (
                     <p className="text-xs text-rose-600">{checkoutErrors.paymentMethod}</p>
                   )}
                   <p className="text-xs text-slate-500">
-                    Card payment uses Paystack popup. Apple Pay appears automatically on supported Safari/iOS devices.
+                    Apple Pay appears automatically on supported Safari/iOS devices. If unavailable, continue with
+                    Paystack Checkout.
                   </p>
 
                   <textarea
