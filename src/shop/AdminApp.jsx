@@ -65,7 +65,7 @@ export default function AdminApp() {
     setUpdating((prev) => ({ ...prev, [orderId]: true }));
     setError("");
     try {
-      const response = await fetch(`/api/admin/orders/${orderId}`, {
+      const response = await fetch(`/api/admin/orders?id=${encodeURIComponent(orderId)}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

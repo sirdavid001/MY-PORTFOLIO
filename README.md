@@ -16,15 +16,16 @@ npm run build
 npm run preview
 ```
 
-## Cloudflare Pages settings
+## Vercel settings
 - Framework preset: `Vite`
 - Build command: `npm run build`
 - Build output directory: `dist`
+- Install command: `npm install`
 
 ## Store email notifications (Resend)
-The e-commerce checkout calls a Cloudflare Pages Function at `POST /api/send-order`.
+The e-commerce checkout calls a Vercel API Route at `POST /api/send-order`.
 
-Set these environment variables in Cloudflare Pages Project -> Settings -> Environment variables:
+Set these variables in Vercel Project -> Settings -> Environment Variables:
 
 - `RESEND_API_KEY` = your Resend API key
 - `ORDER_RECEIVER_EMAIL` = inbox that receives order alerts (for example `itssirdavid@gmail.com`)
@@ -35,13 +36,14 @@ Security note: never put API keys in frontend code or commit them to git.
 ## Optional Supabase order persistence
 The same `/api/send-order` function can also save each order to Supabase (server-side only).
 
-Add these Cloudflare Pages environment variables:
+Add these Vercel environment variables:
 
 - `SUPABASE_URL` = your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` = service role key (server only, never expose in frontend)
 - `ADMIN_DASHBOARD_KEY` = secret key used to access `/admin`
 - `PAYSTACK_SECRET_KEY` = Paystack secret key used by server-side initialize/verify endpoints
-- `VITE_PAYSTACK_PUBLIC_KEY` = Paystack public key used by checkout popup in the browser
+- `PAYSTACK_PUBLIC_KEY` = Paystack public key served from `/api/payments/paystack/public-key`
+- `VITE_PAYSTACK_PUBLIC_KEY` = optional frontend fallback for local/dev environments
 
 ## Apple Pay notes (Paystack)
 - Enable Apple Pay in Paystack Dashboard -> Settings/Preferences.
