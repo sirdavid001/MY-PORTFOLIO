@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -19,12 +20,15 @@ export default function App() {
 
   if (isBusinessSubdomain) {
     return (
-      <Routes>
-        <Route path="/admin" element={<AdminApp />} />
-        <Route path="/" element={<ShopApp />} />
-        <Route path="/cart" element={<ShopApp />} />
-        <Route path="*" element={<ShopApp />} />
-      </Routes>
+      <>
+        <Routes>
+          <Route path="/admin" element={<AdminApp />} />
+          <Route path="/" element={<ShopApp />} />
+          <Route path="/cart" element={<ShopApp />} />
+          <Route path="*" element={<ShopApp />} />
+        </Routes>
+        <SpeedInsights />
+      </>
     );
   }
 
@@ -40,6 +44,7 @@ export default function App() {
         </Routes>
       </main>
       <Footer />
+      <SpeedInsights />
     </div>
   );
 }
