@@ -39,6 +39,16 @@ Add these Cloudflare Pages environment variables:
 
 - `SUPABASE_URL` = your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` = service role key (server only, never expose in frontend)
+- `ADMIN_DASHBOARD_KEY` = secret key used to access `/admin`
+- `PAYSTACK_SECRET_KEY` = Paystack secret key used by server-side initialize/verify endpoints
+- `VITE_PAYSTACK_PUBLIC_KEY` = Paystack public key used by checkout popup in the browser
+
+## Apple Pay notes (Paystack)
+- Enable Apple Pay in Paystack Dashboard -> Settings/Preferences.
+- Register and verify your store domain/subdomain in Paystack Apple Pay settings.
+- Replace `public/.well-known/apple-developer-merchantid-domain-association` with the exact verification file from Paystack.
+- Ensure the file is reachable at:
+  `https://your-domain/.well-known/apple-developer-merchantid-domain-association`
 
 Create this table in Supabase SQL editor:
 

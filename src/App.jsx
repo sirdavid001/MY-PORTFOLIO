@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Projects from "./pages/Projects";
 import Contact from "./pages/Contact";
 import ShopApp from "./shop/ShopApp";
+import AdminApp from "./shop/AdminApp";
 
 const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]);
 
@@ -14,7 +15,12 @@ export default function App() {
   const isBusinessSubdomain = BUSINESS_SUBDOMAINS.has(subdomain);
 
   if (isBusinessSubdomain) {
-    return <ShopApp />;
+    return (
+      <Routes>
+        <Route path="/admin" element={<AdminApp />} />
+        <Route path="*" element={<ShopApp />} />
+      </Routes>
+    );
   }
 
   return (

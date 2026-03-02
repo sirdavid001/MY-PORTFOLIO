@@ -37,6 +37,12 @@ const defaultCheckout = {
   paymentMethod: "Pay on delivery",
   notes: "",
 };
+const BANK_TRANSFER_DETAILS = {
+  bankName: "GTBank",
+  accountName: "Sirdavid Gadgets",
+  accountNumber: "0123456789",
+};
+const PAYSTACK_POPUP_SRC = "https://js.paystack.co/v2/inline.js";
 
 function loadFromStorage(key, fallback) {
   try {
@@ -52,6 +58,22 @@ function toPrice(basePriceUsd, pricingContext) {
   return basePriceUsd * pricingContext.exchangeRate * pricingContext.factor;
 }
 
+function loadPaystackScript() {
+  return new Promise((resolve, reject) => {
+    if (window.PaystackPop) {
+      resolve(window.PaystackPop);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = PAYSTACK_POPUP_SRC;
+    script.async = true;
+    script.onload = () => resolve(window.PaystackPop);
+    script.onerror = () => reject(new Error("Unable to load Paystack script."));
+    document.body.appendChild(script);
+  });
+}
+
 export default function ShopApp() {
   const pricingContext = usePricingContext();
   const [activeCategory, setActiveCategory] = useState("All");
@@ -64,6 +86,7 @@ export default function ShopApp() {
   const [checkoutErrors, setCheckoutErrors] = useState({});
   const [lastOrder, setLastOrder] = useState(null);
   const [sendStatus, setSendStatus] = useState({ state: "idle", message: "" });
+  const [paymentStatus, setPaymentStatus] = useState({ state: "idle", message: "" });
   const [pricingMode, setPricingMode] = useState("auto");
   const [manualCountryCode, setManualCountryCode] = useState("US");
   const [manualCurrency, setManualCurrency] = useState("USD");
@@ -98,6 +121,79 @@ export default function ShopApp() {
       })
     );
   }, [pricingMode, manualCountryCode, manualCurrency]);
+
+  async function sendOrderNotification(order) {
+    setSendStatus({ state: "sending", message: "Sending order notification..." });
+    try {
+      const response = await fetch("/api/send-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        setSendStatus({
+          state: "error",
+          message: data?.error || "Order created, but email notification failed.",
+        });
+        return false;
+      }
+
+      setSendStatus({
+        state: "sent",
+        message: "Order notification sent successfully.",
+      });
+      return true;
+    } catch {
+      setSendStatus({
+        state: "error",
+        message: "Order created, but notification endpoint is unreachable.",
+      });
+      return false;
+    }
+  }
+
+  function persistOrder(order) {
+    const existingOrders = loadFromStorage("sirdavidshop:orders", []);
+    const nextOrders = [order, ...existingOrders];
+    window.localStorage.setItem("sirdavidshop:orders", JSON.stringify(nextOrders));
+  }
+
+  async function finalizeCardPayment(order, reference) {
+    setPaymentStatus({ state: "verifying", message: "Verifying card/Apple Pay payment..." });
+    try {
+      const response = await fetch(`/api/payments/paystack/verify?reference=${encodeURIComponent(reference)}`);
+      const data = await response.json();
+      if (!response.ok || !data?.ok || !data?.paid) {
+        setPaymentStatus({
+          state: "error",
+          message: data?.error || "Card/Apple Pay payment was not successful.",
+        });
+        return false;
+      }
+
+      const paidOrder = {
+        ...order,
+        paymentStatus: "paid",
+        paymentReference: data.reference || reference,
+      };
+
+      persistOrder(paidOrder);
+      setLastOrder(paidOrder);
+      setView("success");
+      clearCart();
+      setPaymentStatus({ state: "paid", message: "Payment verified successfully." });
+      await sendOrderNotification(paidOrder);
+      return true;
+    } catch {
+      setPaymentStatus({
+        state: "error",
+        message: "Unable to verify card/Apple Pay payment at the moment.",
+      });
+      return false;
+    }
+  }
 
   const activePricing = useMemo(() => {
     if (pricingMode === "auto") {
@@ -251,43 +347,69 @@ export default function ShopApp() {
       checkout: { ...checkout },
       currency: activePricing.currency,
       countryName: activePricing.countryName,
+      paymentStatus:
+        checkout.paymentMethod === "Bank transfer"
+          ? "awaiting_transfer"
+          : checkout.paymentMethod === "Card payment"
+            ? "pending_gateway"
+            : "pending_confirmation",
     };
 
-    const existingOrders = loadFromStorage("sirdavidshop:orders", []);
-    const nextOrders = [order, ...existingOrders];
-    window.localStorage.setItem("sirdavidshop:orders", JSON.stringify(nextOrders));
+    if (checkout.paymentMethod === "Card payment") {
+      const paystackPublicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+      if (!paystackPublicKey) {
+        setCheckoutErrors((prev) => ({
+          ...prev,
+          paymentMethod: "Card/Apple Pay is not configured. Missing public key.",
+        }));
+        setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
+        return;
+      }
+
+      setPaymentStatus({ state: "initializing", message: "Opening Paystack checkout..." });
+      try {
+        const PaystackPop = await loadPaystackScript();
+        if (!PaystackPop) {
+          setPaymentStatus({ state: "error", message: "Unable to initialize Paystack popup." });
+          return;
+        }
+
+        const paymentReference = `PS-${order.reference}-${Date.now()}`;
+        const popup = new PaystackPop();
+        await popup.checkout({
+          key: paystackPublicKey,
+          email: order.checkout.email,
+          amount: Math.round(order.total * 100),
+          currency: order.currency || "NGN",
+          ref: paymentReference,
+          metadata: {
+            order_reference: order.reference,
+            customer_name: order.checkout.fullName || "",
+          },
+          onSuccess: async (transaction) => {
+            await finalizeCardPayment(order, transaction?.reference || paymentReference);
+          },
+          onCancel: () => {
+            setPaymentStatus({ state: "error", message: "Payment popup was closed before completion." });
+          },
+        });
+        return;
+      } catch {
+        setCheckoutErrors((prev) => ({
+          ...prev,
+          paymentMethod: "Unable to initialize card/Apple Pay payment.",
+        }));
+        setPaymentStatus({ state: "error", message: "Unable to initialize card/Apple Pay payment." });
+        return;
+      }
+    }
+
+    persistOrder(order);
 
     setLastOrder(order);
     clearCart();
     setView("success");
-
-    setSendStatus({ state: "sending", message: "Sending order notification..." });
-    try {
-      const response = await fetch("/api/send-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order }),
-      });
-      const data = await response.json();
-
-      if (!response.ok || !data?.ok) {
-        setSendStatus({
-          state: "error",
-          message: data?.error || "Order created, but email notification failed.",
-        });
-        return;
-      }
-
-      setSendStatus({
-        state: "sent",
-        message: "Order notification sent successfully.",
-      });
-    } catch {
-      setSendStatus({
-        state: "error",
-        message: "Order created, but notification endpoint is unreachable.",
-      });
-    }
+    await sendOrderNotification(order);
   }
 
   function handleCheckoutFieldChange(event) {
@@ -322,8 +444,20 @@ export default function ShopApp() {
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {view === "success" && lastOrder ? (
           <section className="mx-auto max-w-3xl rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Order Placed</p>
-            <h1 className="mt-3 font-display text-4xl font-bold text-slate-900">Thank you for your order</h1>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
+              {lastOrder.paymentStatus === "awaiting_transfer"
+                ? "Awaiting Payment"
+                : lastOrder.paymentStatus === "paid"
+                  ? "Payment Successful"
+                  : "Order Placed"}
+            </p>
+            <h1 className="mt-3 font-display text-4xl font-bold text-slate-900">
+              {lastOrder.paymentStatus === "awaiting_transfer"
+                ? "Complete Your Bank Transfer"
+                : lastOrder.paymentStatus === "paid"
+                  ? "Payment Confirmed"
+                : "Thank you for your order"}
+            </h1>
             <p className="mt-3 text-slate-600">
               Reference <span className="font-semibold text-slate-900">{lastOrder.reference}</span> was created
               successfully.
@@ -331,6 +465,31 @@ export default function ShopApp() {
             <p className="mt-2 text-slate-600">
               Total: <span className="font-semibold text-slate-900">{formatMoney(lastOrder.total, lastOrder.currency)}</span>
             </p>
+            {lastOrder.checkout.paymentMethod === "Bank transfer" && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left text-sm text-amber-900">
+                <p className="font-semibold">Bank Transfer Details</p>
+                <p className="mt-1">Bank: {BANK_TRANSFER_DETAILS.bankName}</p>
+                <p>Account Name: {BANK_TRANSFER_DETAILS.accountName}</p>
+                <p>Account Number: {BANK_TRANSFER_DETAILS.accountNumber}</p>
+                <p className="mt-2">
+                  Use reference <span className="font-semibold">{lastOrder.reference}</span> in your transfer note.
+                </p>
+              </div>
+            )}
+            {lastOrder.checkout.paymentMethod === "Card payment" && (
+              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-left text-sm text-blue-900">
+                <p className="font-semibold">Card/Apple Pay Completed</p>
+                <p className="mt-1">
+                  Paystack verified this payment for reference{" "}
+                  <span className="font-semibold">{lastOrder.paymentReference || lastOrder.reference}</span>.
+                </p>
+              </div>
+            )}
+            {paymentStatus.state !== "idle" && paymentStatus.state !== "paid" && (
+              <p className={`mt-3 text-sm ${paymentStatus.state === "error" ? "text-rose-600" : "text-blue-700"}`}>
+                {paymentStatus.message}
+              </p>
+            )}
             {sendStatus.state !== "idle" && (
               <p
                 className={`mt-3 text-sm ${
@@ -347,6 +506,7 @@ export default function ShopApp() {
                   setView("catalog");
                   setLastOrder(null);
                   setSendStatus({ state: "idle", message: "" });
+                  setPaymentStatus({ state: "idle", message: "" });
                 }}
                 className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
@@ -549,6 +709,11 @@ export default function ShopApp() {
                   <h3 className="font-display text-xl font-semibold text-slate-900">Checkout</h3>
 
                   {checkoutErrors.cart && <p className="text-sm text-rose-600">{checkoutErrors.cart}</p>}
+                  {paymentStatus.state !== "idle" && view !== "success" && (
+                    <p className={`text-sm ${paymentStatus.state === "error" ? "text-rose-600" : "text-blue-700"}`}>
+                      {paymentStatus.message}
+                    </p>
+                  )}
 
                   <input
                     name="fullName"
@@ -619,6 +784,12 @@ export default function ShopApp() {
                     <option>Bank transfer</option>
                     <option>Card payment</option>
                   </select>
+                  {checkoutErrors.paymentMethod && (
+                    <p className="text-xs text-rose-600">{checkoutErrors.paymentMethod}</p>
+                  )}
+                  <p className="text-xs text-slate-500">
+                    Card payment uses Paystack popup. Apple Pay appears automatically on supported Safari/iOS devices.
+                  </p>
 
                   <textarea
                     name="notes"
