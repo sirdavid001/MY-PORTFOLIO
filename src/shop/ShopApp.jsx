@@ -80,7 +80,8 @@ export default function ShopApp() {
   const pricingContext = usePricingContext();
   const location = useLocation();
   const navigate = useNavigate();
-  const isCartPage = location.pathname === "/cart";
+  const normalizedPathname = location.pathname.replace(/\/+$/, "") || "/";
+  const isCartPage = normalizedPathname === "/cart";
   const [activeCategory, setActiveCategory] = useState("All");
   const [conditionFilter, setConditionFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -601,13 +602,23 @@ export default function ShopApp() {
             <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 sm:inline-flex">
               {activePricing.countryName} ({activePricing.currency})
             </span>
-            <button
-              type="button"
-              onClick={() => navigate(isCartPage ? "/" : "/cart")}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-            >
-              {isCartPage ? "Back To Store" : `Cart (${cartCount})`}
-            </button>
+            {isCartPage ? (
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Back To Store
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigate("/cart")}
+                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Cart ({cartCount})
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -877,7 +888,7 @@ export default function ShopApp() {
                 </div>
               </div>
 
-              {isCartPage || cartItems.length > 0 ? (
+              {isCartPage && cartItems.length > 0 ? (
                 <form onSubmit={handlePlaceOrder} className="mt-6 space-y-3 border-t border-slate-200 pt-4">
                   <h3 className="font-display text-xl font-semibold text-slate-900">Checkout</h3>
 
@@ -993,6 +1004,22 @@ export default function ShopApp() {
                     Place Order
                   </button>
                 </form>
+              ) : !isCartPage && cartItems.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/cart")}
+                  className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Go To Cart & Checkout
+                </button>
+              ) : isCartPage ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="mt-6 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Continue Shopping
+                </button>
               ) : null}
             </aside>
           </div>
