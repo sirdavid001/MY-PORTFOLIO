@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import usePricingContext from "../hooks/usePricingContext";
-import { formatMoney } from "../lib/pricing";
+import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../lib/pricing";
 import { products } from "./products";
 
 const categories = ["All", "Phones", "Laptops", "Accessories", "Gaming", "Wearables"];
@@ -9,6 +9,19 @@ const sortOptions = [
   { value: "price-low", label: "Price: Low to High" },
   { value: "price-high", label: "Price: High to Low" },
   { value: "name-asc", label: "Name: A-Z" },
+];
+const pricingCountries = [
+  { code: "US", name: "United States" },
+  { code: "NG", name: "Nigeria" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "CA", name: "Canada" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "AE", name: "United Arab Emirates" },
+  { code: "IN", name: "India" },
+  { code: "KE", name: "Kenya" },
+  { code: "GH", name: "Ghana" },
+  { code: "ZA", name: "South Africa" },
 ];
 
 const inputClass =
@@ -51,11 +64,20 @@ export default function ShopApp() {
   const [checkoutErrors, setCheckoutErrors] = useState({});
   const [lastOrder, setLastOrder] = useState(null);
   const [sendStatus, setSendStatus] = useState({ state: "idle", message: "" });
+  const [pricingMode, setPricingMode] = useState("auto");
+  const [manualCountryCode, setManualCountryCode] = useState("US");
+  const [manualCurrency, setManualCurrency] = useState("USD");
 
   useEffect(() => {
     setCart(loadFromStorage("sirdavidshop:cart", {}));
     const savedCheckout = loadFromStorage("sirdavidshop:checkout", null);
     if (savedCheckout) setCheckout({ ...defaultCheckout, ...savedCheckout });
+    const savedPricing = loadFromStorage("sirdavidshop:pricing", null);
+    if (savedPricing) {
+      setPricingMode(savedPricing.mode || "auto");
+      setManualCountryCode(savedPricing.countryCode || "US");
+      setManualCurrency(savedPricing.currency || "USD");
+    }
   }, []);
 
   useEffect(() => {
@@ -65,6 +87,48 @@ export default function ShopApp() {
   useEffect(() => {
     window.localStorage.setItem("sirdavidshop:checkout", JSON.stringify(checkout));
   }, [checkout]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      "sirdavidshop:pricing",
+      JSON.stringify({
+        mode: pricingMode,
+        countryCode: manualCountryCode,
+        currency: manualCurrency,
+      })
+    );
+  }, [pricingMode, manualCountryCode, manualCurrency]);
+
+  const activePricing = useMemo(() => {
+    if (pricingMode === "auto") {
+      return {
+        countryCode: pricingContext.countryCode,
+        countryName: pricingContext.countryName,
+        currency: pricingContext.currency,
+        exchangeRate: pricingContext.exchangeRate,
+        factor: pricingContext.factor,
+      };
+    }
+
+    const countryName =
+      pricingCountries.find((country) => country.code === manualCountryCode)?.name || manualCountryCode;
+    const currency = manualCurrency || getCurrencyForCountry(manualCountryCode, pricingContext.currency);
+    const exchangeRate = pricingContext.rates?.[currency] || (currency === "USD" ? 1 : pricingContext.exchangeRate);
+    const factor = getLocationFactor(manualCountryCode);
+
+    return {
+      countryCode: manualCountryCode,
+      countryName,
+      currency,
+      exchangeRate: exchangeRate || 1,
+      factor,
+    };
+  }, [manualCountryCode, manualCurrency, pricingContext, pricingMode]);
+
+  const currencyOptions = useMemo(() => {
+    const baseline = ["USD", "NGN", "GBP", "EUR", "CAD", "AED", "INR", "KES", "GHS", "ZAR"];
+    return Array.from(new Set([...baseline, pricingContext.currency, manualCurrency].filter(Boolean)));
+  }, [manualCurrency, pricingContext.currency]);
 
   const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -83,26 +147,26 @@ export default function ShopApp() {
 
     if (sortBy === "price-low") {
       return [...filtered].sort(
-        (a, b) => toPrice(a.basePriceUsd, pricingContext) - toPrice(b.basePriceUsd, pricingContext)
+        (a, b) => toPrice(a.basePriceUsd, activePricing) - toPrice(b.basePriceUsd, activePricing)
       );
     }
     if (sortBy === "price-high") {
       return [...filtered].sort(
-        (a, b) => toPrice(b.basePriceUsd, pricingContext) - toPrice(a.basePriceUsd, pricingContext)
+        (a, b) => toPrice(b.basePriceUsd, activePricing) - toPrice(a.basePriceUsd, activePricing)
       );
     }
     if (sortBy === "name-asc") {
       return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
     }
     return filtered;
-  }, [activeCategory, conditionFilter, search, sortBy, pricingContext]);
+  }, [activeCategory, activePricing, conditionFilter, search, sortBy]);
 
   const cartItems = useMemo(() => {
     return Object.entries(cart)
       .map(([productId, quantity]) => {
         const product = products.find((item) => item.id === productId);
         if (!product || quantity <= 0) return null;
-        const unitPrice = toPrice(product.basePriceUsd, pricingContext);
+        const unitPrice = toPrice(product.basePriceUsd, activePricing);
         return {
           ...product,
           quantity,
@@ -111,7 +175,7 @@ export default function ShopApp() {
         };
       })
       .filter(Boolean);
-  }, [cart, pricingContext]);
+  }, [activePricing, cart]);
 
   const cartCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
@@ -123,7 +187,7 @@ export default function ShopApp() {
     [cartItems]
   );
 
-  const shipping = subtotal > 0 ? Math.max(15 * pricingContext.exchangeRate, subtotal * 0.03) : 0;
+  const shipping = subtotal > 0 ? Math.max(15 * activePricing.exchangeRate, subtotal * 0.03) : 0;
   const total = subtotal + shipping;
 
   function addToCart(productId) {
@@ -185,8 +249,8 @@ export default function ShopApp() {
       shipping,
       total,
       checkout: { ...checkout },
-      currency: pricingContext.currency,
-      countryName: pricingContext.countryName,
+      currency: activePricing.currency,
+      countryName: activePricing.countryName,
     };
 
     const existingOrders = loadFromStorage("sirdavidshop:orders", []);
@@ -242,7 +306,7 @@ export default function ShopApp() {
           </div>
           <div className="inline-flex items-center gap-3">
             <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 sm:inline-flex">
-              {pricingContext.countryName} ({pricingContext.currency})
+              {activePricing.countryName} ({activePricing.currency})
             </span>
             <button
               type="button"
@@ -343,6 +407,44 @@ export default function ShopApp() {
                     ))}
                   </select>
                 </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <select
+                    value={pricingMode}
+                    onChange={(event) => setPricingMode(event.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="auto">Auto (Detected by IP)</option>
+                    <option value="manual">Manual Override</option>
+                  </select>
+                  <select
+                    value={manualCountryCode}
+                    onChange={(event) => {
+                      const nextCode = event.target.value;
+                      setManualCountryCode(nextCode);
+                      setManualCurrency(getCurrencyForCountry(nextCode, activePricing.currency));
+                    }}
+                    disabled={pricingMode === "auto"}
+                    className={inputClass}
+                  >
+                    {pricingCountries.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={pricingMode === "auto" ? activePricing.currency : manualCurrency}
+                    onChange={(event) => setManualCurrency(event.target.value)}
+                    disabled={pricingMode === "auto"}
+                    className={inputClass}
+                  >
+                    {currencyOptions.map((currencyCode) => (
+                      <option key={currencyCode} value={currencyCode}>
+                        {currencyCode}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </section>
 
               <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -361,7 +463,7 @@ export default function ShopApp() {
                       <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
                       <div className="mt-4 flex items-center justify-between">
                         <p className="text-2xl font-bold text-slate-900">
-                          {formatMoney(toPrice(product.basePriceUsd, pricingContext), pricingContext.currency)}
+                          {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
                         </p>
                         <p className="text-xs font-medium text-slate-500">{product.stock} in stock</p>
                       </div>
@@ -399,7 +501,7 @@ export default function ShopApp() {
                   {cartItems.map((item) => (
                     <div key={item.id} className="rounded-xl border border-slate-200 p-3">
                       <p className="text-sm font-semibold text-slate-900">{item.name}</p>
-                      <p className="mt-1 text-xs text-slate-500">{formatMoney(item.unitPrice, pricingContext.currency)} each</p>
+                      <p className="mt-1 text-xs text-slate-500">{formatMoney(item.unitPrice, activePricing.currency)} each</p>
                       <div className="mt-3 flex items-center justify-between">
                         <div className="inline-flex items-center gap-2">
                           <button
@@ -419,7 +521,7 @@ export default function ShopApp() {
                           </button>
                         </div>
                         <p className="text-sm font-semibold text-slate-900">
-                          {formatMoney(item.totalPrice, pricingContext.currency)}
+                          {formatMoney(item.totalPrice, activePricing.currency)}
                         </p>
                       </div>
                     </div>
@@ -430,15 +532,15 @@ export default function ShopApp() {
               <div className="mt-6 space-y-2 border-t border-slate-200 pt-4 text-sm">
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Subtotal</span>
-                  <span>{formatMoney(subtotal, pricingContext.currency)}</span>
+                  <span>{formatMoney(subtotal, activePricing.currency)}</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Shipping</span>
-                  <span>{formatMoney(shipping, pricingContext.currency)}</span>
+                  <span>{formatMoney(shipping, activePricing.currency)}</span>
                 </div>
                 <div className="flex items-center justify-between text-base font-bold text-slate-900">
                   <span>Total</span>
-                  <span>{formatMoney(total, pricingContext.currency)}</span>
+                  <span>{formatMoney(total, activePricing.currency)}</span>
                 </div>
               </div>
 
