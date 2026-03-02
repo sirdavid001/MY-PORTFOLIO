@@ -1,10 +1,12 @@
+import Logo from "./Logo";
+
 export default function Footer() {
   return (
     <footer className="bg-[#f3f4f6] pb-8 pt-12">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 border-t border-slate-200 pt-10 md:grid-cols-3">
           <div>
-            <h3 className="font-display text-2xl font-bold text-slate-900">Sirdavid Portfolio</h3>
+            <Logo />
             <p className="mt-3 max-w-sm text-slate-600">
               Building practical, high-impact digital experiences with strong attention to performance and clean execution.
             </p>
@@ -16,6 +18,7 @@ export default function Footer() {
               <a href="/" className="hover:text-slate-900">Home</a>
               <a href="/projects" className="hover:text-slate-900">Projects</a>
               <a href="/contact" className="hover:text-slate-900">Contact</a>
+              <a href="/gadgets" className="hover:text-slate-900">Gadgets</a>
             </div>
           </div>
 
@@ -30,7 +33,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 border-t border-slate-200 pt-6 text-center text-sm text-slate-500">
-          © {new Date().getFullYear()} Sirdavid Portfolio. All rights reserved.
+          © {new Date().getFullYear()} Sirdavid. All rights reserved.
         </div>
       </div>
     </footer>
