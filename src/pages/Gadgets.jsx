@@ -1,45 +1,54 @@
 import { Link } from "react-router-dom";
+import usePricingContext from "../hooks/usePricingContext";
+import { formatMoney } from "../lib/pricing";
 
 const inventory = [
   {
     name: "iPhone 13",
     condition: "Used - Excellent",
-    price: "$520",
+    basePriceUsd: 520,
     details: "128GB, battery health 89%, unlocked and tested.",
   },
   {
     name: "Samsung Galaxy S24",
     condition: "New",
-    price: "$760",
+    basePriceUsd: 760,
     details: "Factory sealed, dual SIM, one-year manufacturer warranty.",
   },
   {
     name: "Dell XPS 13",
     condition: "Used - Very Good",
-    price: "$680",
+    basePriceUsd: 680,
     details: "Core i7, 16GB RAM, 512GB SSD, fresh OS install included.",
   },
   {
     name: "AirPods Pro (2nd Gen)",
     condition: "New",
-    price: "$210",
+    basePriceUsd: 210,
     details: "Original package with active noise cancellation support.",
   },
   {
     name: "PlayStation 5",
     condition: "Used - Excellent",
-    price: "$440",
+    basePriceUsd: 440,
     details: "Comes with one controller, HDMI cable, and power cable.",
   },
   {
     name: "Apple Watch Series 9",
     condition: "New",
-    price: "$350",
+    basePriceUsd: 350,
     details: "45mm, GPS model, includes original charger and strap.",
   },
 ];
 
 export default function Gadgets() {
+  const pricingContext = usePricingContext();
+
+  const displayPrice = (usd) => {
+    const localized = usd * pricingContext.exchangeRate * pricingContext.factor;
+    return formatMoney(localized, pricingContext.currency);
+  };
+
   return (
     <div className="space-y-0 pb-8">
       <section className="rounded-3xl bg-white p-8 shadow-[0_18px_45px_rgba(15,23,42,0.1)] sm:p-12">
@@ -50,6 +59,9 @@ export default function Gadgets() {
         <p className="mt-4 max-w-3xl text-base leading-relaxed text-slate-600 sm:text-lg">
           Reliable phones, laptops, accessories, and consoles with clear condition notes and honest pricing.
           This is your dedicated business storefront under the Sirdavid brand.
+        </p>
+        <p className="mt-4 inline-flex rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+          Pricing adjusted for {pricingContext.countryName} ({pricingContext.currency})
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a
@@ -81,7 +93,7 @@ export default function Gadgets() {
               <h3 className="font-display text-2xl font-semibold text-slate-900">{item.name}</h3>
               <p className="mt-2 text-sm font-semibold text-blue-700">{item.condition}</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.details}</p>
-              <p className="mt-5 text-lg font-bold text-slate-900">{item.price}</p>
+              <p className="mt-5 text-lg font-bold text-slate-900">{displayPrice(item.basePriceUsd)}</p>
             </article>
           ))}
         </div>

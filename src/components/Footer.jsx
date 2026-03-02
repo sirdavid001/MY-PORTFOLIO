@@ -18,7 +18,6 @@ export default function Footer() {
               <a href="/" className="hover:text-slate-900">Home</a>
               <a href="/projects" className="hover:text-slate-900">Projects</a>
               <a href="/contact" className="hover:text-slate-900">Contact</a>
-              <a href="/gadgets" className="hover:text-slate-900">Gadgets</a>
             </div>
           </div>
 
