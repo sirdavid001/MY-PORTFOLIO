@@ -1,6 +1,6 @@
-import { buildAdminCookie } from "../_lib/admin-auth.js";
-import { applyRateLimit } from "../_lib/rate-limit.js";
-import { getClientIp, isIpAllowed } from "../_lib/security.js";
+import { buildAdminCookie } from "../../server/_lib/admin-auth.js";
+import { applyRateLimit } from "../../server/_lib/rate-limit.js";
+import { getClientIp, isIpAllowed } from "../../server/_lib/security.js";
 
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");

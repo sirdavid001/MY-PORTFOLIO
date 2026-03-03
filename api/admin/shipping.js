@@ -1,8 +1,8 @@
-import { requireAdminUser } from "../_lib/admin-auth.js";
-import { applyRateLimit } from "../_lib/rate-limit.js";
-import { getClientIp, isIpAllowed } from "../_lib/security.js";
+import { requireAdminUser } from "../../server/_lib/admin-auth.js";
+import { applyRateLimit } from "../../server/_lib/rate-limit.js";
+import { getClientIp, isIpAllowed } from "../../server/_lib/security.js";
 import { DEFAULT_SHIPPING_CONFIG, normalizeShippingConfig } from "../../shared/shop-defaults.js";
-import { normalizeSupabaseError, supabaseRest } from "../_lib/supabase-rest.js";
+import { normalizeSupabaseError, supabaseRest } from "../../server/_lib/supabase-rest.js";
 
 const METHODS = "GET, PUT, OPTIONS";
 const MISSING_TABLE_HINT =

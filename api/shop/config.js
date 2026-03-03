@@ -1,12 +1,12 @@
-import { applyRateLimit } from "../_lib/rate-limit.js";
-import { getClientIp } from "../_lib/security.js";
+import { applyRateLimit } from "../../server/_lib/rate-limit.js";
+import { getClientIp } from "../../server/_lib/security.js";
 import {
   DEFAULT_PRODUCTS,
   DEFAULT_SHIPPING_CONFIG,
   normalizeProduct,
   normalizeShippingConfig,
 } from "../../shared/shop-defaults.js";
-import { supabaseRest } from "../_lib/supabase-rest.js";
+import { supabaseRest } from "../../server/_lib/supabase-rest.js";
 
 const METHODS = "GET, OPTIONS";
 

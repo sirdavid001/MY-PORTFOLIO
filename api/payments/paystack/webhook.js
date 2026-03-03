@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
-import { applyRateLimit } from "../../_lib/rate-limit.js";
-import { getClientIp, safeCompare } from "../../_lib/security.js";
+import { applyRateLimit } from "../../../server/_lib/rate-limit.js";
+import { getClientIp, safeCompare } from "../../../server/_lib/security.js";
 
 export const config = {
   api: {

@@ -1,8 +1,8 @@
-import { requireAdminUser } from "../_lib/admin-auth.js";
-import { applyRateLimit } from "../_lib/rate-limit.js";
-import { getClientIp, isIpAllowed } from "../_lib/security.js";
+import { requireAdminUser } from "../../server/_lib/admin-auth.js";
+import { applyRateLimit } from "../../server/_lib/rate-limit.js";
+import { getClientIp, isIpAllowed } from "../../server/_lib/security.js";
 import { normalizeProduct } from "../../shared/shop-defaults.js";
-import { normalizeSupabaseError, supabaseRest } from "../_lib/supabase-rest.js";
+import { normalizeSupabaseError, supabaseRest } from "../../server/_lib/supabase-rest.js";
 
 const METHODS = "GET, POST, PATCH, DELETE, OPTIONS";
 const MISSING_TABLE_HINT =
