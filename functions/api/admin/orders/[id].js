@@ -16,6 +16,26 @@ function isAuthorized(request, env) {
   return Boolean(expected) && provided === expected;
 }
 
+function normalizeSupabaseError(rawText, action) {
+  const text = String(rawText || "").trim();
+  if (!text) return `${action} failed.`;
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed?.code === "PGRST205") {
+      return "Supabase table public.orders is missing. Create it in Supabase SQL Editor using the schema in README.md.";
+    }
+
+    if (parsed?.message) {
+      return `${action} failed: ${parsed.message}`;
+    }
+  } catch {
+    // Keep fallback below.
+  }
+
+  return `${action} failed: ${text}`;
+}
+
 export async function onRequestOptions() {
   return json({ ok: true });
 }
@@ -58,7 +78,7 @@ export async function onRequestPatch(context) {
 
     if (!response.ok) {
       const message = await response.text();
-      return json({ ok: false, error: message }, 502);
+      return json({ ok: false, error: normalizeSupabaseError(message, "Update order status") }, 502);
     }
 
     const rows = await response.json();

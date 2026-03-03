@@ -13,6 +13,7 @@ export default function AdminApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState({});
+  const isOrdersTableMissing = error.includes("public.orders is missing");
 
   useEffect(() => {
     const saved = window.sessionStorage.getItem("sirdavidshop:admin-key");
@@ -142,6 +143,11 @@ export default function AdminApp() {
             </button>
           </form>
           {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+          {isOrdersTableMissing && (
+            <p className="mt-2 text-xs text-slate-600">
+              Create the table in Supabase SQL Editor using <code>supabase/orders.sql</code>, then try sign in again.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -174,6 +180,11 @@ export default function AdminApp() {
         </div>
 
         {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
+        {isOrdersTableMissing && (
+          <p className="mb-3 text-xs text-slate-600">
+            Run <code>supabase/orders.sql</code> in Supabase SQL Editor, then refresh.
+          </p>
+        )}
         {loading ? <p className="text-sm text-slate-600">Loading orders...</p> : null}
 
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">

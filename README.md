@@ -75,3 +75,5 @@ create table if not exists public.orders (
   created_at timestamptz not null default now()
 );
 ```
+
+Quick option: run the SQL in [`supabase/orders.sql`](supabase/orders.sql).

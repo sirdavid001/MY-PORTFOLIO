@@ -67,10 +67,30 @@ async function saveOrderToSupabase(order) {
 
   if (!response.ok) {
     const message = await response.text();
-    return { ok: false, error: `Supabase insert failed: ${message}` };
+    return { ok: false, error: normalizeSupabaseError(message, "Supabase insert") };
   }
 
   return { ok: true };
+}
+
+function normalizeSupabaseError(rawText, action) {
+  const text = String(rawText || "").trim();
+  if (!text) return `${action} failed.`;
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed?.code === "PGRST205") {
+      return "Supabase table public.orders is missing. Create it in Supabase SQL Editor using the schema in README.md.";
+    }
+
+    if (parsed?.message) {
+      return `${action} failed: ${parsed.message}`;
+    }
+  } catch {
+    // Keep fallback below.
+  }
+
+  return `${action} failed: ${text}`;
 }
 
 function formatOrder(order) {

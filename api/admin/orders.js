@@ -22,6 +22,26 @@ function isAuthorized(req) {
   return Boolean(expected) && provided === expected;
 }
 
+function normalizeSupabaseError(rawText, action) {
+  const text = String(rawText || "").trim();
+  if (!text) return `${action} failed.`;
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed?.code === "PGRST205") {
+      return "Supabase table public.orders is missing. Create it in Supabase SQL Editor using the schema in README.md.";
+    }
+
+    if (parsed?.message) {
+      return `${action} failed: ${parsed.message}`;
+    }
+  } catch {
+    // Keep fallback below.
+  }
+
+  return `${action} failed: ${text}`;
+}
+
 async function readJsonBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
 
@@ -76,7 +96,7 @@ export default async function handler(req, res) {
 
       if (!response.ok) {
         const message = await response.text();
-        return json(res, 502, { ok: false, error: message }, methods);
+        return json(res, 502, { ok: false, error: normalizeSupabaseError(message, "Load orders") }, methods);
       }
 
       const orders = await response.json();
@@ -108,7 +128,7 @@ export default async function handler(req, res) {
 
       if (!response.ok) {
         const message = await response.text();
-        return json(res, 502, { ok: false, error: message }, methods);
+        return json(res, 502, { ok: false, error: normalizeSupabaseError(message, "Update order status") }, methods);
       }
 
       const rows = await response.json();
