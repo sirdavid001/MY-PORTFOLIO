@@ -27,7 +27,7 @@ export default function App() {
   if (isBusinessSubdomain || isShopPath) {
     return (
       <Routes>
-        <Route path={SECURE_ADMIN_PATH} element={<AdminApp />} />
+        <Route path={`${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
         <Route path="/" element={<ShopApp />} />
         <Route path="/cart" element={<ShopApp />} />
         <Route path="*" element={<ShopApp />} />
