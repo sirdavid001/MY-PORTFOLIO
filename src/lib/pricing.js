@@ -26,13 +26,13 @@ const COUNTRY_CURRENCY_OVERRIDES = {
 };
 
 export function getLocationFactor(countryCode) {
-  const code = String(countryCode || "US").toUpperCase();
+  const code = String(countryCode || "NG").toUpperCase();
   const key = EURO_COUNTRIES.has(code) ? "EU" : code;
   return LOCATION_FACTORS[key] ?? LOCATION_FACTORS.default;
 }
 
-export function getCurrencyForCountry(countryCode, fallbackCurrency = "USD") {
-  const code = String(countryCode || "US").toUpperCase();
+export function getCurrencyForCountry(countryCode, fallbackCurrency = "NGN") {
+  const code = String(countryCode || "NG").toUpperCase();
   if (COUNTRY_CURRENCY_OVERRIDES[code]) return COUNTRY_CURRENCY_OVERRIDES[code];
   if (EURO_COUNTRIES.has(code)) return "EUR";
   return fallbackCurrency;

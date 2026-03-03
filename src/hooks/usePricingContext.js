@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { getCurrencyForCountry, getLocationFactor } from "../lib/pricing";
 
 const defaultContext = {
-  countryCode: "US",
-  countryName: "United States",
-  currency: "USD",
-  exchangeRate: 1,
-  rates: { USD: 1 },
-  factor: 1,
+  countryCode: "NG",
+  countryName: "Nigeria",
+  currency: "NGN",
+  exchangeRate: 1600,
+  rates: { USD: 1, NGN: 1600 },
+  factor: getLocationFactor("NG"),
 };
 
 export default function usePricingContext() {
@@ -18,11 +18,11 @@ export default function usePricingContext() {
 
     function localeFallback() {
       const locale = navigator.language || "en-US";
-      const countryCode = locale.includes("-") ? locale.split("-")[1]?.toUpperCase() : "US";
-      const currency = getCurrencyForCountry(countryCode, "USD");
+      const countryCode = locale.includes("-") ? locale.split("-")[1]?.toUpperCase() : "NG";
+      const currency = getCurrencyForCountry(countryCode, "NGN");
       return {
-        countryCode: countryCode || "US",
-        countryName: countryCode || "United States",
+        countryCode: countryCode || "NG",
+        countryName: countryCode || "Nigeria",
         currency,
       };
     }
@@ -68,9 +68,9 @@ export default function usePricingContext() {
     async function resolvePricingContext() {
       try {
         const detected = await detectLocation();
-        const countryCode = detected.countryCode || "US";
-        const countryName = detected.countryName || "United States";
-        const currency = getCurrencyForCountry(countryCode, detected.currency || "USD");
+        const countryCode = detected.countryCode || "NG";
+        const countryName = detected.countryName || "Nigeria";
+        const currency = getCurrencyForCountry(countryCode, detected.currency || "NGN");
         const factor = getLocationFactor(countryCode);
 
         let rates = { USD: 1 };

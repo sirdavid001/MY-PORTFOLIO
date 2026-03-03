@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatMoney } from "../lib/pricing";
 import { defaultShippingConfig, normalizeProduct, normalizeShippingConfig } from "./products";
 
@@ -6,6 +6,8 @@ const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
 
 const statusOptions = ["new", "processing", "paid", "shipped", "completed", "cancelled"];
+const initialCategoryOptions = ["Phones", "Laptops", "Accessories", "Gaming", "Wearables"];
+const initialConditionOptions = ["New", "Used", "Used - Excellent", "Used - Very Good", "Used - Good"];
 
 const emptyProductForm = {
   id: "",
@@ -79,6 +81,24 @@ export default function AdminApp() {
   const isOrdersTableMissing = ordersError.includes("public.orders is missing");
   const isProductsTableMissing = productsError.includes("public.shop_products");
   const isShippingTableMissing = shippingError.includes("public.shop_settings");
+  const categorySuggestions = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...initialCategoryOptions,
+        ...products.map((product) => String(product.category || "").trim()),
+        String(productForm.category || "").trim(),
+      ])
+    ).filter(Boolean);
+  }, [productForm.category, products]);
+  const conditionSuggestions = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...initialConditionOptions,
+        ...products.map((product) => String(product.condition || "").trim()),
+        String(productForm.condition || "").trim(),
+      ])
+    ).filter(Boolean);
+  }, [productForm.condition, products]);
 
   useEffect(() => {
     let cancelled = false;
@@ -640,16 +660,27 @@ export default function AdminApp() {
                 <input
                   className={inputClass}
                   placeholder="Category"
+                  list="gadget-category-options"
                   value={productForm.category}
                   onChange={(event) => setProductForm((prev) => ({ ...prev, category: event.target.value }))}
                   required
                 />
-                <input
+                <datalist id="gadget-category-options">
+                  {categorySuggestions.map((category) => (
+                    <option key={category} value={category} />
+                  ))}
+                </datalist>
+                <select
                   className={inputClass}
-                  placeholder="Condition"
                   value={productForm.condition}
                   onChange={(event) => setProductForm((prev) => ({ ...prev, condition: event.target.value }))}
-                />
+                >
+                  {conditionSuggestions.map((condition) => (
+                    <option key={condition} value={condition}>
+                      {condition}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   min="0"
