@@ -1,3 +1,6 @@
+import { applyRateLimit } from "../../_lib/rate-limit.js";
+import { getClientIp } from "../../_lib/security.js";
+
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", methods);
@@ -30,11 +33,40 @@ async function readJsonBody(req) {
   return JSON.parse(raw);
 }
 
+function isValidEmail(email) {
+  return /^\S+@\S+\.\S+$/.test(String(email || ""));
+}
+
+function validateInitializePayload(order) {
+  if (!order || typeof order !== "object") return "Invalid payment payload.";
+  if (!order.reference || typeof order.reference !== "string") return "Order reference is required.";
+  if (!order.checkout || typeof order.checkout !== "object") return "Checkout details are required.";
+  if (!isValidEmail(order.checkout.email)) return "Valid checkout email is required.";
+  if (!Number.isFinite(Number(order.total)) || Number(order.total) <= 0) return "Invalid order total.";
+
+  const currency = String(order.currency || "NGN").toUpperCase();
+  if (!["NGN", "USD"].includes(currency)) {
+    return "Unsupported currency. Only NGN and USD are supported.";
+  }
+
+  return null;
+}
+
 export default async function handler(req, res) {
   const methods = "POST, OPTIONS";
+  const clientIp = getClientIp(req);
 
   if (req.method === "OPTIONS") {
     return json(res, 200, { ok: true }, methods);
+  }
+
+  const initRateLimit = applyRateLimit(res, {
+    key: `paystack:init:${clientIp}`,
+    limit: 40,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!initRateLimit.ok) {
+    return json(res, 429, { ok: false, error: "Too many payment requests. Try again later." }, methods);
   }
 
   if (req.method !== "POST") {
@@ -48,14 +80,15 @@ export default async function handler(req, res) {
 
     const payload = await readJsonBody(req);
     const order = payload?.order;
-    if (!order?.reference || !order?.checkout?.email || !order?.total || order.total <= 0) {
-      return json(res, 400, { ok: false, error: "Invalid payment payload." }, methods);
+    const validationError = validateInitializePayload(order);
+    if (validationError) {
+      return json(res, 400, { ok: false, error: validationError }, methods);
     }
 
     const paymentReference = `PS-${order.reference}-${Date.now()}`;
     const amountKobo = Math.round(Number(order.total) * 100);
     const callbackUrl = `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}/?paystack=1`;
-    const currency = order.currency || "NGN";
+    const currency = String(order.currency || "NGN").toUpperCase();
     const channels =
       currency === "NGN"
         ? ["card", "bank_transfer", "bank", "ussd", "qr", "eft", "mobile_money"]

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatMoney } from "../lib/pricing";
 
 const inputClass =
@@ -14,28 +14,6 @@ export default function AdminApp() {
   const [error, setError] = useState("");
   const [updating, setUpdating] = useState({});
   const isOrdersTableMissing = error.includes("public.orders is missing");
-
-  useEffect(() => {
-    const saved = window.sessionStorage.getItem("sirdavidshop:admin-key");
-    if (!saved) return;
-
-    const trimmedSaved = saved.trim();
-    if (!trimmedSaved) {
-      window.sessionStorage.removeItem("sirdavidshop:admin-key");
-      return;
-    }
-
-    setAdminKey(trimmedSaved);
-    loadOrders(trimmedSaved).then((ok) => {
-      if (ok) {
-        setIsAuthed(true);
-        return;
-      }
-
-      window.sessionStorage.removeItem("sirdavidshop:admin-key");
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   async function loadOrders(keyOverride) {
     const key = String(keyOverride || adminKey || "").trim();
@@ -79,7 +57,6 @@ export default function AdminApp() {
     const ok = await loadOrders(trimmedKey);
     if (ok) {
       setIsAuthed(true);
-      window.sessionStorage.setItem("sirdavidshop:admin-key", trimmedKey);
     }
   }
 
@@ -117,7 +94,6 @@ export default function AdminApp() {
     setIsAuthed(false);
     setOrders([]);
     setAdminKey("");
-    window.sessionStorage.removeItem("sirdavidshop:admin-key");
   }
 
   if (!isAuthed) {
@@ -232,7 +208,7 @@ export default function AdminApp() {
               {!loading && orders.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
-                    No orders found.
+                    No orders found yet. Only paid orders synced to Supabase appear here.
                   </td>
                 </tr>
               )}

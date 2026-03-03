@@ -202,14 +202,30 @@ export default function ShopApp() {
       if (!response.ok || !data?.ok) {
         setSendStatus({
           state: "error",
-          message: data?.error || "Order created, but email notification failed.",
+          message: data?.error || "Order paid, but notification sync failed.",
         });
         return false;
       }
 
+      if (data?.persisted === false) {
+        setSendStatus({
+          state: "error",
+          message: data?.warning || "Order paid, but dashboard persistence is not configured.",
+        });
+        return false;
+      }
+
+      if (data?.emailSent === false) {
+        setSendStatus({
+          state: "sent",
+          message: data?.warning || "Order saved to dashboard. Email notification skipped.",
+        });
+        return true;
+      }
+
       setSendStatus({
         state: "sent",
-        message: "Order notification sent successfully.",
+        message: "Order saved and notification sent successfully.",
       });
       return true;
     } catch {
@@ -230,7 +246,13 @@ export default function ShopApp() {
   async function finalizeCardPayment(order, reference) {
     setPaymentStatus({ state: "verifying", message: "Verifying Apple Pay/Paystack payment..." });
     try {
-      const response = await fetch(`/api/payments/paystack/verify?reference=${encodeURIComponent(reference)}`);
+      const verifyQuery = new URLSearchParams({
+        reference,
+        expected_amount_kobo: String(Math.round(Number(order.total || 0) * 100)),
+        expected_currency: String(order.currency || "").toUpperCase(),
+        expected_email: String(order.checkout?.email || "").trim().toLowerCase(),
+      });
+      const response = await fetch(`/api/payments/paystack/verify?${verifyQuery.toString()}`);
       const data = await response.json();
       if (!response.ok || !data?.ok || !data?.paid) {
         setPaymentStatus({

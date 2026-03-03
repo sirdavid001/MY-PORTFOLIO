@@ -1,3 +1,6 @@
+import { applyRateLimit } from "./_lib/rate-limit.js";
+import { getClientIp } from "./_lib/security.js";
+
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", methods);
@@ -54,13 +57,13 @@ async function saveOrderToSupabase(order) {
     created_at: new Date().toISOString(),
   };
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/orders`, {
+  const response = await fetch(`${supabaseUrl}/rest/v1/orders?on_conflict=reference`, {
     method: "POST",
     headers: {
       apikey: supabaseServiceRole,
       Authorization: `Bearer ${supabaseServiceRole}`,
       "Content-Type": "application/json",
-      Prefer: "return=minimal",
+      Prefer: "resolution=merge-duplicates,return=minimal",
     },
     body: JSON.stringify(payload),
   });
@@ -93,6 +96,48 @@ function normalizeSupabaseError(rawText, action) {
   return `${action} failed: ${text}`;
 }
 
+function isValidEmail(email) {
+  return /^\S+@\S+\.\S+$/.test(String(email || ""));
+}
+
+function validateOrderPayload(order) {
+  if (!order || typeof order !== "object") return "Invalid order payload.";
+  if (!order.reference || typeof order.reference !== "string" || order.reference.trim().length < 5) {
+    return "Invalid order reference.";
+  }
+
+  if (!Array.isArray(order.items) || order.items.length === 0) {
+    return "Order items are required.";
+  }
+
+  const itemsValid = order.items.every((item) => {
+    return (
+      item &&
+      typeof item === "object" &&
+      typeof item.name === "string" &&
+      item.name.trim().length > 0 &&
+      Number.isFinite(Number(item.quantity)) &&
+      Number(item.quantity) > 0
+    );
+  });
+  if (!itemsValid) return "Invalid order items.";
+
+  if (!order.checkout || typeof order.checkout !== "object") {
+    return "Checkout data is required.";
+  }
+
+  if (!isValidEmail(order.checkout.email)) {
+    return "Valid customer email is required.";
+  }
+
+  const total = Number(order.total);
+  if (!Number.isFinite(total) || total <= 0) {
+    return "Invalid order total.";
+  }
+
+  return null;
+}
+
 function formatOrder(order) {
   const lines = (order.items || [])
     .map((item) => `- ${item.name} x${item.quantity}`)
@@ -116,8 +161,19 @@ Notes: ${order.checkout?.notes || "N/A"}`;
 }
 
 export default async function handler(req, res) {
+  const clientIp = getClientIp(req);
+
   if (req.method === "OPTIONS") {
     return json(res, 200, { ok: true }, "POST, OPTIONS");
+  }
+
+  const orderRateLimit = applyRateLimit(res, {
+    key: `orders:${clientIp}`,
+    limit: 30,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!orderRateLimit.ok) {
+    return json(res, 429, { ok: false, error: "Too many order requests. Try again later." }, "POST, OPTIONS");
   }
 
   if (req.method !== "POST") {
@@ -125,18 +181,33 @@ export default async function handler(req, res) {
   }
 
   try {
+    const payload = await readJsonBody(req);
+    const order = payload?.order;
+    const validationError = validateOrderPayload(order);
+    if (validationError) {
+      return json(res, 400, { ok: false, error: validationError }, "POST, OPTIONS");
+    }
+
+    const supabaseResult = await saveOrderToSupabase(order);
+    if (!supabaseResult.ok) {
+      return json(res, 502, { ok: false, error: supabaseResult.error }, "POST, OPTIONS");
+    }
+
     const resendKey = process.env.RESEND_API_KEY;
     const toEmail = process.env.ORDER_RECEIVER_EMAIL || "itssirdavid@gmail.com";
     const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-
     if (!resendKey) {
-      return json(res, 500, { ok: false, error: "RESEND_API_KEY is not configured." }, "POST, OPTIONS");
-    }
-
-    const payload = await readJsonBody(req);
-    const order = payload?.order;
-    if (!order?.reference || !Array.isArray(order?.items) || order.items.length === 0) {
-      return json(res, 400, { ok: false, error: "Invalid order payload." }, "POST, OPTIONS");
+      return json(
+        res,
+        200,
+        {
+          ok: true,
+          persisted: !supabaseResult.skipped,
+          emailSent: false,
+          warning: "RESEND_API_KEY is not configured. Order was saved without email notification.",
+        },
+        "POST, OPTIONS"
+      );
     }
 
     const emailPayload = {
@@ -158,12 +229,17 @@ export default async function handler(req, res) {
 
     const resendData = await resendResponse.json().catch(() => ({}));
     if (!resendResponse.ok) {
-      return json(res, 502, { ok: false, error: resendData?.message || "Resend request failed." }, "POST, OPTIONS");
-    }
-
-    const supabaseResult = await saveOrderToSupabase(order);
-    if (!supabaseResult.ok) {
-      return json(res, 502, { ok: false, error: supabaseResult.error }, "POST, OPTIONS");
+      return json(
+        res,
+        200,
+        {
+          ok: true,
+          persisted: !supabaseResult.skipped,
+          emailSent: false,
+          warning: resendData?.message || "Resend request failed. Order was saved without email notification.",
+        },
+        "POST, OPTIONS"
+      );
     }
 
     return json(
@@ -173,6 +249,7 @@ export default async function handler(req, res) {
         ok: true,
         id: resendData?.id || null,
         persisted: !supabaseResult.skipped,
+        emailSent: true,
       },
       "POST, OPTIONS"
     );

@@ -1,3 +1,6 @@
+import { applyRateLimit } from "../_lib/rate-limit.js";
+import { getClientIp, isIpAllowed, safeCompare } from "../_lib/security.js";
+
 const ALLOWED_STATUS = new Set(["new", "processing", "paid", "shipped", "completed", "cancelled"]);
 
 function setCors(res, methods) {
@@ -19,7 +22,7 @@ function firstValue(value) {
 function isAuthorized(req) {
   const provided = String(req.headers["x-admin-key"] || "").trim();
   const expected = String(process.env.ADMIN_DASHBOARD_KEY || "").trim();
-  return Boolean(expected) && provided === expected;
+  return Boolean(expected) && safeCompare(provided, expected);
 }
 
 function normalizeSupabaseError(rawText, action) {
@@ -65,16 +68,32 @@ async function readJsonBody(req) {
 
 export default async function handler(req, res) {
   const methods = "GET, PATCH, OPTIONS";
+  const clientIp = getClientIp(req);
 
   if (req.method === "OPTIONS") {
     return json(res, 200, { ok: true }, methods);
+  }
+
+  const adminRateLimit = applyRateLimit(res, {
+    key: `admin:${clientIp}`,
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!adminRateLimit.ok) {
+    return json(res, 429, { ok: false, error: "Too many requests. Try again later." }, methods);
   }
 
   if (!process.env.ADMIN_DASHBOARD_KEY || !String(process.env.ADMIN_DASHBOARD_KEY).trim()) {
     return json(res, 500, { ok: false, error: "ADMIN_DASHBOARD_KEY is not configured." }, methods);
   }
 
+  if (!isIpAllowed(clientIp, process.env.ADMIN_ALLOWED_IPS)) {
+    console.warn("[admin] blocked by ADMIN_ALLOWED_IPS", { ip: clientIp, method: req.method });
+    return json(res, 403, { ok: false, error: "Access denied from this IP." }, methods);
+  }
+
   if (!isAuthorized(req)) {
+    console.warn("[admin] unauthorized request", { ip: clientIp, method: req.method });
     return json(res, 401, { ok: false, error: "Unauthorized" }, methods);
   }
 

@@ -10,10 +10,60 @@ function json(data, status = 200) {
   });
 }
 
+const buckets = globalThis.__cfAdminRateLimitBuckets || new Map();
+globalThis.__cfAdminRateLimitBuckets = buckets;
+
+function applyRateLimit(key, limit, windowMs) {
+  const now = Date.now();
+  const current = buckets.get(key);
+  let bucket = current;
+  if (!bucket || now >= bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + windowMs };
+  }
+
+  bucket.count += 1;
+  buckets.set(key, bucket);
+  return bucket.count <= limit;
+}
+
+function getClientIp(request) {
+  const ip =
+    request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip");
+  return String(ip || "").split(",")[0].trim() || "unknown";
+}
+
+function safeCompare(a, b) {
+  const left = String(a || "");
+  const right = String(b || "");
+  const len = Math.max(left.length, right.length, 1);
+  let diff = left.length === right.length ? 0 : 1;
+
+  for (let i = 0; i < len; i += 1) {
+    const lc = left.charCodeAt(i) || 0;
+    const rc = right.charCodeAt(i) || 0;
+    diff |= lc ^ rc;
+  }
+
+  return diff === 0;
+}
+
+function isIpAllowed(ip, allowListRaw) {
+  const allowList = String(allowListRaw || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (allowList.length === 0) return true;
+  return allowList.some((rule) => {
+    if (rule.endsWith("*")) return ip.startsWith(rule.slice(0, -1));
+    return ip === rule;
+  });
+}
+
 function isAuthorized(request, env) {
   const provided = String(request.headers.get("x-admin-key") || "").trim();
   const expected = String(env.ADMIN_DASHBOARD_KEY || "").trim();
-  return Boolean(expected) && provided === expected;
+  return Boolean(expected) && safeCompare(provided, expected);
 }
 
 function normalizeSupabaseError(rawText, action) {
@@ -43,8 +93,18 @@ export async function onRequestOptions() {
 export async function onRequestGet(context) {
   try {
     const { request, env } = context;
+    const clientIp = getClientIp(request);
+
+    if (!applyRateLimit(`admin:get:${clientIp}`, 60, 10 * 60 * 1000)) {
+      return json({ ok: false, error: "Too many requests. Try again later." }, 429);
+    }
+
     if (!env.ADMIN_DASHBOARD_KEY || !String(env.ADMIN_DASHBOARD_KEY).trim()) {
       return json({ ok: false, error: "ADMIN_DASHBOARD_KEY is not configured." }, 500);
+    }
+
+    if (!isIpAllowed(clientIp, env.ADMIN_ALLOWED_IPS)) {
+      return json({ ok: false, error: "Access denied from this IP." }, 403);
     }
 
     if (!isAuthorized(request, env)) {

@@ -41,6 +41,7 @@ Add these Vercel environment variables:
 - `SUPABASE_URL` = your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` = service role key (server only, never expose in frontend)
 - `ADMIN_DASHBOARD_KEY` = secret key used to access `/admin`
+- `ADMIN_ALLOWED_IPS` = optional comma-separated IP allowlist for `/api/admin/*` (supports `*` suffix prefix match)
 - `PAYSTACK_SECRET_KEY` = Paystack secret key used by server-side initialize/verify endpoints
 - `PAYSTACK_PUBLIC_KEY` = Paystack public key served from `/api/payments/paystack/public-key`
 - `VITE_PAYSTACK_PUBLIC_KEY` = optional frontend fallback for local/dev environments
@@ -76,4 +77,15 @@ create table if not exists public.orders (
 );
 ```
 
-Quick option: run the SQL in [`supabase/orders.sql`](supabase/orders.sql).
+Quick option: open [`supabase/orders.sql`](supabase/orders.sql), copy all SQL statements, paste into Supabase SQL Editor, then click `Run`.
+
+Recommended security step: run [`supabase/rls-orders.sql`](supabase/rls-orders.sql) to enable RLS and deny direct anon/authenticated access to `public.orders`.
+
+## Paystack webhook (recommended)
+- Endpoint: `POST /api/payments/paystack/webhook`
+- Configure this URL in your Paystack dashboard webhook settings.
+- Signature is verified server-side with `PAYSTACK_SECRET_KEY`.
+
+## Admin route
+- Legacy route: `/admin`
+- Hardened alias: `/secure-admin-portal-xyz`

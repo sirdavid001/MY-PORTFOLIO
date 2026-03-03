@@ -1,3 +1,6 @@
+import { applyRateLimit } from "../../_lib/rate-limit.js";
+import { getClientIp } from "../../_lib/security.js";
+
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", methods);
@@ -11,9 +14,19 @@ function json(res, status, data, methods) {
 
 export default async function handler(req, res) {
   const methods = "GET, OPTIONS";
+  const clientIp = getClientIp(req);
 
   if (req.method === "OPTIONS") {
     return json(res, 200, { ok: true }, methods);
+  }
+
+  const keyRateLimit = applyRateLimit(res, {
+    key: `paystack:key:${clientIp}`,
+    limit: 120,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!keyRateLimit.ok) {
+    return json(res, 429, { ok: false, error: "Too many requests. Try again later." }, methods);
   }
 
   if (req.method !== "GET") {
