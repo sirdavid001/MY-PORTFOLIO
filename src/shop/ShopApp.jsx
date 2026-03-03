@@ -29,6 +29,8 @@ const pricingCountries = [
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
 
+const PAYMENT_METHOD_APPLE_PAY = "Apple Pay";
+const PAYMENT_METHOD_PAYSTACK = "Paystack";
 const defaultCheckout = {
   fullName: "",
   email: "",
@@ -36,18 +38,18 @@ const defaultCheckout = {
   address: "",
   city: "",
   country: "",
-  paymentMethod: "Paystack",
+  paymentMethod: PAYMENT_METHOD_PAYSTACK,
   notes: "",
 };
 const PAYSTACK_POPUP_SRC = "https://js.paystack.co/v2/inline.js";
 const SUPPORTED_PAYSTACK_CURRENCIES = new Set(["NGN", "USD"]);
 const PAYMENT_METHODS = [
   {
-    value: "Apple Pay",
+    value: PAYMENT_METHOD_APPLE_PAY,
     description: "Quick checkout on Safari/iOS devices.",
   },
   {
-    value: "Paystack",
+    value: PAYMENT_METHOD_PAYSTACK,
     description: "Cards, bank transfer, USSD, and more via Paystack.",
   },
 ];
@@ -65,6 +67,22 @@ function loadFromStorage(key, fallback) {
 
 function toPrice(basePriceUsd, pricingContext) {
   return basePriceUsd * pricingContext.exchangeRate * pricingContext.factor;
+}
+
+function isValidEmail(email) {
+  return /^\S+@\S+\.\S+$/.test(email);
+}
+
+function getPaystackChannels(paymentMethod, currency) {
+  if (paymentMethod === PAYMENT_METHOD_APPLE_PAY) {
+    return currency === "NGN" ? ["apple_pay", "card", "bank_transfer"] : ["apple_pay", "card"];
+  }
+
+  if (currency === "NGN") {
+    return ["card", "bank_transfer", "bank", "ussd", "qr", "eft", "mobile_money"];
+  }
+
+  return ["card"];
 }
 
 function loadPaystackScript() {
@@ -333,6 +351,8 @@ export default function ShopApp() {
 
   const shipping = subtotal > 0 ? Math.max(15 * activePricing.exchangeRate, subtotal * 0.03) : 0;
   const total = subtotal + shipping;
+  const selectedPaymentMethod = checkout.paymentMethod;
+  const isApplePaySelected = selectedPaymentMethod === PAYMENT_METHOD_APPLE_PAY;
 
   function createOrderDraft(paymentStatus = "pending_confirmation") {
     return {
@@ -355,47 +375,64 @@ export default function ShopApp() {
   }
 
   useEffect(() => {
-    if (!ONLINE_PAYMENT_METHODS.has(checkout.paymentMethod)) {
-      setPaymentStatus({ state: "idle", message: "" });
+    const clearApplePayContainer = () => {
       const container = document.getElementById("paystack-apple-pay");
       if (container) container.innerHTML = "";
+    };
+
+    if (!ONLINE_PAYMENT_METHODS.has(checkout.paymentMethod)) {
+      setPaymentStatus({ state: "idle", message: "" });
+      clearApplePayContainer();
       return undefined;
     }
 
-    if (!checkout.email || !/^\S+@\S+\.\S+$/.test(checkout.email)) {
+    if (!checkout.email || !isValidEmail(checkout.email)) {
       setPaymentStatus({
         state: "info",
-        message: "Enter a valid email to load Apple Pay/Paystack options.",
+        message: `Enter a valid email to enable ${checkout.paymentMethod}.`,
       });
+      clearApplePayContainer();
       return undefined;
     }
 
     if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
       setPaymentStatus({
         state: "error",
-        message: "Apple Pay/Paystack currently supports NGN or USD only.",
+        message: `${checkout.paymentMethod} currently supports NGN or USD only.`,
       });
+      clearApplePayContainer();
       return undefined;
     }
 
     if (cartItems.length === 0 || total <= 0) {
       setPaymentStatus({
         state: "info",
-        message: "Add an item to cart to enable Apple Pay/Paystack options.",
+        message: `Add an item to cart to enable ${checkout.paymentMethod}.`,
       });
+      clearApplePayContainer();
       return undefined;
     }
 
     const paystackPublicKey = resolvedPaystackPublicKey;
     if (!paystackPublicKey) {
       setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
+      clearApplePayContainer();
+      return undefined;
+    }
+
+    if (checkout.paymentMethod !== PAYMENT_METHOD_APPLE_PAY) {
+      setPaymentStatus({
+        state: "ready",
+        message: "Paystack is ready. Click Place Order or the Paystack button to continue.",
+      });
+      clearApplePayContainer();
       return undefined;
     }
 
     let cancelled = false;
 
-    async function mountPaymentRequest() {
-      setPaymentStatus({ state: "initializing", message: "Loading Apple Pay/Paystack options..." });
+    async function mountApplePayRequest() {
+      setPaymentStatus({ state: "initializing", message: "Loading Apple Pay..." });
       try {
         const container = document.getElementById("paystack-apple-pay");
         if (container) container.innerHTML = "";
@@ -420,7 +457,6 @@ export default function ShopApp() {
           currency: order.currency,
           ref: paymentReference,
           container: "paystack-apple-pay",
-          loadPaystackCheckoutButton: "paystack-other-channels",
           style: {
             theme: "dark",
             applePay: {
@@ -459,8 +495,8 @@ export default function ShopApp() {
               });
             } else {
               setPaymentStatus({
-                state: "ready",
-                message: "Apple Pay unavailable on this device. Use Paystack checkout.",
+                state: "info",
+                message: "Apple Pay is unavailable on this device/browser. Switch to Paystack.",
               });
             }
           },
@@ -469,17 +505,16 @@ export default function ShopApp() {
         if (cancelled) return;
         setPaymentStatus({
           state: "error",
-          message: "Unable to initialize Apple Pay/Paystack options.",
+          message: "Unable to initialize Apple Pay options.",
         });
       }
     }
 
-    mountPaymentRequest();
+    mountApplePayRequest();
 
     return () => {
       cancelled = true;
-      const container = document.getElementById("paystack-apple-pay");
-      if (container) container.innerHTML = "";
+      clearApplePayContainer();
     };
   }, [activePricing.currency, cartItems.length, checkout.email, checkout.paymentMethod, resolvedPaystackPublicKey, total]);
 
@@ -525,14 +560,11 @@ export default function ShopApp() {
     return Object.keys(errors).length === 0;
   }
 
-  async function handlePlaceOrder(event) {
-    event.preventDefault();
-    if (!validateCheckout()) return;
-
+  async function processSelectedPayment(order) {
     if (!ONLINE_PAYMENT_METHODS.has(checkout.paymentMethod)) {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: "Choose Apple Pay or Paystack.",
+        paymentMethod: `Choose ${PAYMENT_METHOD_APPLE_PAY} or ${PAYMENT_METHOD_PAYSTACK}.`,
       }));
       return;
     }
@@ -540,23 +572,24 @@ export default function ShopApp() {
     if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: "Apple Pay/Paystack currently supports NGN or USD only.",
+        paymentMethod: `${checkout.paymentMethod} currently supports NGN or USD only.`,
       }));
       return;
     }
 
-    const order = createOrderDraft("pending_gateway");
     const paystackPublicKey = resolvedPaystackPublicKey;
     if (!paystackPublicKey) {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: "Apple Pay/Paystack is not configured. Missing public key.",
+        paymentMethod: `${checkout.paymentMethod} is not configured. Missing public key.`,
       }));
       setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
       return;
     }
 
-    setPaymentStatus({ state: "initializing", message: "Opening Paystack checkout..." });
+    const openingMessage =
+      checkout.paymentMethod === PAYMENT_METHOD_APPLE_PAY ? "Opening Apple Pay..." : "Opening Paystack checkout...";
+    setPaymentStatus({ state: "initializing", message: openingMessage });
     try {
       const PaystackPop = await loadPaystackScript();
       if (!PaystackPop) {
@@ -566,16 +599,23 @@ export default function ShopApp() {
 
       const paymentReference = `PS-${order.reference}-${Date.now()}`;
       const popup = new PaystackPop();
+      const [firstName = "", ...restNames] = (order.checkout.fullName || "").trim().split(/\s+/);
+      const lastName = restNames.join(" ");
+      const channels = getPaystackChannels(order.checkout.paymentMethod, order.currency || "NGN");
       await popup.checkout({
         key: paystackPublicKey,
         email: order.checkout.email,
         amount: Math.round(order.total * 100),
         currency: order.currency || "NGN",
+        channels,
+        firstName,
+        lastName,
+        phone: order.checkout.phone || undefined,
         ref: paymentReference,
         metadata: {
           order_reference: order.reference,
           customer_name: order.checkout.fullName || "",
-          payment_method: order.checkout.paymentMethod || "Paystack",
+          payment_method: order.checkout.paymentMethod || PAYMENT_METHOD_PAYSTACK,
         },
         onSuccess: async (transaction) => {
           await finalizeCardPayment(order, transaction?.reference || paymentReference);
@@ -583,16 +623,35 @@ export default function ShopApp() {
         onCancel: () => {
           setPaymentStatus({ state: "error", message: "Payment popup was closed before completion." });
         },
+        onError: (error) => {
+          const fallback =
+            order.currency === "NGN"
+              ? "Unable to start Paystack payment. Confirm transfer is enabled on your Paystack account."
+              : "Unable to start Paystack payment.";
+          setPaymentStatus({ state: "error", message: error?.message || fallback });
+        },
       });
       return;
     } catch {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: "Unable to initialize Apple Pay/Paystack payment.",
+        paymentMethod: `Unable to initialize ${checkout.paymentMethod} payment.`,
       }));
-      setPaymentStatus({ state: "error", message: "Unable to initialize Apple Pay/Paystack payment." });
-      return;
+      setPaymentStatus({ state: "error", message: `Unable to initialize ${checkout.paymentMethod} payment.` });
     }
+  }
+
+  async function handlePlaceOrder(event) {
+    event.preventDefault();
+    if (!validateCheckout()) return;
+    const order = createOrderDraft("pending_gateway");
+    await processSelectedPayment(order);
+  }
+
+  async function handlePaystackQuickCheckout() {
+    if (!validateCheckout()) return;
+    const order = createOrderDraft("pending_gateway");
+    await processSelectedPayment(order);
   }
 
   function handleCheckoutFieldChange(event) {
@@ -989,35 +1048,49 @@ export default function ShopApp() {
                       })}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-slate-700">Apple Pay / Paystack Quick Checkout</p>
-                      <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
-                        Secure
-                      </span>
+                  {isApplePaySelected ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-slate-700">Apple Pay Quick Checkout</p>
+                        <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+                          Secure
+                        </span>
+                      </div>
+                      <div id="paystack-apple-pay" className="mt-2" />
                     </div>
-                    <div id="paystack-apple-pay" className="mt-2" />
-                    <button
-                      id="paystack-other-channels"
-                      type="button"
-                      className="mt-2 flex w-full items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-3 py-2.5 text-left text-white shadow-sm transition hover:from-emerald-500 hover:to-green-500"
-                    >
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
-                        <FaWallet className="text-sm" />
-                      </span>
-                      <span className="flex-1">
-                        <span className="block text-sm font-semibold">Paystack Checkout</span>
-                        <span className="block text-xs text-emerald-100">Open secure payment options</span>
-                      </span>
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">Open</span>
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-emerald-800">Paystack Checkout</p>
+                        <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-700">
+                          Secure
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handlePaystackQuickCheckout}
+                        className="mt-2 flex w-full items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-3 py-2.5 text-left text-white shadow-sm transition hover:from-emerald-500 hover:to-green-500"
+                      >
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+                          <FaWallet className="text-sm" />
+                        </span>
+                        <span className="flex-1">
+                          <span className="block text-sm font-semibold">Paystack Checkout</span>
+                          <span className="block text-xs text-emerald-100">Cards, bank transfer, USSD and more</span>
+                        </span>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">Open</span>
+                      </button>
+                    </div>
+                  )}
                   {checkoutErrors.paymentMethod && (
                     <p className="text-xs text-rose-600">{checkoutErrors.paymentMethod}</p>
                   )}
                   <p className="text-xs text-slate-500">
-                    Apple Pay appears automatically on supported Safari/iOS devices. If unavailable, continue with
-                    Paystack Checkout.
+                    {isApplePaySelected
+                      ? "Apple Pay appears only on supported Safari/iOS devices. If unavailable, switch to Paystack."
+                      : activePricing.currency === "NGN"
+                      ? "Paystack supports cards, bank transfer, USSD, and more secure payment channels."
+                      : `Paystack transfer account generation is NGN-only. Current checkout currency is ${activePricing.currency}.`}
                   </p>
 
                   <textarea
@@ -1033,7 +1106,7 @@ export default function ShopApp() {
                     type="submit"
                     className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-400"
                   >
-                    Place Order
+                    {isApplePaySelected ? "Place Order (Apple Pay)" : "Place Order (Paystack)"}
                   </button>
                 </form>
               ) : !isCartPage && cartItems.length > 0 ? (

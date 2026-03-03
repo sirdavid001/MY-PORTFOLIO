@@ -55,13 +55,19 @@ export default async function handler(req, res) {
     const paymentReference = `PS-${order.reference}-${Date.now()}`;
     const amountKobo = Math.round(Number(order.total) * 100);
     const callbackUrl = `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}/?paystack=1`;
+    const currency = order.currency || "NGN";
+    const channels =
+      currency === "NGN"
+        ? ["card", "bank_transfer", "bank", "ussd", "qr", "eft", "mobile_money"]
+        : ["card"];
 
     const body = {
       email: order.checkout.email,
       amount: amountKobo,
-      currency: order.currency || "NGN",
+      currency,
       reference: paymentReference,
       callback_url: callbackUrl,
+      channels,
       metadata: {
         order_reference: order.reference,
         customer_name: order.checkout.fullName || "",

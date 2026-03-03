@@ -8,16 +8,20 @@ import ShopApp from "./shop/ShopApp";
 import AdminApp from "./shop/AdminApp";
 
 const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]);
+const SHOP_PATHS = new Set(["/cart", "/admin"]);
 
 export default function App() {
   const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
   const hostLabels = hostname
     .split(".")
     .map((value) => value.toLowerCase().trim())
     .filter(Boolean);
   const isBusinessSubdomain = hostLabels.some((label) => BUSINESS_SUBDOMAINS.has(label));
+  const isShopPath = normalizedPathname.startsWith("/admin") || SHOP_PATHS.has(normalizedPathname);
 
-  if (isBusinessSubdomain) {
+  if (isBusinessSubdomain || isShopPath) {
     return (
       <Routes>
         <Route path="/admin" element={<AdminApp />} />
