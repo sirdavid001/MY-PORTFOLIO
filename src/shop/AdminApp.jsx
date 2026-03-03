@@ -16,15 +16,33 @@ export default function AdminApp() {
 
   useEffect(() => {
     const saved = window.sessionStorage.getItem("sirdavidshop:admin-key");
-    if (saved) {
-      setAdminKey(saved);
-      setIsAuthed(true);
+    if (!saved) return;
+
+    const trimmedSaved = saved.trim();
+    if (!trimmedSaved) {
+      window.sessionStorage.removeItem("sirdavidshop:admin-key");
+      return;
     }
+
+    setAdminKey(trimmedSaved);
+    loadOrders(trimmedSaved).then((ok) => {
+      if (ok) {
+        setIsAuthed(true);
+        return;
+      }
+
+      window.sessionStorage.removeItem("sirdavidshop:admin-key");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadOrders(keyOverride) {
-    const key = keyOverride || adminKey;
-    if (!key) return;
+    const key = String(keyOverride || adminKey || "").trim();
+    if (!key) {
+      setError("Admin key is required.");
+      return false;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -35,7 +53,11 @@ export default function AdminApp() {
       });
       const data = await response.json();
       if (!response.ok || !data?.ok) {
-        setError(data?.error || "Failed to load orders.");
+        if (response.status === 401) {
+          setError("Invalid admin key.");
+        } else {
+          setError(data?.error || "Failed to load orders.");
+        }
         setLoading(false);
         return false;
       }
@@ -51,15 +73,17 @@ export default function AdminApp() {
 
   async function handleLogin(event) {
     event.preventDefault();
-    const ok = await loadOrders(adminKey);
+    const trimmedKey = adminKey.trim();
+    setAdminKey(trimmedKey);
+    const ok = await loadOrders(trimmedKey);
     if (ok) {
       setIsAuthed(true);
-      window.sessionStorage.setItem("sirdavidshop:admin-key", adminKey);
+      window.sessionStorage.setItem("sirdavidshop:admin-key", trimmedKey);
     }
   }
 
   async function updateStatus(orderId, nextStatus) {
-    const key = adminKey;
+    const key = adminKey.trim();
     if (!key) return;
 
     setUpdating((prev) => ({ ...prev, [orderId]: true }));

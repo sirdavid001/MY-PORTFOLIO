@@ -17,8 +17,9 @@ function firstValue(value) {
 }
 
 function isAuthorized(req) {
-  const provided = req.headers["x-admin-key"];
-  return Boolean(process.env.ADMIN_DASHBOARD_KEY) && provided === process.env.ADMIN_DASHBOARD_KEY;
+  const provided = String(req.headers["x-admin-key"] || "").trim();
+  const expected = String(process.env.ADMIN_DASHBOARD_KEY || "").trim();
+  return Boolean(expected) && provided === expected;
 }
 
 async function readJsonBody(req) {
@@ -47,6 +48,10 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") {
     return json(res, 200, { ok: true }, methods);
+  }
+
+  if (!process.env.ADMIN_DASHBOARD_KEY || !String(process.env.ADMIN_DASHBOARD_KEY).trim()) {
+    return json(res, 500, { ok: false, error: "ADMIN_DASHBOARD_KEY is not configured." }, methods);
   }
 
   if (!isAuthorized(req)) {

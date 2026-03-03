@@ -11,8 +11,9 @@ function json(data, status = 200) {
 }
 
 function isAuthorized(request, env) {
-  const provided = request.headers.get("x-admin-key");
-  return Boolean(env.ADMIN_DASHBOARD_KEY) && provided === env.ADMIN_DASHBOARD_KEY;
+  const provided = String(request.headers.get("x-admin-key") || "").trim();
+  const expected = String(env.ADMIN_DASHBOARD_KEY || "").trim();
+  return Boolean(expected) && provided === expected;
 }
 
 export async function onRequestOptions() {
@@ -22,6 +23,10 @@ export async function onRequestOptions() {
 export async function onRequestPatch(context) {
   try {
     const { request, env, params } = context;
+    if (!env.ADMIN_DASHBOARD_KEY || !String(env.ADMIN_DASHBOARD_KEY).trim()) {
+      return json({ ok: false, error: "ADMIN_DASHBOARD_KEY is not configured." }, 500);
+    }
+
     if (!isAuthorized(request, env)) {
       return json({ ok: false, error: "Unauthorized" }, 401);
     }
