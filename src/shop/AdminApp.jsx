@@ -1,14 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { FiLogOut, FiRefreshCw } from "react-icons/fi";
+import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
+import { BrandPill } from "./brandIdentity";
 import { defaultShippingConfig, normalizeProduct, normalizeShippingConfig } from "./products";
 
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
 
 const statusOptions = ["new", "processing", "paid", "shipped", "completed", "cancelled"];
-const initialCategoryOptions = ["Phones", "Laptops", "Accessories", "Gaming", "Wearables"];
+const initialCategoryOptions = [
+  "Phones",
+  "Laptops",
+  "Tablets",
+  "Wearables",
+  "Audio",
+  "Gaming",
+  "Accessories",
+  "Smart Home",
+  "Cameras",
+  "Networking",
+  "Storage",
+  "Monitors",
+  "Components",
+];
 const initialConditionOptions = ["New", "Used", "Used - Excellent", "Used - Very Good", "Used - Good"];
+const FALLBACK_NGN_PER_USD = 1600;
 const ADMIN_BASE_PATH = "/secure-admin-portal-xyz";
 const adminPages = [
   { id: "orders", label: "Orders", description: "Track and update order statuses" },
@@ -17,156 +35,285 @@ const adminPages = [
   { id: "shipping", label: "Shipping", description: "Configure checkout shipping rules" },
 ];
 const allowedAdminPageIds = new Set(adminPages.map((page) => page.id));
-const popularBrandCatalog = {
+const phoneModelsByBrand = {
   Apple: [
-    {
-      model: "iPhone 15 Pro Max",
-      category: "Phones",
-      condition: "New",
-      details: "256GB, A17 Pro chip, dual eSIM support, battery health verified.",
-    },
-    {
-      model: "iPhone 13",
-      category: "Phones",
-      condition: "Used - Excellent",
-      details: "128GB, Face ID, battery health verified, factory unlocked.",
-    },
-    {
-      model: "MacBook Air M2",
-      category: "Laptops",
-      condition: "Used - Very Good",
-      details: "13-inch, 8GB RAM, 256GB SSD, battery cycle health checked.",
-    },
-    {
-      model: "AirPods Pro (2nd Gen)",
-      category: "Accessories",
-      condition: "New",
-      details: "Active noise cancellation, MagSafe case, original accessories included.",
-    },
-    {
-      model: "Apple Watch Series 9",
-      category: "Wearables",
-      condition: "New",
-      details: "45mm GPS model, health sensors active, charger included.",
-    },
+    "iPhone SE (2nd Gen)",
+    "iPhone 12 mini",
+    "iPhone 12",
+    "iPhone 12 Pro",
+    "iPhone 12 Pro Max",
+    "iPhone 13 mini",
+    "iPhone 13",
+    "iPhone 13 Pro",
+    "iPhone 13 Pro Max",
+    "iPhone SE (3rd Gen)",
+    "iPhone 14",
+    "iPhone 14 Plus",
+    "iPhone 14 Pro",
+    "iPhone 14 Pro Max",
+    "iPhone 15",
+    "iPhone 15 Plus",
+    "iPhone 15 Pro",
+    "iPhone 15 Pro Max",
+    "iPhone 16",
+    "iPhone 16 Plus",
+    "iPhone 16 Pro",
+    "iPhone 16 Pro Max",
+    "iPhone 17",
+    "iPhone 17 Plus",
+    "iPhone 17 Pro",
+    "iPhone 17 Pro Max",
   ],
   Samsung: [
-    {
-      model: "Galaxy S24 Ultra",
-      category: "Phones",
-      condition: "New",
-      details: "256GB, S Pen included, official charger and warranty.",
-    },
-    {
-      model: "Galaxy A55",
-      category: "Phones",
-      condition: "New",
-      details: "128GB, AMOLED display, dual SIM and 5G support.",
-    },
-    {
-      model: "Galaxy Tab S9",
-      category: "Accessories",
-      condition: "Used - Excellent",
-      details: "11-inch tablet, S Pen included, WiFi model in excellent condition.",
-    },
-  ],
-  Dell: [
-    {
-      model: "XPS 13",
-      category: "Laptops",
-      condition: "Used - Very Good",
-      details: "Core i7, 16GB RAM, 512GB SSD, clean OS installation.",
-    },
-    {
-      model: "Inspiron 15",
-      category: "Laptops",
-      condition: "Used - Good",
-      details: "Core i5, 8GB RAM, 256GB SSD, ideal for work and school.",
-    },
-  ],
-  Lenovo: [
-    {
-      model: "ThinkPad X1 Carbon",
-      category: "Laptops",
-      condition: "Used - Excellent",
-      details: "Core i7, 16GB RAM, 512GB SSD, business-grade build quality.",
-    },
-    {
-      model: "Legion 5",
-      category: "Gaming",
-      condition: "Used - Very Good",
-      details: "RTX graphics, 16GB RAM, 512GB SSD, gaming-ready performance.",
-    },
-  ],
-  Sony: [
-    {
-      model: "PlayStation 5",
-      category: "Gaming",
-      condition: "Used - Excellent",
-      details: "Includes one controller, HDMI and power cable, fully tested.",
-    },
-    {
-      model: "WH-1000XM5",
-      category: "Accessories",
-      condition: "New",
-      details: "Premium noise-canceling headphones with carry case.",
-    },
-  ],
-  HP: [
-    {
-      model: "Spectre x360 14",
-      category: "Laptops",
-      condition: "Used - Very Good",
-      details: "2-in-1 ultrabook, touch display, 16GB RAM, 512GB SSD.",
-    },
-    {
-      model: "Pavilion 15",
-      category: "Laptops",
-      condition: "Used - Good",
-      details: "Core i5, 8GB RAM, SSD storage, battery verified.",
-    },
+    "Galaxy S20",
+    "Galaxy S20+",
+    "Galaxy S20 Ultra",
+    "Galaxy S20 FE",
+    "Galaxy S21",
+    "Galaxy S21+",
+    "Galaxy S21 Ultra",
+    "Galaxy S21 FE",
+    "Galaxy S22",
+    "Galaxy S22+",
+    "Galaxy S22 Ultra",
+    "Galaxy S23",
+    "Galaxy S23+",
+    "Galaxy S23 Ultra",
+    "Galaxy S23 FE",
+    "Galaxy S24",
+    "Galaxy S24+",
+    "Galaxy S24 Ultra",
+    "Galaxy S24 FE",
+    "Galaxy S25",
+    "Galaxy S25+",
+    "Galaxy S25 Ultra",
+    "Galaxy A52",
+    "Galaxy A53",
+    "Galaxy A54",
+    "Galaxy A55",
+    "Galaxy A56",
+    "Galaxy Z Fold2",
+    "Galaxy Z Fold3",
+    "Galaxy Z Fold4",
+    "Galaxy Z Fold5",
+    "Galaxy Z Fold6",
+    "Galaxy Z Flip3",
+    "Galaxy Z Flip4",
+    "Galaxy Z Flip5",
+    "Galaxy Z Flip6",
   ],
   Google: [
-    {
-      model: "Pixel 8 Pro",
-      category: "Phones",
-      condition: "New",
-      details: "128GB, clean Android experience, official box included.",
-    },
-    {
-      model: "Pixel 7a",
-      category: "Phones",
-      condition: "Used - Excellent",
-      details: "128GB, 5G capable, camera and battery fully tested.",
-    },
+    "Pixel 5",
+    "Pixel 5a",
+    "Pixel 6",
+    "Pixel 6 Pro",
+    "Pixel 6a",
+    "Pixel 7",
+    "Pixel 7 Pro",
+    "Pixel 7a",
+    "Pixel 8",
+    "Pixel 8 Pro",
+    "Pixel 8a",
+    "Pixel 9",
+    "Pixel 9 Pro",
+    "Pixel 9 Pro XL",
+    "Pixel 9a",
+    "Pixel 10",
+    "Pixel 10 Pro",
   ],
   Xiaomi: [
-    {
-      model: "Redmi Note 13 Pro",
-      category: "Phones",
-      condition: "New",
-      details: "AMOLED display, 256GB storage, fast charging supported.",
-    },
-    {
-      model: "Xiaomi 14",
-      category: "Phones",
-      condition: "New",
-      details: "Flagship chipset, Leica camera setup, dual SIM.",
-    },
+    "Mi 10T Pro",
+    "Mi 11",
+    "11T",
+    "11T Pro",
+    "Xiaomi 12",
+    "Xiaomi 12 Pro",
+    "Xiaomi 12T",
+    "Xiaomi 12T Pro",
+    "Xiaomi 13",
+    "Xiaomi 13 Pro",
+    "Xiaomi 13T",
+    "Xiaomi 13T Pro",
+    "Xiaomi 14",
+    "Xiaomi 14 Pro",
+    "Xiaomi 14T",
+    "Xiaomi 14T Pro",
+    "Xiaomi 15",
+    "Xiaomi 15 Pro",
+    "Redmi Note 10",
+    "Redmi Note 11",
+    "Redmi Note 12",
+    "Redmi Note 13",
+    "Redmi Note 14",
+    "POCO X3 Pro",
+    "POCO F3",
+    "POCO F4",
+    "POCO F5",
+    "POCO F6",
   ],
   OnePlus: [
-    {
-      model: "OnePlus 12",
-      category: "Phones",
-      condition: "New",
-      details: "High-refresh display, fast charging, 256GB storage.",
-    },
-    {
-      model: "Nord CE 4",
-      category: "Phones",
-      condition: "New",
-      details: "Midrange performance, 5G support, battery health guaranteed.",
-    },
+    "OnePlus 8T",
+    "OnePlus 9",
+    "OnePlus 9 Pro",
+    "OnePlus 10 Pro",
+    "OnePlus 10T",
+    "OnePlus 11",
+    "OnePlus 12",
+    "OnePlus 13",
+    "OnePlus Nord N10",
+    "OnePlus Nord 2",
+    "OnePlus Nord 3",
+    "OnePlus Nord 4",
+  ],
+  Tecno: [
+    "Camon 17",
+    "Camon 18",
+    "Camon 19",
+    "Camon 20",
+    "Camon 30",
+    "Phantom X",
+    "Phantom V Fold",
+    "Spark 8",
+    "Spark 10 Pro",
+    "Spark 20",
+    "Pova 5",
+    "Pova 6",
+  ],
+  Infinix: [
+    "Note 10 Pro",
+    "Note 11",
+    "Note 12",
+    "Note 30 Pro",
+    "Note 40 Pro",
+    "Zero 8",
+    "Zero 20",
+    "Zero 30",
+    "Hot 12",
+    "Hot 20",
+    "Hot 40 Pro",
+  ],
+};
+
+const nonPhoneModelsByBrand = {
+  Apple: {
+    Laptops: ["MacBook Air M1", "MacBook Air M2", "MacBook Air M3", "MacBook Pro 14", "MacBook Pro 16"],
+    Tablets: ["iPad 10th Gen", "iPad Air (5th Gen)", "iPad Pro 11", "iPad Pro 13", "iPad mini (6th Gen)"],
+    Wearables: ["Apple Watch SE (2nd Gen)", "Apple Watch Series 8", "Apple Watch Series 9", "Apple Watch Ultra 2"],
+    Audio: ["AirPods (3rd Gen)", "AirPods Pro (2nd Gen)", "AirPods Max"],
+    Accessories: ["Apple Pencil (2nd Gen)", "Magic Keyboard"],
+  },
+  Samsung: {
+    Laptops: ["Galaxy Book2 Pro", "Galaxy Book3 Pro", "Galaxy Book4 Pro"],
+    Tablets: ["Galaxy Tab S8", "Galaxy Tab S9", "Galaxy Tab A9+"],
+    Wearables: ["Galaxy Watch 5", "Galaxy Watch 6", "Galaxy Watch 7"],
+    Audio: ["Galaxy Buds2", "Galaxy Buds2 Pro", "Galaxy Buds3 Pro"],
+    Accessories: ["S Pen Pro", "45W Super Fast Charger"],
+  },
+  Google: {
+    Tablets: ["Pixel Tablet"],
+    Wearables: ["Pixel Watch", "Pixel Watch 2", "Pixel Watch 3"],
+    Audio: ["Pixel Buds A-Series", "Pixel Buds Pro"],
+    "Smart Home": ["Nest Hub (2nd Gen)", "Nest Audio", "Nest Cam"],
+    Networking: ["Nest Wifi Pro"],
+  },
+  Xiaomi: {
+    Tablets: ["Xiaomi Pad 5", "Xiaomi Pad 6", "Xiaomi Pad 6 Pro"],
+    Wearables: ["Xiaomi Watch S3", "Redmi Watch 4", "Smart Band 8"],
+    Audio: ["Redmi Buds 4 Pro", "Xiaomi Buds 5"],
+    "Smart Home": ["Xiaomi Smart Camera C300", "Mi Smart Home Hub"],
+  },
+  OnePlus: {
+    Tablets: ["OnePlus Pad", "OnePlus Pad 2"],
+    Wearables: ["OnePlus Watch 2"],
+    Audio: ["OnePlus Buds Pro 2", "OnePlus Buds 3"],
+    Accessories: ["SUPERVOOC 100W Charger"],
+  },
+  Dell: {
+    Laptops: ["XPS 13", "XPS 15", "Inspiron 15", "Latitude 5420", "G15"],
+    Monitors: ["UltraSharp U2720Q", "P2422H"],
+    Accessories: ["WD19 Dock"],
+  },
+  Lenovo: {
+    Laptops: ["ThinkPad X1 Carbon", "ThinkPad T14", "IdeaPad 5", "Legion 5", "Yoga 7"],
+    Tablets: ["Tab P11"],
+    Gaming: ["Legion Go"],
+    Accessories: ["ThinkPad Universal USB-C Dock"],
+  },
+  HP: {
+    Laptops: ["Spectre x360 14", "Envy x360 13", "Pavilion 15", "OMEN 16", "ProBook 440"],
+    Monitors: ["M24f", "E24 G4"],
+    Accessories: ["HP USB-C Dock G5"],
+  },
+  Sony: {
+    Gaming: ["PlayStation 4 Pro", "PlayStation 5", "PlayStation 5 Digital Edition"],
+    Audio: ["WH-1000XM4", "WH-1000XM5", "WF-1000XM5", "Pulse 3D Headset"],
+    Cameras: ["Alpha A6400", "Alpha A7 III", "ZV-E10"],
+  },
+  Tecno: {
+    Tablets: ["MegaPad 10"],
+    Audio: ["Sonic 1 Earbuds"],
+    Accessories: ["Fast Charger 45W"],
+  },
+  Infinix: {
+    Tablets: ["XPAD"],
+    Audio: ["XE23 Earbuds"],
+    Accessories: ["Fast Charge Adapter 45W"],
+  },
+};
+
+function buildPhoneEntries(models) {
+  return models.map((model) => ({
+    model,
+    category: "Phones",
+    condition: "Used - Excellent",
+    details: "Popular phone model from 2020 to current lineup. Confirm exact storage and variant before publishing.",
+  }));
+}
+
+function buildCategoryEntries(brand) {
+  const byCategory = nonPhoneModelsByBrand[brand] || {};
+  return Object.entries(byCategory).flatMap(([category, models]) =>
+    models.map((model) => ({
+      model,
+      category,
+      condition: "Used - Very Good",
+      details: `${brand} ${category.toLowerCase()} model. Confirm exact variant and included accessories before publishing.`,
+    }))
+  );
+}
+
+const popularBrandCatalog = {
+  Apple: [
+    ...buildPhoneEntries(phoneModelsByBrand.Apple),
+    ...buildCategoryEntries("Apple"),
+  ],
+  Samsung: [
+    ...buildPhoneEntries(phoneModelsByBrand.Samsung),
+    ...buildCategoryEntries("Samsung"),
+  ],
+  Dell: [...buildCategoryEntries("Dell")],
+  Lenovo: [...buildCategoryEntries("Lenovo")],
+  Sony: [...buildCategoryEntries("Sony")],
+  HP: [...buildCategoryEntries("HP")],
+  Google: [
+    ...buildPhoneEntries(phoneModelsByBrand.Google),
+    ...buildCategoryEntries("Google"),
+  ],
+  Xiaomi: [
+    ...buildPhoneEntries(phoneModelsByBrand.Xiaomi),
+    ...buildCategoryEntries("Xiaomi"),
+  ],
+  OnePlus: [
+    ...buildPhoneEntries(phoneModelsByBrand.OnePlus),
+    ...buildCategoryEntries("OnePlus"),
+  ],
+  Tecno: [
+    ...buildPhoneEntries(phoneModelsByBrand.Tecno),
+    ...buildCategoryEntries("Tecno"),
+  ],
+  Infinix: [
+    ...buildPhoneEntries(phoneModelsByBrand.Infinix),
+    ...buildCategoryEntries("Infinix"),
   ],
 };
 
@@ -176,8 +323,8 @@ const emptyProductForm = {
   name: "",
   brand: "",
   condition: "New",
-  category: "Phones",
-  basePriceUsd: "",
+  category: "",
+  basePriceNgn: "",
   stock: "",
   image: "",
   details: "",
@@ -185,7 +332,7 @@ const emptyProductForm = {
   isActive: true,
 };
 
-function normalizeProductForForm(product) {
+function normalizeProductForForm(product, ngnPerUsd) {
   const normalized = normalizeProduct(product);
   const brandCatalog = popularBrandCatalog[normalized.brand] || [];
   const exactModel = brandCatalog.find((entry) => entry.model.toLowerCase() === normalized.name.toLowerCase());
@@ -201,7 +348,7 @@ function normalizeProductForForm(product) {
     brand: normalized.brand,
     condition: normalized.condition,
     category: normalized.category,
-    basePriceUsd: String(normalized.basePriceUsd),
+    basePriceNgn: String(Math.round(normalized.basePriceUsd * ngnPerUsd)),
     stock: String(normalized.stock),
     image: normalized.image,
     details: normalized.details,
@@ -219,14 +366,22 @@ function fileToDataUrl(file) {
   });
 }
 
-function getModelTemplate(brand, model) {
+function getModelTemplate(brand, category, model) {
   const brandCatalog = popularBrandCatalog[String(brand || "").trim()] || [];
   const wantedModel = String(model || "").trim().toLowerCase();
+  const wantedCategory = String(category || "").trim().toLowerCase();
   if (!wantedModel) return null;
-  return brandCatalog.find((entry) => entry.model.toLowerCase() === wantedModel) || null;
+  return (
+    brandCatalog.find(
+      (entry) =>
+        entry.model.toLowerCase() === wantedModel &&
+        (!wantedCategory || String(entry.category || "").trim().toLowerCase() === wantedCategory)
+    ) || null
+  );
 }
 
 export default function AdminApp() {
+  const pricingContext = usePricingContext();
   const location = useLocation();
   const navigate = useNavigate();
   const [adminEmail, setAdminEmail] = useState("");
@@ -244,6 +399,7 @@ export default function AdminApp() {
   const [productsError, setProductsError] = useState("");
   const [productForm, setProductForm] = useState(emptyProductForm);
   const [editingProductId, setEditingProductId] = useState("");
+  const [selectedGadgetCategory, setSelectedGadgetCategory] = useState("All");
   const [savingProduct, setSavingProduct] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -270,7 +426,18 @@ export default function AdminApp() {
     ).filter(Boolean);
   }, [productForm.brand, products]);
   const modelSuggestions = useMemo(() => {
-    const catalogModels = (popularBrandCatalog[productForm.brand] || []).map((entry) => entry.model);
+    const selectedCategory = String(productForm.category || "").trim().toLowerCase();
+    if (!selectedCategory) {
+      return Array.from(new Set([String(productForm.model || "").trim(), String(productForm.name || "").trim()])).filter(
+        Boolean
+      );
+    }
+    const catalogModels = (popularBrandCatalog[productForm.brand] || [])
+      .filter(
+        (entry) =>
+          !selectedCategory || String(entry.category || "").trim().toLowerCase() === selectedCategory
+      )
+      .map((entry) => entry.model);
     return Array.from(
       new Set([
         ...catalogModels,
@@ -278,11 +445,15 @@ export default function AdminApp() {
         String(productForm.name || "").trim(),
       ])
     ).filter(Boolean);
-  }, [productForm.brand, productForm.model, productForm.name]);
+  }, [productForm.brand, productForm.category, productForm.model, productForm.name]);
   const categorySuggestions = useMemo(() => {
+    const catalogCategories = Object.values(popularBrandCatalog)
+      .flatMap((entries) => entries.map((entry) => String(entry.category || "").trim()))
+      .filter(Boolean);
     return Array.from(
       new Set([
         ...initialCategoryOptions,
+        ...catalogCategories,
         ...products.map((product) => String(product.category || "").trim()),
         String(productForm.category || "").trim(),
       ])
@@ -297,6 +468,42 @@ export default function AdminApp() {
       ])
     ).filter(Boolean);
   }, [productForm.condition, products]);
+  const gadgetCategories = useMemo(
+    () =>
+      Array.from(new Set(products.map((product) => String(product.category || "").trim()).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [products]
+  );
+  const filteredGadgetProducts = useMemo(() => {
+    if (selectedGadgetCategory === "All") return products;
+    return products.filter((product) => String(product.category || "").trim() === selectedGadgetCategory);
+  }, [products, selectedGadgetCategory]);
+  const groupedGadgetProducts = useMemo(() => {
+    const grouped = new Map();
+    const sorted = [...filteredGadgetProducts].sort((a, b) => {
+      const categoryCompare = String(a.category || "").localeCompare(String(b.category || ""));
+      if (categoryCompare !== 0) return categoryCompare;
+      const orderCompare = Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+      if (orderCompare !== 0) return orderCompare;
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
+
+    sorted.forEach((product) => {
+      const category = String(product.category || "").trim() || "Uncategorized";
+      if (!grouped.has(category)) grouped.set(category, []);
+      grouped.get(category).push(product);
+    });
+
+    return Array.from(grouped.entries()).map(([category, items]) => ({ category, items }));
+  }, [filteredGadgetProducts]);
+  const ngnPerUsd = useMemo(() => {
+    const fromRates = Number(pricingContext?.rates?.NGN || 0);
+    const fromExchange = pricingContext?.currency === "NGN" ? Number(pricingContext?.exchangeRate || 0) : 0;
+    if (Number.isFinite(fromRates) && fromRates > 0) return fromRates;
+    if (Number.isFinite(fromExchange) && fromExchange > 0) return fromExchange;
+    return FALLBACK_NGN_PER_USD;
+  }, [pricingContext.currency, pricingContext.exchangeRate, pricingContext.rates]);
   const activePage = useMemo(() => {
     const normalizedPath = String(location.pathname || "").replace(/\/+$/, "");
     if (!normalizedPath.startsWith(ADMIN_BASE_PATH)) return "orders";
@@ -349,6 +556,12 @@ export default function AdminApp() {
       navigate(`${ADMIN_BASE_PATH}/orders`, { replace: true });
     }
   }, [isAuthed, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (selectedGadgetCategory === "All") return;
+    if (gadgetCategories.includes(selectedGadgetCategory)) return;
+    setSelectedGadgetCategory("All");
+  }, [gadgetCategories, selectedGadgetCategory]);
 
   async function loadAllAdminData() {
     await Promise.all([loadOrders(), loadProducts(), loadShipping()]);
@@ -513,9 +726,12 @@ export default function AdminApp() {
 
   function handleBrandChange(nextBrand) {
     const brand = String(nextBrand || "").trim();
-    const brandCatalog = popularBrandCatalog[brand] || [];
-
     setProductForm((prev) => {
+      const selectedCategory = String(prev.category || "").trim().toLowerCase();
+      const brandCatalog = (popularBrandCatalog[brand] || []).filter(
+        (entry) =>
+          !selectedCategory || String(entry.category || "").trim().toLowerCase() === selectedCategory
+      );
       const existingModelStillValid = brandCatalog.some((entry) => entry.model === prev.model);
       const nextModel = existingModelStillValid ? prev.model : "";
       return {
@@ -526,9 +742,30 @@ export default function AdminApp() {
     });
   }
 
+  function handleCategoryChange(nextCategory) {
+    const category = String(nextCategory || "").trim();
+    const normalizedCategory = category.toLowerCase();
+
+    setProductForm((prev) => {
+      const selectedBrand = String(prev.brand || "").trim();
+      const selectedBrandCatalog = popularBrandCatalog[selectedBrand] || [];
+      const existingModelStillValid = selectedBrandCatalog.some(
+        (entry) =>
+          entry.model === prev.model &&
+          (!normalizedCategory || String(entry.category || "").trim().toLowerCase() === normalizedCategory)
+      );
+
+      return {
+        ...prev,
+        category,
+        model: existingModelStillValid ? prev.model : "",
+      };
+    });
+  }
+
   function handleModelChange(nextModel) {
     const model = String(nextModel || "").trim();
-    const template = getModelTemplate(productForm.brand, model);
+    const template = getModelTemplate(productForm.brand, productForm.category, model);
 
     setProductForm((prev) => ({
       ...prev,
@@ -553,7 +790,7 @@ export default function AdminApp() {
       brand: String(productForm.brand || "").trim(),
       condition: String(productForm.condition || "").trim(),
       category: String(productForm.category || "").trim(),
-      basePriceUsd: Number(productForm.basePriceUsd || 0),
+      basePriceUsd: Number(productForm.basePriceNgn || 0) / Math.max(1, ngnPerUsd),
       stock: Number(productForm.stock || 0),
       image: String(productForm.image || "").trim(),
       details: String(productForm.details || "").trim(),
@@ -801,30 +1038,43 @@ export default function AdminApp() {
                 {orders.length} orders, {products.length} products {adminEmail ? `• ${adminEmail}` : ""}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => loadAllAdminData()}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
+                <FiRefreshCw className="h-4 w-4" />
                 Refresh
               </button>
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-xl border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
               >
+                <FiLogOut className="h-4 w-4" />
                 Logout
               </button>
             </div>
           </div>
-          {authError && <p className="mt-3 text-sm text-rose-600">{authError}</p>}
-        </header>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[260px_1fr]">
-          <aside className="rounded-3xl border border-slate-200/80 bg-white/90 p-3 shadow-sm backdrop-blur">
-            <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Admin Pages</p>
-            <nav className="space-y-2">
+          <div className="mt-4 border-t border-slate-200/80 pt-4">
+            <div className="sm:hidden">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Admin Menu</label>
+              <select
+                value={activePage}
+                onChange={(event) => goToAdminPage(event.target.value)}
+                className={inputClass}
+              >
+                {adminPages.map((page) => (
+                  <option key={page.id} value={page.id}>
+                    {page.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <nav className="hidden gap-2 sm:grid sm:grid-cols-2 xl:grid-cols-4">
               {adminPages.map((page) => {
                 const isActive = activePage === page.id;
                 return (
@@ -832,7 +1082,7 @@ export default function AdminApp() {
                     key={page.id}
                     type="button"
                     onClick={() => goToAdminPage(page.id)}
-                    className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
                       isActive
                         ? "border-slate-900 bg-slate-900 text-white shadow-sm"
                         : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -844,9 +1094,11 @@ export default function AdminApp() {
                 );
               })}
             </nav>
-          </aside>
+          </div>
+          {authError && <p className="mt-3 text-sm text-rose-600">{authError}</p>}
+        </header>
 
-          <main className="space-y-6">
+        <main className="mt-6 space-y-6">
             {activePage === "orders" && (
               <section className="overflow-x-auto rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
@@ -939,9 +1191,15 @@ export default function AdminApp() {
                       className={inputClass}
                       value={productForm.model}
                       onChange={(event) => handleModelChange(event.target.value)}
-                      disabled={!productForm.brand}
+                      disabled={!productForm.brand || !productForm.category}
                     >
-                      <option value="">{productForm.brand ? "Select model" : "Select brand first"}</option>
+                      <option value="">
+                        {!productForm.brand
+                          ? "Select brand first"
+                          : !productForm.category
+                            ? "Select category first"
+                            : "Select model"}
+                      </option>
                       {modelSuggestions.map((model) => (
                         <option key={model} value={model}>
                           {model}
@@ -956,8 +1214,14 @@ export default function AdminApp() {
                       required
                     />
                   </div>
+                  {productForm.brand && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Selected Brand</p>
+                      <BrandPill brand={productForm.brand} className="mt-2" />
+                    </div>
+                  )}
                   <p className="text-xs text-slate-500">
-                    Pick a brand and model to auto-fill common specifications. You can still edit any field.
+                    Pick category first, then brand and model to auto-fill common specifications. You can still edit any field.
                   </p>
 
                   <div className="grid gap-3 sm:grid-cols-3">
@@ -966,7 +1230,7 @@ export default function AdminApp() {
                       placeholder="Category"
                       list="gadget-category-options"
                       value={productForm.category}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, category: event.target.value }))}
+                      onChange={(event) => handleCategoryChange(event.target.value)}
                       required
                     />
                     <datalist id="gadget-category-options">
@@ -990,9 +1254,9 @@ export default function AdminApp() {
                       min="0"
                       step="0.01"
                       className={inputClass}
-                      placeholder="Price (USD)"
-                      value={productForm.basePriceUsd}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, basePriceUsd: event.target.value }))}
+                      placeholder="Price (NGN)"
+                      value={productForm.basePriceNgn}
+                      onChange={(event) => setProductForm((prev) => ({ ...prev, basePriceNgn: event.target.value }))}
                       required
                     />
                   </div>
@@ -1205,73 +1469,115 @@ export default function AdminApp() {
               <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="font-display text-xl font-semibold text-slate-900">Gadget List</h2>
-                  <span className="text-xs text-slate-500">{products.length} items</span>
+                  <span className="text-xs text-slate-500">{filteredGadgetProducts.length} items</span>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-600">
-                      <tr>
-                        <th className="px-3 py-2">Name</th>
-                        <th className="px-3 py-2">Category</th>
-                        <th className="px-3 py-2">Price (USD)</th>
-                        <th className="px-3 py-2">Stock</th>
-                        <th className="px-3 py-2">Active</th>
-                        <th className="px-3 py-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {products.map((product) => (
-                        <tr key={product.id} className="border-t border-slate-100">
-                          <td className="px-3 py-2">
-                            <p className="font-medium text-slate-900">{product.name}</p>
-                            <p className="text-xs text-slate-500">{product.id}</p>
-                          </td>
-                          <td className="px-3 py-2 text-slate-700">{product.category}</td>
-                          <td className="px-3 py-2 font-semibold text-slate-900">{formatMoney(product.basePriceUsd, "USD")}</td>
-                          <td className="px-3 py-2 text-slate-700">{product.stock}</td>
-                          <td className="px-3 py-2 text-slate-700">{product.isActive ? "Yes" : "No"}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingProductId(product.id);
-                                  setProductForm(normalizeProductForForm(product));
-                                  setImageUploadError("");
-                                  setImageUploadMessage("");
-                                  goToAdminPage("add-gadget");
-                                }}
-                                className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteProduct(product.id)}
-                                disabled={deletingProductId === product.id}
-                                className="rounded-lg border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
-                              >
-                                {deletingProductId === product.id ? "Deleting..." : "Delete"}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {!productsLoading && products.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-3 py-5 text-center text-slate-500">
-                            No gadgets created yet.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="mb-5 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGadgetCategory("All")}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      selectedGadgetCategory === "All"
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    All ({products.length})
+                  </button>
+                  {gadgetCategories.map((category) => {
+                    const totalInCategory = products.filter((product) => product.category === category).length;
+                    const isActive = selectedGadgetCategory === category;
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => setSelectedGadgetCategory(category)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                          isActive
+                            ? "border-cyan-600 bg-cyan-600 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {category} ({totalInCategory})
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {groupedGadgetProducts.length === 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                    No gadgets found in this category.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {groupedGadgetProducts.map((group) => (
+                      <section key={group.category} className="overflow-x-auto rounded-2xl border border-slate-200">
+                        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+                          <h3 className="text-sm font-semibold text-slate-800">{group.category}</h3>
+                          <span className="text-xs text-slate-500">{group.items.length} items</span>
+                        </div>
+                        <table className="min-w-full text-left text-sm">
+                          <thead className="bg-white text-slate-600">
+                            <tr>
+                              <th className="px-3 py-2">Name</th>
+                              <th className="px-3 py-2">Brand</th>
+                              <th className="px-3 py-2">Price (NGN)</th>
+                              <th className="px-3 py-2">Stock</th>
+                              <th className="px-3 py-2">Active</th>
+                              <th className="px-3 py-2">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.items.map((product) => (
+                              <tr key={product.id} className="border-t border-slate-100">
+                                <td className="px-3 py-2">
+                                  <p className="font-medium text-slate-900">{product.name}</p>
+                                  <p className="text-xs text-slate-500">{product.id}</p>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <BrandPill brand={product.brand} />
+                                </td>
+                                <td className="px-3 py-2 font-semibold text-slate-900">
+                                  {formatMoney(product.basePriceUsd * ngnPerUsd, "NGN")}
+                                </td>
+                                <td className="px-3 py-2 text-slate-700">{product.stock}</td>
+                                <td className="px-3 py-2 text-slate-700">{product.isActive ? "Yes" : "No"}</td>
+                                <td className="px-3 py-2">
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingProductId(product.id);
+                                        setProductForm(normalizeProductForForm(product, ngnPerUsd));
+                                        setImageUploadError("");
+                                        setImageUploadMessage("");
+                                        goToAdminPage("add-gadget");
+                                      }}
+                                      className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteProduct(product.id)}
+                                      disabled={deletingProductId === product.id}
+                                      className="rounded-lg border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                                    >
+                                      {deletingProductId === product.id ? "Deleting..." : "Delete"}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </section>
+                    ))}
+                  </div>
+                )}
               </section>
             )}
-          </main>
-        </div>
+        </main>
       </div>
     </div>
   );

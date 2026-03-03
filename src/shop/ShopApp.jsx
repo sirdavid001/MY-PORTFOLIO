@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { FaApplePay, FaWallet } from "react-icons/fa6";
 import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
+import { BrandPill } from "./brandIdentity";
 import {
   defaultShippingConfig,
   normalizeProduct,
@@ -32,6 +33,7 @@ const defaultCheckout = {
 };
 const PAYSTACK_POPUP_SRC = "https://js.paystack.co/v2/inline.js";
 const SUPPORTED_PAYSTACK_CURRENCIES = new Set(["NGN", "USD"]);
+const FALLBACK_NGN_PER_USD = 1600;
 const PAYMENT_METHODS = [
   {
     value: PAYMENT_METHOD_APPLE_PAY,
@@ -320,11 +322,20 @@ export default function ShopApp() {
   }
 
   const activePricing = useMemo(() => {
+    const ngnRateFromRates = Number(pricingContext?.rates?.NGN || 0);
+    const ngnRateFromExchange = pricingContext?.currency === "NGN" ? Number(pricingContext.exchangeRate || 0) : 0;
+    const ngnPerUsd =
+      Number.isFinite(ngnRateFromRates) && ngnRateFromRates > 0
+        ? ngnRateFromRates
+        : Number.isFinite(ngnRateFromExchange) && ngnRateFromExchange > 0
+          ? ngnRateFromExchange
+          : FALLBACK_NGN_PER_USD;
+
     return {
       countryCode: pricingContext.countryCode,
       countryName: pricingContext.countryName,
-      currency: pricingContext.currency,
-      exchangeRate: pricingContext.exchangeRate,
+      currency: "NGN",
+      exchangeRate: ngnPerUsd,
       factor: pricingContext.factor,
     };
   }, [pricingContext]);
@@ -811,7 +822,7 @@ export default function ShopApp() {
                   New and Used Gadgets With Real Checkout Flow
                 </h1>
                 <p className="mt-4 max-w-3xl text-slate-200 sm:text-lg">
-                  Search, filter, add to cart, and place orders. Pricing is adjusted for each visitor location.
+                  Search, filter, add to cart, and place orders. Prices are shown in Naira and adjusted by visitor location.
                 </p>
               </section>
 
@@ -856,7 +867,7 @@ export default function ShopApp() {
                   </select>
                 </div>
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                  Pricing is automatically detected by visitor location: {activePricing.countryName} ({activePricing.currency})
+                  Pricing base currency is NGN. Location detected: {activePricing.countryName}.
                 </div>
                 <div className="mt-3 text-xs">
                   {catalogStatus.loading ? (
@@ -887,7 +898,7 @@ export default function ShopApp() {
                           {product.category}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm font-medium text-slate-500">{product.brand}</p>
+                      <BrandPill brand={product.brand} className="mt-2" />
                       <p className="mt-2 text-sm font-semibold text-blue-700">{product.condition}</p>
                       <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
                       <div className="mt-4 flex items-center justify-between">
@@ -941,6 +952,7 @@ export default function ShopApp() {
                   {cartItems.map((item) => (
                     <div key={item.id} className="rounded-xl border border-slate-200 p-3">
                       <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                      <BrandPill brand={item.brand} className="mt-1" />
                       <p className="mt-1 text-xs text-slate-500">{formatMoney(item.unitPrice, activePricing.currency)} each</p>
                       <div className="mt-3 flex items-center justify-between">
                         <div className="inline-flex items-center gap-2">
