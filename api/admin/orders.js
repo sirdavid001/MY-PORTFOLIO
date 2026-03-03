@@ -1,12 +1,13 @@
+import { requireAdminUser } from "../_lib/admin-auth.js";
 import { applyRateLimit } from "../_lib/rate-limit.js";
-import { getClientIp, isIpAllowed, safeCompare } from "../_lib/security.js";
+import { getClientIp, isIpAllowed } from "../_lib/security.js";
 
 const ALLOWED_STATUS = new Set(["new", "processing", "paid", "shipped", "completed", "cancelled"]);
 
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", methods);
-  res.setHeader("Access-Control-Allow-Headers", "content-type, x-admin-key");
+  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
 }
 
 function json(res, status, data, methods) {
@@ -17,12 +18,6 @@ function json(res, status, data, methods) {
 function firstValue(value) {
   if (Array.isArray(value)) return value[0];
   return value;
-}
-
-function isAuthorized(req) {
-  const provided = String(req.headers["x-admin-key"] || "").trim();
-  const expected = String(process.env.ADMIN_DASHBOARD_KEY || "").trim();
-  return Boolean(expected) && safeCompare(provided, expected);
 }
 
 function normalizeSupabaseError(rawText, action) {
@@ -83,18 +78,15 @@ export default async function handler(req, res) {
     return json(res, 429, { ok: false, error: "Too many requests. Try again later." }, methods);
   }
 
-  if (!process.env.ADMIN_DASHBOARD_KEY || !String(process.env.ADMIN_DASHBOARD_KEY).trim()) {
-    return json(res, 500, { ok: false, error: "ADMIN_DASHBOARD_KEY is not configured." }, methods);
-  }
-
   if (!isIpAllowed(clientIp, process.env.ADMIN_ALLOWED_IPS)) {
     console.warn("[admin] blocked by ADMIN_ALLOWED_IPS", { ip: clientIp, method: req.method });
     return json(res, 403, { ok: false, error: "Access denied from this IP." }, methods);
   }
 
-  if (!isAuthorized(req)) {
-    console.warn("[admin] unauthorized request", { ip: clientIp, method: req.method });
-    return json(res, 401, { ok: false, error: "Unauthorized" }, methods);
+  const auth = await requireAdminUser(req);
+  if (!auth.ok) {
+    console.warn("[admin] unauthorized request", { ip: clientIp, method: req.method, reason: auth.error });
+    return json(res, auth.status || 401, { ok: false, error: auth.error }, methods);
   }
 
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {

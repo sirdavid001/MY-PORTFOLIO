@@ -40,7 +40,9 @@ Add these Vercel environment variables:
 
 - `SUPABASE_URL` = your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` = service role key (server only, never expose in frontend)
-- `ADMIN_DASHBOARD_KEY` = secret key used to access `/admin`
+- `SUPABASE_ANON_KEY` = Supabase anon key used for server-side admin auth verification
+- `SUPABASE_STORAGE_BUCKET` = storage bucket for admin product uploads (example `product-images`)
+- `SUPABASE_IMAGE_MAX_BYTES` = optional max upload size in bytes (default `5242880`)
 - `ADMIN_ALLOWED_IPS` = optional comma-separated IP allowlist for `/api/admin/*` (supports `*` suffix prefix match)
 - `PAYSTACK_SECRET_KEY` = Paystack secret key used by server-side initialize/verify endpoints
 - `PAYSTACK_PUBLIC_KEY` = Paystack public key served from `/api/payments/paystack/public-key`
@@ -81,11 +83,37 @@ Quick option: open [`supabase/orders.sql`](supabase/orders.sql), copy all SQL st
 
 Recommended security step: run [`supabase/rls-orders.sql`](supabase/rls-orders.sql) to enable RLS and deny direct anon/authenticated access to `public.orders`.
 
+## Admin-managed gadget catalog + shipping
+Admin can now manage live products and shipping from the dashboard:
+- `/secure-admin-portal-xyz`
+- Product CRUD API: `GET/POST/PATCH/DELETE /api/admin/products`
+- Shipping API: `GET/PUT /api/admin/shipping`
+- Product image upload API: `POST /api/admin/upload-image`
+- Storefront config API: `GET /api/shop/config`
+
+Run this once in Supabase SQL Editor:
+- [`supabase/catalog.sql`](supabase/catalog.sql)
+
+This creates:
+- `public.shop_products` (gadgets listed in the store)
+- `public.shop_settings` (shipping mode + rates used at checkout)
+
+Supabase Storage setup for uploads:
+1. Open Supabase -> Storage -> Create bucket.
+2. Bucket name should match `SUPABASE_STORAGE_BUCKET` (default `product-images`).
+3. Set bucket to `Public` so storefront images can load directly.
+
 ## Paystack webhook (recommended)
 - Endpoint: `POST /api/payments/paystack/webhook`
 - Configure this URL in your Paystack dashboard webhook settings.
 - Signature is verified server-side with `PAYSTACK_SECRET_KEY`.
 
 ## Admin route
-- Legacy route: `/admin`
-- Hardened alias: `/secure-admin-portal-xyz`
+- Route: `/secure-admin-portal-xyz`
+
+## Admin auth (Supabase JWT + role)
+- Login endpoint: `POST /api/admin/login` (sets HttpOnly cookie session)
+- Session endpoint: `GET /api/admin/session`
+- Logout endpoint: `POST /api/admin/logout`
+- Required role: set `app_metadata.role = "admin"` for admin users in Supabase Auth.
+- Quick role setup SQL: [`supabase/set-admin-role.sql`](supabase/set-admin-role.sql)

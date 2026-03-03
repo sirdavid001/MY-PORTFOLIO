@@ -2,30 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaApplePay, FaWallet } from "react-icons/fa6";
 import usePricingContext from "../hooks/usePricingContext";
-import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../lib/pricing";
-import { products } from "./products";
-
-const categories = ["All", "Phones", "Laptops", "Accessories", "Gaming", "Wearables"];
+import { formatMoney } from "../lib/pricing";
+import {
+  defaultShippingConfig,
+  normalizeProduct,
+  normalizeShippingConfig,
+  products as defaultProducts,
+} from "./products";
 const sortOptions = [
   { value: "featured", label: "Featured" },
   { value: "price-low", label: "Price: Low to High" },
   { value: "price-high", label: "Price: High to Low" },
   { value: "name-asc", label: "Name: A-Z" },
 ];
-const pricingCountries = [
-  { code: "US", name: "United States" },
-  { code: "NG", name: "Nigeria" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "CA", name: "Canada" },
-  { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" },
-  { code: "AE", name: "United Arab Emirates" },
-  { code: "IN", name: "India" },
-  { code: "KE", name: "Kenya" },
-  { code: "GH", name: "Ghana" },
-  { code: "ZA", name: "South Africa" },
-];
-
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
 
@@ -66,7 +55,21 @@ function loadFromStorage(key, fallback) {
 }
 
 function toPrice(basePriceUsd, pricingContext) {
-  return basePriceUsd * pricingContext.exchangeRate * pricingContext.factor;
+  return Number(basePriceUsd || 0) * pricingContext.exchangeRate * pricingContext.factor;
+}
+
+function calculateShipping(subtotal, pricingContext, shippingConfig) {
+  if (subtotal <= 0) return 0;
+
+  const normalized = normalizeShippingConfig(shippingConfig || defaultShippingConfig);
+  const exchangeRate = Math.max(0.0001, Number(pricingContext?.exchangeRate || 1));
+  const flat = normalized.flatUsd * exchangeRate;
+  const min = normalized.minUsd * exchangeRate;
+  const percentBased = subtotal * normalized.percentRate;
+
+  if (normalized.mode === "flat") return flat;
+  if (normalized.mode === "percent") return percentBased;
+  return Math.max(min, percentBased);
 }
 
 function isValidEmail(email) {
@@ -117,9 +120,9 @@ export default function ShopApp() {
   const [lastOrder, setLastOrder] = useState(null);
   const [sendStatus, setSendStatus] = useState({ state: "idle", message: "" });
   const [paymentStatus, setPaymentStatus] = useState({ state: "idle", message: "" });
-  const [pricingMode, setPricingMode] = useState("auto");
-  const [manualCountryCode, setManualCountryCode] = useState("US");
-  const [manualCurrency, setManualCurrency] = useState("USD");
+  const [catalogProducts, setCatalogProducts] = useState(() => defaultProducts.map((product) => normalizeProduct(product)));
+  const [shippingConfig, setShippingConfig] = useState(() => normalizeShippingConfig(defaultShippingConfig));
+  const [catalogStatus, setCatalogStatus] = useState({ loading: true, source: "defaults", error: "" });
   const [resolvedPaystackPublicKey, setResolvedPaystackPublicKey] = useState(
     () => import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ""
   );
@@ -137,12 +140,6 @@ export default function ShopApp() {
         paymentMethod: normalizedPaymentMethod,
       });
     }
-    const savedPricing = loadFromStorage("sirdavidshop:pricing", null);
-    if (savedPricing) {
-      setPricingMode(savedPricing.mode || "auto");
-      setManualCountryCode(savedPricing.countryCode || "US");
-      setManualCurrency(savedPricing.currency || "USD");
-    }
   }, []);
 
   useEffect(() => {
@@ -154,15 +151,54 @@ export default function ShopApp() {
   }, [checkout]);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      "sirdavidshop:pricing",
-      JSON.stringify({
-        mode: pricingMode,
-        countryCode: manualCountryCode,
-        currency: manualCurrency,
-      })
-    );
-  }, [pricingMode, manualCountryCode, manualCurrency]);
+    let cancelled = false;
+
+    async function loadCatalogConfig() {
+      setCatalogStatus((prev) => ({ ...prev, loading: true, error: "" }));
+
+      try {
+        const response = await fetch("/api/shop/config");
+        const data = await response.json().catch(() => ({}));
+        if (cancelled) return;
+
+        if (!response.ok || !data?.ok) {
+          setCatalogStatus({
+            loading: false,
+            source: "defaults",
+            error: data?.error || "Using default catalog configuration.",
+          });
+          return;
+        }
+
+        const productsFromApi = Array.isArray(data.products)
+          ? data.products.map((product) => normalizeProduct(product)).filter((product) => product.id && product.isActive)
+          : null;
+        const shippingFromApi = normalizeShippingConfig(data.shipping || defaultShippingConfig);
+
+        if (Array.isArray(productsFromApi)) {
+          setCatalogProducts(productsFromApi);
+        }
+        setShippingConfig(shippingFromApi);
+        setCatalogStatus({
+          loading: false,
+          source: data?.source || "supabase",
+          error: "",
+        });
+      } catch {
+        if (cancelled) return;
+        setCatalogStatus({
+          loading: false,
+          source: "defaults",
+          error: "Using default catalog configuration.",
+        });
+      }
+    }
+
+    loadCatalogConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (resolvedPaystackPublicKey) return undefined;
@@ -284,39 +320,31 @@ export default function ShopApp() {
   }
 
   const activePricing = useMemo(() => {
-    if (pricingMode === "auto") {
-      return {
-        countryCode: pricingContext.countryCode,
-        countryName: pricingContext.countryName,
-        currency: pricingContext.currency,
-        exchangeRate: pricingContext.exchangeRate,
-        factor: pricingContext.factor,
-      };
-    }
-
-    const countryName =
-      pricingCountries.find((country) => country.code === manualCountryCode)?.name || manualCountryCode;
-    const currency = manualCurrency || getCurrencyForCountry(manualCountryCode, pricingContext.currency);
-    const exchangeRate = pricingContext.rates?.[currency] || (currency === "USD" ? 1 : pricingContext.exchangeRate);
-    const factor = getLocationFactor(manualCountryCode);
-
     return {
-      countryCode: manualCountryCode,
-      countryName,
-      currency,
-      exchangeRate: exchangeRate || 1,
-      factor,
+      countryCode: pricingContext.countryCode,
+      countryName: pricingContext.countryName,
+      currency: pricingContext.currency,
+      exchangeRate: pricingContext.exchangeRate,
+      factor: pricingContext.factor,
     };
-  }, [manualCountryCode, manualCurrency, pricingContext, pricingMode]);
+  }, [pricingContext]);
 
-  const currencyOptions = useMemo(() => {
-    const baseline = ["USD", "NGN", "GBP", "EUR", "CAD", "AED", "INR", "KES", "GHS", "ZAR"];
-    return Array.from(new Set([...baseline, pricingContext.currency, manualCurrency].filter(Boolean)));
-  }, [manualCurrency, pricingContext.currency]);
+  const categories = useMemo(() => {
+    const dynamicCategories = Array.from(
+      new Set(catalogProducts.map((product) => product.category).filter(Boolean))
+    );
+    return ["All", ...dynamicCategories];
+  }, [catalogProducts]);
+
+  useEffect(() => {
+    if (activeCategory === "All") return;
+    if (categories.includes(activeCategory)) return;
+    setActiveCategory("All");
+  }, [activeCategory, categories]);
 
   const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const filtered = products.filter((product) => {
+    const filtered = catalogProducts.filter((product) => {
       const categoryMatch = activeCategory === "All" || product.category === activeCategory;
       const conditionMatch =
         conditionFilter === "All" ||
@@ -343,12 +371,12 @@ export default function ShopApp() {
       return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
     }
     return filtered;
-  }, [activeCategory, activePricing, conditionFilter, search, sortBy]);
+  }, [activeCategory, activePricing, catalogProducts, conditionFilter, search, sortBy]);
 
   const cartItems = useMemo(() => {
     return Object.entries(cart)
       .map(([productId, quantity]) => {
-        const product = products.find((item) => item.id === productId);
+        const product = catalogProducts.find((item) => item.id === productId);
         if (!product || quantity <= 0) return null;
         const unitPrice = toPrice(product.basePriceUsd, activePricing);
         return {
@@ -359,7 +387,7 @@ export default function ShopApp() {
         };
       })
       .filter(Boolean);
-  }, [activePricing, cart]);
+  }, [activePricing, cart, catalogProducts]);
 
   const cartCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
@@ -371,7 +399,10 @@ export default function ShopApp() {
     [cartItems]
   );
 
-  const shipping = subtotal > 0 ? Math.max(15 * activePricing.exchangeRate, subtotal * 0.03) : 0;
+  const shipping = useMemo(
+    () => calculateShipping(subtotal, activePricing, shippingConfig),
+    [subtotal, activePricing, shippingConfig]
+  );
   const total = subtotal + shipping;
   const selectedPaymentMethod = checkout.paymentMethod;
   const isApplePaySelected = selectedPaymentMethod === PAYMENT_METHOD_APPLE_PAY;
@@ -543,15 +574,16 @@ export default function ShopApp() {
   function addToCart(productId) {
     setCart((prev) => {
       const current = prev[productId] || 0;
-      const product = products.find((item) => item.id === productId);
-      const max = product?.stock || 20;
+      const product = catalogProducts.find((item) => item.id === productId);
+      const max = Math.max(0, Number(product?.stock || 0));
+      if (max === 0) return prev;
       return { ...prev, [productId]: Math.min(current + 1, max) };
     });
   }
 
   function updateQuantity(productId, nextQuantity) {
-    const product = products.find((item) => item.id === productId);
-    const max = product?.stock || 20;
+    const product = catalogProducts.find((item) => item.id === productId);
+    const max = Math.max(0, Number(product?.stock || 0));
     const clamped = Math.max(0, Math.min(nextQuantity, max));
     setCart((prev) => {
       if (clamped === 0) {
@@ -823,50 +855,31 @@ export default function ShopApp() {
                     ))}
                   </select>
                 </div>
-                <div className="mt-3 grid gap-3 md:grid-cols-3">
-                  <select
-                    value={pricingMode}
-                    onChange={(event) => setPricingMode(event.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="auto">Auto (Detected by IP)</option>
-                    <option value="manual">Manual Override</option>
-                  </select>
-                  <select
-                    value={manualCountryCode}
-                    onChange={(event) => {
-                      const nextCode = event.target.value;
-                      setManualCountryCode(nextCode);
-                      setManualCurrency(getCurrencyForCountry(nextCode, activePricing.currency));
-                    }}
-                    disabled={pricingMode === "auto"}
-                    className={inputClass}
-                  >
-                    {pricingCountries.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={pricingMode === "auto" ? activePricing.currency : manualCurrency}
-                    onChange={(event) => setManualCurrency(event.target.value)}
-                    disabled={pricingMode === "auto"}
-                    className={inputClass}
-                  >
-                    {currencyOptions.map((currencyCode) => (
-                      <option key={currencyCode} value={currencyCode}>
-                        {currencyCode}
-                      </option>
-                    ))}
-                  </select>
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  Pricing is automatically detected by visitor location: {activePricing.countryName} ({activePricing.currency})
+                </div>
+                <div className="mt-3 text-xs">
+                  {catalogStatus.loading ? (
+                    <p className="text-slate-500">Loading latest catalog...</p>
+                  ) : catalogStatus.error ? (
+                    <p className="text-amber-700">{catalogStatus.error}</p>
+                  ) : catalogStatus.source === "supabase" ? (
+                    <p className="text-emerald-700">Live catalog and shipping settings loaded from admin dashboard.</p>
+                  ) : null}
                 </div>
               </section>
 
               <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {visibleProducts.map((product) => (
                   <article key={product.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <img src={product.image} alt={product.name} className="h-44 w-full object-cover" />
+                    <img
+                      src={
+                        product.image ||
+                        "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=900&q=80"
+                      }
+                      alt={product.name}
+                      className="h-44 w-full object-cover"
+                    />
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-2">
                         <h2 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h2>
@@ -886,13 +899,23 @@ export default function ShopApp() {
                       <button
                         type="button"
                         onClick={() => addToCart(product.id)}
-                        className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        disabled={Number(product.stock) <= 0}
+                        className={`mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${
+                          Number(product.stock) > 0
+                            ? "bg-slate-900 hover:bg-slate-800"
+                            : "cursor-not-allowed bg-slate-400"
+                        }`}
                       >
-                        Add to Cart
+                        {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
                       </button>
                     </div>
                   </article>
                 ))}
+                {visibleProducts.length === 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 md:col-span-2 xl:col-span-3">
+                    No gadgets match your filter right now.
+                  </div>
+                )}
               </section>
             </section>
             )}
@@ -966,11 +989,6 @@ export default function ShopApp() {
                   <h3 className="font-display text-xl font-semibold text-slate-900">Checkout</h3>
 
                   {checkoutErrors.cart && <p className="text-sm text-rose-600">{checkoutErrors.cart}</p>}
-                  {paymentStatus.state !== "idle" && (
-                    <p className={`text-sm ${paymentStatus.state === "error" ? "text-rose-600" : "text-blue-700"}`}>
-                      {paymentStatus.message}
-                    </p>
-                  )}
 
                   <input
                     name="fullName"
@@ -1107,13 +1125,6 @@ export default function ShopApp() {
                   {checkoutErrors.paymentMethod && (
                     <p className="text-xs text-rose-600">{checkoutErrors.paymentMethod}</p>
                   )}
-                  <p className="text-xs text-slate-500">
-                    {isApplePaySelected
-                      ? "Apple Pay appears only on supported Safari/iOS devices. If unavailable, switch to Paystack."
-                      : activePricing.currency === "NGN"
-                      ? "Paystack supports cards, bank transfer, USSD, and more secure payment channels."
-                      : `Paystack transfer account generation is NGN-only. Current checkout currency is ${activePricing.currency}.`}
-                  </p>
 
                   <textarea
                     name="notes"

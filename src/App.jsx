@@ -9,7 +9,7 @@ import AdminApp from "./shop/AdminApp";
 
 const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]);
 const SECURE_ADMIN_PATH = "/secure-admin-portal-xyz";
-const SHOP_PATHS = new Set(["/cart", "/admin", SECURE_ADMIN_PATH]);
+const SHOP_PATHS = new Set(["/cart", SECURE_ADMIN_PATH]);
 
 export default function App() {
   const hostname = typeof window !== "undefined" ? window.location.hostname : "";
@@ -21,14 +21,12 @@ export default function App() {
     .filter(Boolean);
   const isBusinessSubdomain = hostLabels.some((label) => BUSINESS_SUBDOMAINS.has(label));
   const isShopPath =
-    normalizedPathname.startsWith("/admin") ||
     normalizedPathname.startsWith(SECURE_ADMIN_PATH) ||
     SHOP_PATHS.has(normalizedPathname);
 
   if (isBusinessSubdomain || isShopPath) {
     return (
       <Routes>
-        <Route path="/admin" element={<AdminApp />} />
         <Route path={SECURE_ADMIN_PATH} element={<AdminApp />} />
         <Route path="/" element={<ShopApp />} />
         <Route path="/cart" element={<ShopApp />} />
