@@ -45,19 +45,7 @@
   ],
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    },
-    {
-      "source": "/.well-known/:path*",
-      "destination": "/.well-known/:path*"
-    },
-    {
-      "source": "/assets/:path*",
-      "destination": "/assets/:path*"
-    },
-    {
-      "source": "/:path*",
+      "source": "/((?!api/|assets/|\\.well-known/|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
