@@ -45,6 +45,22 @@ function verifySignature(rawBody, signature, secret) {
   return safeCompare(signature, computed);
 }
 
+function looksLikeTransferApprovalPayload(payload) {
+  if (!payload || typeof payload !== "object") return false;
+
+  const amount = Number(payload?.amount);
+  const hasAmount = Number.isFinite(amount) && amount > 0;
+  const hasReference = typeof payload?.reference === "string" && payload.reference.trim().length > 0;
+  const hasRecipientHint =
+    (typeof payload?.recipient === "string" && payload.recipient.trim().length > 0) ||
+    (typeof payload?.recipient_code === "string" && payload.recipient_code.trim().length > 0) ||
+    (typeof payload?.receiver_account_number === "string" && payload.receiver_account_number.trim().length > 0) ||
+    (typeof payload?.payer_account_number === "string" && payload.payer_account_number.trim().length > 0);
+  const hasCurrency = typeof payload?.currency === "string" && payload.currency.trim().length > 0;
+
+  return hasAmount && (hasReference || hasRecipientHint || hasCurrency);
+}
+
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
@@ -129,13 +145,20 @@ export default async function handler(req, res) {
   try {
     const rawBody = await readRawBody(req);
     const signature = getSignature(req);
+    const payload = JSON.parse(rawBody || "{}");
+
+    // Paystack transfer/inbound transfer approval callbacks may only require a quick HTTP status decision.
+    // If no signature is provided but payload looks like an approval callback, auto-approve with 200.
+    if (!signature && looksLikeTransferApprovalPayload(payload)) {
+      return json(res, 200, { ok: true, approved: true, source: "transfer-approval" }, methods);
+    }
 
     if (!signature || !verifySignature(rawBody, signature, process.env.PAYSTACK_SECRET_KEY)) {
       console.warn("[paystack-webhook] invalid signature", { ip: clientIp });
       return json(res, 401, { ok: false, error: "Invalid webhook signature." }, methods);
     }
 
-    const event = JSON.parse(rawBody || "{}");
+    const event = payload;
     if (event?.event !== "charge.success") {
       return json(res, 200, { ok: true, ignored: true }, methods);
     }

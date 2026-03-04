@@ -21,6 +21,8 @@ const inputClass =
 
 const PAYMENT_METHOD_APPLE_PAY = "Apple Pay";
 const PAYMENT_METHOD_PAYSTACK = "Paystack";
+const PAYSTACK_MODE_STANDARD = "standard";
+const PAYSTACK_MODE_BANK_TRANSFER = "bank_transfer";
 const defaultCheckout = {
   fullName: "",
   email: "",
@@ -29,6 +31,7 @@ const defaultCheckout = {
   city: "",
   country: "",
   paymentMethod: PAYMENT_METHOD_PAYSTACK,
+  paystackMode: PAYSTACK_MODE_STANDARD,
   notes: "",
 };
 const PAYSTACK_POPUP_SRC = "https://js.paystack.co/v2/inline.js";
@@ -45,6 +48,7 @@ const PAYMENT_METHODS = [
   },
 ];
 const ONLINE_PAYMENT_METHODS = new Set(PAYMENT_METHODS.map((method) => method.value));
+const PAYSTACK_MODES = new Set([PAYSTACK_MODE_STANDARD, PAYSTACK_MODE_BANK_TRANSFER]);
 
 function loadFromStorage(key, fallback) {
   try {
@@ -78,9 +82,13 @@ function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(email);
 }
 
-function getPaystackChannels(paymentMethod, currency) {
+function getPaystackChannels(paymentMethod, currency, paystackMode = PAYSTACK_MODE_STANDARD) {
   if (paymentMethod === PAYMENT_METHOD_APPLE_PAY) {
     return currency === "NGN" ? ["apple_pay", "card", "bank_transfer"] : ["apple_pay", "card"];
+  }
+
+  if (paystackMode === PAYSTACK_MODE_BANK_TRANSFER && currency === "NGN") {
+    return ["bank_transfer"];
   }
 
   if (currency === "NGN") {
@@ -136,10 +144,14 @@ export default function ShopApp() {
       const normalizedPaymentMethod = ONLINE_PAYMENT_METHODS.has(savedCheckout.paymentMethod)
         ? savedCheckout.paymentMethod
         : defaultCheckout.paymentMethod;
+      const normalizedPaystackMode = PAYSTACK_MODES.has(savedCheckout.paystackMode)
+        ? savedCheckout.paystackMode
+        : defaultCheckout.paystackMode;
       setCheckout({
         ...defaultCheckout,
         ...savedCheckout,
         paymentMethod: normalizedPaymentMethod,
+        paystackMode: normalizedPaystackMode,
       });
     }
   }, []);
@@ -346,6 +358,15 @@ export default function ShopApp() {
     );
     return ["All", ...dynamicCategories];
   }, [catalogProducts]);
+  const categoryItemCounts = useMemo(() => {
+    const counts = { All: catalogProducts.length };
+    categories
+      .filter((category) => category !== "All")
+      .forEach((category) => {
+        counts[category] = catalogProducts.filter((product) => product.category === category).length;
+      });
+    return counts;
+  }, [catalogProducts, categories]);
 
   useEffect(() => {
     if (activeCategory === "All") return;
@@ -383,6 +404,15 @@ export default function ShopApp() {
     }
     return filtered;
   }, [activeCategory, activePricing, catalogProducts, conditionFilter, search, sortBy]);
+  const groupedVisibleProducts = useMemo(() => {
+    const groups = new Map();
+    visibleProducts.forEach((product) => {
+      const category = String(product.category || "").trim() || "Uncategorized";
+      if (!groups.has(category)) groups.set(category, []);
+      groups.get(category).push(product);
+    });
+    return Array.from(groups.entries()).map(([category, items]) => ({ category, items }));
+  }, [visibleProducts]);
 
   const cartItems = useMemo(() => {
     return Object.entries(cart)
@@ -467,6 +497,18 @@ export default function ShopApp() {
       clearApplePayContainer();
       return undefined;
     }
+    if (
+      checkout.paymentMethod === PAYMENT_METHOD_PAYSTACK &&
+      checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER &&
+      activePricing.currency !== "NGN"
+    ) {
+      setPaymentStatus({
+        state: "error",
+        message: "Bank transfer virtual account is available for NGN checkout only.",
+      });
+      clearApplePayContainer();
+      return undefined;
+    }
 
     if (cartItems.length === 0 || total <= 0) {
       setPaymentStatus({
@@ -487,7 +529,10 @@ export default function ShopApp() {
     if (checkout.paymentMethod !== PAYMENT_METHOD_APPLE_PAY) {
       setPaymentStatus({
         state: "ready",
-        message: "Paystack is ready. Click Place Order or the Paystack button to continue.",
+        message:
+          checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
+            ? "Paystack bank transfer is ready. A virtual account will be generated automatically."
+            : "Paystack is ready. Click Place Order or the Paystack button to continue.",
       });
       clearApplePayContainer();
       return undefined;
@@ -580,7 +625,15 @@ export default function ShopApp() {
       cancelled = true;
       clearApplePayContainer();
     };
-  }, [activePricing.currency, cartItems.length, checkout.email, checkout.paymentMethod, resolvedPaystackPublicKey, total]);
+  }, [
+    activePricing.currency,
+    cartItems.length,
+    checkout.email,
+    checkout.paymentMethod,
+    checkout.paystackMode,
+    resolvedPaystackPublicKey,
+    total,
+  ]);
 
   function addToCart(productId) {
     setCart((prev) => {
@@ -641,6 +694,17 @@ export default function ShopApp() {
       }));
       return;
     }
+    if (
+      checkout.paymentMethod === PAYMENT_METHOD_PAYSTACK &&
+      checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER &&
+      activePricing.currency !== "NGN"
+    ) {
+      setCheckoutErrors((prev) => ({
+        ...prev,
+        paymentMethod: "Bank transfer virtual account is available for NGN checkout only.",
+      }));
+      return;
+    }
 
     const paystackPublicKey = resolvedPaystackPublicKey;
     if (!paystackPublicKey) {
@@ -653,7 +717,11 @@ export default function ShopApp() {
     }
 
     const openingMessage =
-      checkout.paymentMethod === PAYMENT_METHOD_APPLE_PAY ? "Opening Apple Pay..." : "Opening Paystack checkout...";
+      checkout.paymentMethod === PAYMENT_METHOD_APPLE_PAY
+        ? "Opening Apple Pay..."
+        : checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
+          ? "Opening Paystack bank transfer..."
+          : "Opening Paystack checkout...";
     setPaymentStatus({ state: "initializing", message: openingMessage });
     try {
       const PaystackPop = await loadPaystackScript();
@@ -666,7 +734,11 @@ export default function ShopApp() {
       const popup = new PaystackPop();
       const [firstName = "", ...restNames] = (order.checkout.fullName || "").trim().split(/\s+/);
       const lastName = restNames.join(" ");
-      const channels = getPaystackChannels(order.checkout.paymentMethod, order.currency || "NGN");
+      const channels = getPaystackChannels(
+        order.checkout.paymentMethod,
+        order.currency || "NGN",
+        order.checkout.paystackMode
+      );
       await popup.checkout({
         key: paystackPublicKey,
         email: order.checkout.email,
@@ -681,6 +753,7 @@ export default function ShopApp() {
           order_reference: order.reference,
           customer_name: order.checkout.fullName || "",
           payment_method: order.checkout.paymentMethod || PAYMENT_METHOD_PAYSTACK,
+          paystack_mode: order.checkout.paystackMode || PAYSTACK_MODE_STANDARD,
         },
         onSuccess: async (transaction) => {
           await finalizeCardPayment(order, transaction?.reference || paymentReference);
@@ -690,7 +763,9 @@ export default function ShopApp() {
         },
         onError: (error) => {
           const fallback =
-            order.currency === "NGN"
+            order.checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
+              ? "Unable to start Paystack bank transfer. Confirm transfer is enabled on your Paystack account."
+              : order.currency === "NGN"
               ? "Unable to start Paystack payment. Confirm transfer is enabled on your Paystack account."
               : "Unable to start Paystack payment.";
           setPaymentStatus({ state: "error", message: error?.message || fallback });
@@ -866,64 +941,86 @@ export default function ShopApp() {
                     ))}
                   </select>
                 </div>
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                  Pricing base currency is NGN. Location detected: {activePricing.countryName}.
-                </div>
-                <div className="mt-3 text-xs">
-                  {catalogStatus.loading ? (
-                    <p className="text-slate-500">Loading latest catalog...</p>
-                  ) : catalogStatus.error ? (
-                    <p className="text-amber-700">{catalogStatus.error}</p>
-                  ) : catalogStatus.source === "supabase" ? (
-                    <p className="text-emerald-700">Live catalog and shipping settings loaded from admin dashboard.</p>
-                  ) : null}
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Browse by category</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {categories.map((category) => {
+                      const isActive = activeCategory === category;
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setActiveCategory(category)}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                            isActive
+                              ? "border-cyan-600 bg-cyan-600 text-white"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          {category} ({categoryItemCounts[category] ?? 0})
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </section>
 
-              <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {visibleProducts.map((product) => (
-                  <article key={product.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <img
-                      src={
-                        product.image ||
-                        "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=900&q=80"
-                      }
-                      alt={product.name}
-                      className="h-44 w-full object-cover"
-                    />
-                    <div className="p-5">
-                      <div className="flex items-start justify-between gap-2">
-                        <h2 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h2>
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-                          {product.category}
-                        </span>
-                      </div>
-                      <BrandPill brand={product.brand} className="mt-2" />
-                      <p className="mt-2 text-sm font-semibold text-blue-700">{product.condition}</p>
-                      <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
-                      <div className="mt-4 flex items-center justify-between">
-                        <p className="text-2xl font-bold text-slate-900">
-                          {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
-                        </p>
-                        <p className="text-xs font-medium text-slate-500">{product.stock} in stock</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => addToCart(product.id)}
-                        disabled={Number(product.stock) <= 0}
-                        className={`mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${
-                          Number(product.stock) > 0
-                            ? "bg-slate-900 hover:bg-slate-800"
-                            : "cursor-not-allowed bg-slate-400"
-                        }`}
-                      >
-                        {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
-                      </button>
+              <section className="mt-6 space-y-6">
+                {groupedVisibleProducts.map((group) => (
+                  <section key={group.category}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h2 className="font-display text-2xl font-semibold text-slate-900">{group.category}</h2>
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {group.items.length} items
+                      </span>
                     </div>
-                  </article>
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {group.items.map((product) => (
+                        <article key={product.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                          <img
+                            src={
+                              product.image ||
+                              "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=900&q=80"
+                            }
+                            alt={product.name}
+                            className="h-44 w-full object-cover"
+                          />
+                          <div className="p-5">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h3>
+                              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                                {product.category}
+                              </span>
+                            </div>
+                            <BrandPill brand={product.brand} className="mt-2" />
+                            <p className="mt-2 text-sm font-semibold text-blue-700">{product.condition}</p>
+                            <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
+                            <div className="mt-4 flex items-center justify-between">
+                              <p className="text-2xl font-bold text-slate-900">
+                                {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
+                              </p>
+                              <p className="text-xs font-medium text-slate-500">{product.stock} in stock</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => addToCart(product.id)}
+                              disabled={Number(product.stock) <= 0}
+                              className={`mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${
+                                Number(product.stock) > 0
+                                  ? "bg-slate-900 hover:bg-slate-800"
+                                  : "cursor-not-allowed bg-slate-400"
+                              }`}
+                            >
+                              {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
                 ))}
                 {visibleProducts.length === 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 md:col-span-2 xl:col-span-3">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
                     No gadgets match your filter right now.
                   </div>
                 )}
@@ -1100,6 +1197,39 @@ export default function ShopApp() {
                       })}
                     </div>
                   </div>
+                  {!isApplePaySelected && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">Paystack Mode</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => setCheckout((prev) => ({ ...prev, paystackMode: PAYSTACK_MODE_STANDARD }))}
+                          className={`rounded-xl border px-3 py-2 text-left transition ${
+                            checkout.paystackMode === PAYSTACK_MODE_STANDARD
+                              ? "border-emerald-500 bg-emerald-50/70"
+                              : "border-slate-200 bg-white hover:border-slate-300"
+                          }`}
+                        >
+                          <span className="block text-sm font-semibold text-slate-900">Standard Paystack</span>
+                          <span className="block text-xs text-slate-500">Cards, transfer, USSD and more channels.</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCheckout((prev) => ({ ...prev, paystackMode: PAYSTACK_MODE_BANK_TRANSFER }))}
+                          className={`rounded-xl border px-3 py-2 text-left transition ${
+                            checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
+                              ? "border-cyan-500 bg-cyan-50/70"
+                              : "border-slate-200 bg-white hover:border-slate-300"
+                          }`}
+                        >
+                          <span className="block text-sm font-semibold text-slate-900">Bank Transfer</span>
+                          <span className="block text-xs text-slate-500">
+                            Opens transfer flow directly and generates virtual account.
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {isApplePaySelected ? (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                       <div className="flex items-center justify-between gap-2">
@@ -1127,8 +1257,16 @@ export default function ShopApp() {
                           <FaWallet className="text-sm" />
                         </span>
                         <span className="flex-1">
-                          <span className="block text-sm font-semibold">Paystack Checkout</span>
-                          <span className="block text-xs text-emerald-100">Cards, bank transfer, USSD and more</span>
+                          <span className="block text-sm font-semibold">
+                            {checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
+                              ? "Paystack Bank Transfer"
+                              : "Paystack Checkout"}
+                          </span>
+                          <span className="block text-xs text-emerald-100">
+                            {checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
+                              ? "Virtual account is generated automatically"
+                              : "Cards, bank transfer, USSD and more"}
+                          </span>
                         </span>
                         <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">Open</span>
                       </button>
@@ -1151,7 +1289,11 @@ export default function ShopApp() {
                     type="submit"
                     className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-400"
                   >
-                    {isApplePaySelected ? "Place Order (Apple Pay)" : "Place Order (Paystack)"}
+                    {isApplePaySelected
+                      ? "Place Order (Apple Pay)"
+                      : checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
+                        ? "Place Order (Bank Transfer)"
+                        : "Place Order (Paystack)"}
                   </button>
                 </form>
               ) : !isCartPage && cartItems.length > 0 ? (
