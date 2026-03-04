@@ -251,6 +251,9 @@ function formatOrderForAdmin(order, trackingUrl) {
     .join("\n");
   const combinedNotes = composeOrderNotes(order);
   const trackingNumber = resolveTrackingNumber(order);
+  const subtotal = formatMoney(order.subtotal || 0, order.currency);
+  const shipping = formatMoney(order.shipping || 0, order.currency);
+  const total = formatMoney(order.total || 0, order.currency);
 
   return `Order Reference: ${order.reference}
 Tracking Number: ${trackingNumber || "N/A"}
@@ -265,11 +268,91 @@ Currency: ${order.currency || ""}
 Items:
 ${lines}
 
-Subtotal: ${order.subtotal || 0}
-Shipping: ${order.shipping || 0}
-Total: ${order.total || 0}
+Subtotal: ${subtotal}
+Shipping: ${shipping}
+Total: ${total}
 Notes: ${combinedNotes || "N/A"}
 Tracking URL: ${trackingUrl}`;
+}
+
+function formatOrderForAdminHtml(order, trackingUrl) {
+  const trackingNumber = escapeHtml(resolveTrackingNumber(order) || "N/A");
+  const reference = escapeHtml(order.reference || "");
+  const customerName = escapeHtml(order.checkout?.fullName || "N/A");
+  const customerEmail = escapeHtml(order.checkout?.email || "N/A");
+  const customerPhone = escapeHtml(order.checkout?.phone || "N/A");
+  const callNumber = escapeHtml(order.checkout?.callNumber || "N/A");
+  const paymentMethod = escapeHtml(order.checkout?.paymentMethod || "Paystack");
+  const currency = escapeHtml(String(order.currency || "NGN").toUpperCase());
+  const address = escapeHtml(
+    [order.checkout?.address, order.checkout?.city, order.checkout?.country].map((value) => String(value || "").trim()).filter(Boolean).join(", ") || "N/A"
+  );
+  const subtotal = escapeHtml(formatMoney(order.subtotal || 0, order.currency));
+  const shipping = escapeHtml(formatMoney(order.shipping || 0, order.currency));
+  const total = escapeHtml(formatMoney(order.total || 0, order.currency));
+  const notes = escapeHtml(composeOrderNotes(order) || "N/A").replace(/\n/g, "<br />");
+  const safeTrackingUrl = escapeHtml(trackingUrl);
+  const rawEmail = String(order.checkout?.email || "").trim();
+  const emailAction = isValidEmail(rawEmail)
+    ? `<a href="mailto:${escapeHtml(rawEmail)}" style="display:inline-block;padding:10px 16px;border-radius:10px;background:#e2e8f0;color:#0f172a;text-decoration:none;font-weight:700">Email Buyer</a>`
+    : "";
+  const itemsHtml =
+    Array.isArray(order.items) && order.items.length > 0
+      ? order.items
+          .map((item) => {
+            const name = escapeHtml(item?.name || "Item");
+            const quantity = Number(item?.quantity || 0) > 0 ? Number(item.quantity) : 1;
+            return `<tr><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0">${name}</td><td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:right">x${quantity}</td></tr>`;
+          })
+          .join("")
+      : `<tr><td colspan="2" style="padding:10px 12px;color:#64748b">No line items captured.</td></tr>`;
+
+  return `
+<div style="background:#f8fafc;padding:24px 12px;font-family:Arial,sans-serif;color:#0f172a">
+  <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden">
+    <div style="padding:20px;background:linear-gradient(120deg,#0f172a,#1e293b);color:#f8fafc">
+      <p style="margin:0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#bae6fd">Sirdavid Gadgets</p>
+      <h2 style="margin:8px 0 0;font-size:24px;line-height:1.2">Paid Store Order</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:#cbd5e1">Reference: <strong>${reference}</strong></p>
+    </div>
+
+    <div style="padding:20px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <span style="display:inline-block;padding:6px 10px;border-radius:999px;background:#ecfeff;border:1px solid #a5f3fc;font-size:12px;font-weight:700;color:#0f766e">PAID</span>
+        <span style="display:inline-block;padding:6px 10px;border-radius:999px;background:#f8fafc;border:1px solid #cbd5e1;font-size:12px;font-weight:700;color:#334155">Tracking: ${trackingNumber}</span>
+      </div>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+        <tbody>
+          <tr><td style="padding:10px 12px;background:#f8fafc;font-size:12px;color:#475569;width:40%">Customer</td><td style="padding:10px 12px">${customerName}</td></tr>
+          <tr><td style="padding:10px 12px;background:#f8fafc;font-size:12px;color:#475569">Email</td><td style="padding:10px 12px">${customerEmail}</td></tr>
+          <tr><td style="padding:10px 12px;background:#f8fafc;font-size:12px;color:#475569">Phone</td><td style="padding:10px 12px">${customerPhone}</td></tr>
+          <tr><td style="padding:10px 12px;background:#f8fafc;font-size:12px;color:#475569">Call Number</td><td style="padding:10px 12px">${callNumber}</td></tr>
+          <tr><td style="padding:10px 12px;background:#f8fafc;font-size:12px;color:#475569">Address</td><td style="padding:10px 12px">${address}</td></tr>
+          <tr><td style="padding:10px 12px;background:#f8fafc;font-size:12px;color:#475569">Payment Method</td><td style="padding:10px 12px">${paymentMethod}</td></tr>
+          <tr><td style="padding:10px 12px;background:#f8fafc;font-size:12px;color:#475569">Currency</td><td style="padding:10px 12px">${currency}</td></tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin:18px 0 8px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:#334155">Items</h3>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+        <tbody>${itemsHtml}</tbody>
+      </table>
+
+      <div style="margin-top:16px;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc">
+        <p style="margin:0;font-size:13px;color:#334155"><strong>Subtotal:</strong> ${subtotal}</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#334155"><strong>Shipping:</strong> ${shipping}</p>
+        <p style="margin:6px 0 0;font-size:14px;color:#0f172a"><strong>Total:</strong> ${total}</p>
+        <p style="margin:8px 0 0;font-size:12px;color:#475569"><strong>Notes:</strong> ${notes}</p>
+      </div>
+
+      <div style="margin-top:18px;display:flex;flex-wrap:wrap;gap:10px">
+        <a href="${safeTrackingUrl}" style="display:inline-block;padding:10px 16px;border-radius:10px;background:#06b6d4;color:#082f49;text-decoration:none;font-weight:700">Track Order</a>
+        ${emailAction}
+      </div>
+    </div>
+  </div>
+</div>`;
 }
 
 function formatCustomerText(order, trackingUrl) {
@@ -650,6 +733,7 @@ export default async function handler(req, res) {
       to: [toEmail],
       subject: `Paid Store Order ${orderForEmail.reference}`,
       text: formatOrderForAdmin(orderForEmail, trackingUrl),
+      html: formatOrderForAdminHtml(orderForEmail, trackingUrl),
       reply_to: customerEmail || undefined,
     };
 
