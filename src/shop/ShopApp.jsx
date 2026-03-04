@@ -760,6 +760,15 @@ export default function ShopApp() {
                 Cart ({cartCount})
               </button>
             )}
+            {!isTrackingPage ? (
+              <button
+                type="button"
+                onClick={() => navigate("/track-order")}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Track Order
+              </button>
+            ) : null}
           </div>
         </div>
       </header>
