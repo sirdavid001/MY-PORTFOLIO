@@ -32,10 +32,6 @@ function getClientIp(request) {
   return String(ip || "").split(",")[0].trim() || "unknown";
 }
 
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
-
 function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(String(email || ""));
 }
@@ -87,7 +83,6 @@ function buildTrackingUrl(order, request, env) {
   const base = normalizeBaseUrl(env.ORDER_TRACKING_BASE_URL) || normalizeBaseUrl(resolveRequestOrigin(request));
   const params = new URLSearchParams({
     reference: String(order?.reference || "").trim(),
-    email: String(order?.checkout?.email || "").trim(),
   });
   return `${base}/track-order?${params.toString()}`;
 }
@@ -313,7 +308,7 @@ async function fetchTrackingOrderByField({ supabaseUrl, supabaseServiceRole, fie
   return { ok: true, order: rows?.[0] || null };
 }
 
-async function fetchTrackingFromSupabase(lookupValue, email, env) {
+async function fetchTrackingFromSupabase(lookupValue, env) {
   const supabaseUrl = env.SUPABASE_URL;
   const supabaseServiceRole = env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseServiceRole) {
@@ -350,11 +345,6 @@ async function fetchTrackingFromSupabase(lookupValue, email, env) {
 
   const order = byReference.order || byTrackingNumber?.order || null;
   if (!order) {
-    return { ok: false, status: 404, error: "Order not found." };
-  }
-
-  const expectedEmail = normalizeEmail(order.customer_email);
-  if (!expectedEmail || normalizeEmail(email) !== expectedEmail) {
     return { ok: false, status: 404, error: "Order not found." };
   }
 
@@ -410,15 +400,11 @@ export async function onRequestGet(context) {
     const tracking = String(url.searchParams.get("tracking") || "").trim();
     const lookup = String(url.searchParams.get("lookup") || "").trim();
     const resolvedLookup = lookup || reference || tracking;
-    const email = String(url.searchParams.get("email") || "").trim();
     if (resolvedLookup.length < 3 || resolvedLookup.length > 120) {
       return json({ ok: false, error: "Valid order reference or tracking number is required." }, 400);
     }
-    if (!isValidEmail(email)) {
-      return json({ ok: false, error: "Valid order email is required." }, 400);
-    }
 
-    const result = await fetchTrackingFromSupabase(resolvedLookup, email, env);
+    const result = await fetchTrackingFromSupabase(resolvedLookup, env);
     if (!result.ok) {
       return json({ ok: false, error: result.error }, result.status || 500);
     }

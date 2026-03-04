@@ -88,6 +88,11 @@ function normalizeSupabaseError(rawText, action) {
   return `${action} failed: ${text}`;
 }
 
+function isMissingTrackingNumberColumnError(rawText) {
+  const text = String(rawText || "").toLowerCase();
+  return text.includes("tracking_number") && (text.includes("column") || text.includes("42703"));
+}
+
 function hasOwnProperty(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj || {}, key);
 }
@@ -127,22 +132,39 @@ export async function onRequestGet(context) {
       return json({ ok: false, error: "Supabase environment variables are missing." }, 500);
     }
 
-    const response = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/orders?select=id,reference,tracking_number,customer_name,customer_email,customer_phone,address,city,country,payment_method,subtotal,shipping,total,currency,notes,status,created_at,items&order=created_at.desc&limit=200`,
-      {
-        headers: {
-          apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-      }
-    );
+    const headers = {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    };
+    const queryWithTracking =
+      "select=id,reference,tracking_number,customer_name,customer_email,customer_phone,address,city,country,payment_method,subtotal,shipping,total,currency,notes,status,created_at,items&order=created_at.desc&limit=200";
+    const fallbackQuery =
+      "select=id,reference,customer_name,customer_email,customer_phone,address,city,country,payment_method,subtotal,shipping,total,currency,notes,status,created_at,items&order=created_at.desc&limit=200";
+
+    let response = await fetch(`${env.SUPABASE_URL}/rest/v1/orders?${queryWithTracking}`, {
+      headers,
+    });
 
     if (!response.ok) {
       const message = await response.text();
-      return json({ ok: false, error: normalizeSupabaseError(message, "Load orders") }, 502);
+      if (!isMissingTrackingNumberColumnError(message)) {
+        return json({ ok: false, error: normalizeSupabaseError(message, "Load orders") }, 502);
+      }
+
+      response = await fetch(`${env.SUPABASE_URL}/rest/v1/orders?${fallbackQuery}`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        const fallbackMessage = await response.text();
+        return json({ ok: false, error: normalizeSupabaseError(fallbackMessage, "Load orders") }, 502);
+      }
     }
 
-    const orders = await response.json();
+    const orders = (await response.json().catch(() => [])).map((order) => ({
+      ...order,
+      tracking_number: order?.tracking_number ?? null,
+    }));
     return json({ ok: true, orders });
   } catch (error) {
     return json({ ok: false, error: error?.message || "Unexpected error." }, 500);
@@ -211,6 +233,15 @@ export async function onRequestPatch(context) {
 
     if (!response.ok) {
       const message = await response.text();
+      if (hasTrackingField && isMissingTrackingNumberColumnError(message)) {
+        return json(
+          {
+            ok: false,
+            error: "Tracking number column is missing in public.orders. Run supabase/orders.sql, then refresh admin.",
+          },
+          502
+        );
+      }
       const action = hasStatus && hasTrackingField ? "Update order status and tracking" : hasStatus ? "Update order status" : "Update tracking number";
       return json({ ok: false, error: normalizeSupabaseError(message, action) }, 502);
     }

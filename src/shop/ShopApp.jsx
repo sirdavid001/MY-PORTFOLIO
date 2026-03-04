@@ -186,7 +186,6 @@ export default function ShopApp() {
   const [paymentStatus, setPaymentStatus] = useState({ state: "idle", message: "" });
   const [applePaySupported, setApplePaySupported] = useState(false);
   const [trackingReference, setTrackingReference] = useState("");
-  const [trackingEmail, setTrackingEmail] = useState("");
   const [trackingState, setTrackingState] = useState({ state: "idle", message: "" });
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [catalogProducts, setCatalogProducts] = useState(() => defaultProducts.map((product) => normalizeProduct(product)));
@@ -257,9 +256,7 @@ export default function ShopApp() {
     const prefReference = String(
       params.get("reference") || params.get("tracking") || params.get("lookup") || ""
     ).trim();
-    const prefEmail = String(params.get("email") || "").trim();
     if (prefReference) setTrackingReference(prefReference);
-    if (prefEmail) setTrackingEmail(prefEmail);
   }, [isTrackingPage, location.search]);
 
   useEffect(() => {
@@ -343,13 +340,8 @@ export default function ShopApp() {
     setTrackingOrder(null);
 
     const lookup = String(trackingReference || "").trim();
-    const email = String(trackingEmail || "").trim();
     if (!lookup || lookup.length < 3) {
       setTrackingState({ state: "error", message: "Enter a valid order reference or tracking number." });
-      return;
-    }
-    if (!isValidEmail(email)) {
-      setTrackingState({ state: "error", message: "Enter the same email used for checkout." });
       return;
     }
 
@@ -357,14 +349,13 @@ export default function ShopApp() {
     try {
       const query = new URLSearchParams({
         lookup,
-        email: email.toLowerCase(),
       });
       const response = await fetch(`/api/send-order?${query.toString()}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.ok || !data?.tracking) {
         setTrackingState({
           state: "error",
-          message: data?.error || "Unable to find this order. Check your reference and email.",
+          message: data?.error || "Unable to find this order. Check your reference or tracking number.",
         });
         return;
       }
@@ -779,7 +770,7 @@ export default function ShopApp() {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Order Tracking</p>
             <h1 className="mt-2 font-display text-3xl font-bold text-slate-900">Track your product</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Use your order reference or tracking number plus checkout email to view latest status.
+              Use your order reference or tracking number to view latest status.
             </p>
 
             <form onSubmit={handleTrackOrder} className="mt-5 space-y-3">
@@ -788,13 +779,6 @@ export default function ShopApp() {
                 onChange={(event) => setTrackingReference(event.target.value)}
                 className={inputClass}
                 placeholder="Order reference or tracking number"
-              />
-              <input
-                type="email"
-                value={trackingEmail}
-                onChange={(event) => setTrackingEmail(event.target.value)}
-                className={inputClass}
-                placeholder="Checkout email"
               />
               <button
                 type="submit"
@@ -861,13 +845,7 @@ export default function ShopApp() {
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  navigate(
-                    `/track-order?reference=${encodeURIComponent(lastOrder.reference)}&email=${encodeURIComponent(
-                      lastOrder?.checkout?.email || ""
-                    )}`
-                  )
-                }
+                onClick={() => navigate(`/track-order?reference=${encodeURIComponent(lastOrder.reference)}`)}
                 className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Track This Order

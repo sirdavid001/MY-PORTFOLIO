@@ -88,6 +88,11 @@ function normalizeSupabaseError(rawText, action) {
   return `${action} failed: ${text}`;
 }
 
+function isMissingTrackingNumberColumnError(rawText) {
+  const text = String(rawText || "").toLowerCase();
+  return text.includes("tracking_number") && (text.includes("column") || text.includes("42703"));
+}
+
 function hasOwnProperty(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj || {}, key);
 }
@@ -163,6 +168,15 @@ export async function onRequestPatch(context) {
 
     if (!response.ok) {
       const message = await response.text();
+      if (hasTrackingField && isMissingTrackingNumberColumnError(message)) {
+        return json(
+          {
+            ok: false,
+            error: "Tracking number column is missing in public.orders. Run supabase/orders.sql, then refresh admin.",
+          },
+          502
+        );
+      }
       const action = hasStatus && hasTrackingField ? "Update order status and tracking" : hasStatus ? "Update order status" : "Update tracking number";
       return json({ ok: false, error: normalizeSupabaseError(message, action) }, 502);
     }
