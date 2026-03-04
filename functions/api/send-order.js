@@ -74,6 +74,33 @@ function normalizeBaseUrl(url) {
   return String(url || "").trim().replace(/\/+$/, "");
 }
 
+function normalizeReference(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function generateTrackingNumber(reference) {
+  const normalizedReference = normalizeReference(reference);
+  if (!normalizedReference) return "";
+
+  const core = normalizedReference.slice(-8).padStart(8, "0");
+  let hash = 2166136261;
+  for (let i = 0; i < normalizedReference.length; i += 1) {
+    hash ^= normalizedReference.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  const checksum = hash.toString(36).toUpperCase().padStart(7, "0").slice(-7);
+  return `SDV-${core}-${checksum}`;
+}
+
+function resolveTrackingNumber(order) {
+  const existing = String(order?.trackingNumber || order?.tracking_number || "").trim();
+  if (existing) return existing.slice(0, 120);
+  return generateTrackingNumber(order?.reference);
+}
+
 function resolveRequestOrigin(request) {
   const parsed = new URL(request.url);
   return `${parsed.protocol}//${parsed.host}`;
@@ -84,6 +111,10 @@ function buildTrackingUrl(order, request, env) {
   const params = new URLSearchParams({
     reference: String(order?.reference || "").trim(),
   });
+  const trackingNumber = String(resolveTrackingNumber(order) || "").trim();
+  if (trackingNumber) {
+    params.set("tracking", trackingNumber);
+  }
   return `${base}/track-order?${params.toString()}`;
 }
 
@@ -149,8 +180,10 @@ function formatOrderForAdmin(order, trackingUrl) {
     .map((item) => `- ${item.name} x${item.quantity}`)
     .join("\n");
   const combinedNotes = composeOrderNotes(order);
+  const trackingNumber = resolveTrackingNumber(order);
 
   return `Order Reference: ${order.reference}
+Tracking Number: ${trackingNumber || "N/A"}
 Customer: ${order.checkout?.fullName || ""}
 Email: ${order.checkout?.email || ""}
 Phone: ${order.checkout?.phone || ""}
@@ -171,9 +204,11 @@ Tracking URL: ${trackingUrl}`;
 
 function formatCustomerText(order, trackingUrl) {
   const customerName = String(order.checkout?.fullName || "Customer").trim();
+  const trackingNumber = resolveTrackingNumber(order);
   return `Hi ${customerName},
 
 Payment confirmed for your order ${order.reference}.
+Tracking number: ${trackingNumber || "Pending assignment"}
 
 Total paid: ${formatMoney(order.total, order.currency)}
 Current status: Paid
@@ -200,6 +235,7 @@ function escapeHtml(value) {
 function formatCustomerHtml(order, trackingUrl) {
   const customerName = escapeHtml(order.checkout?.fullName || "Customer");
   const reference = escapeHtml(order.reference);
+  const trackingNumber = escapeHtml(resolveTrackingNumber(order) || "Pending assignment");
   const total = escapeHtml(formatMoney(order.total, order.currency));
   const safeTrackingUrl = escapeHtml(trackingUrl);
   return `
@@ -207,6 +243,7 @@ function formatCustomerHtml(order, trackingUrl) {
   <h2 style="margin:0 0 12px">Payment Confirmed</h2>
   <p>Hi ${customerName},</p>
   <p>Your payment for order <strong>${reference}</strong> has been confirmed.</p>
+  <p><strong>Tracking number:</strong> ${trackingNumber}</p>
   <p><strong>Total paid:</strong> ${total}</p>
   <p><strong>Current status:</strong> Paid</p>
   <p>
@@ -223,10 +260,14 @@ function formatCustomerHtml(order, trackingUrl) {
 async function saveOrderToSupabase(order, env) {
   const supabaseUrl = env.SUPABASE_URL;
   const supabaseServiceRole = env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseServiceRole) return { ok: true, skipped: true };
+  const trackingNumber = resolveTrackingNumber(order);
+  if (!supabaseUrl || !supabaseServiceRole) {
+    return { ok: true, skipped: true, trackingNumber, trackingPersisted: false };
+  }
 
   const payload = {
     reference: order.reference,
+    tracking_number: trackingNumber || null,
     customer_name: order.checkout?.fullName || null,
     customer_email: order.checkout?.email || null,
     customer_phone: order.checkout?.phone || null,
@@ -257,10 +298,38 @@ async function saveOrderToSupabase(order, env) {
 
   if (!response.ok) {
     const message = await response.text();
+    if (isMissingTrackingNumberColumnError(message)) {
+      const fallbackPayload = { ...payload };
+      delete fallbackPayload.tracking_number;
+
+      const fallbackResponse = await fetch(`${supabaseUrl}/rest/v1/orders?on_conflict=reference`, {
+        method: "POST",
+        headers: {
+          apikey: supabaseServiceRole,
+          Authorization: `Bearer ${supabaseServiceRole}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify(fallbackPayload),
+      });
+
+      if (fallbackResponse.ok) {
+        return {
+          ok: true,
+          trackingNumber,
+          trackingPersisted: false,
+          warning:
+            "Tracking number was generated but could not be stored. Add tracking_number column in public.orders by running supabase/orders.sql.",
+        };
+      }
+
+      const fallbackMessage = await fallbackResponse.text();
+      return { ok: false, error: normalizeSupabaseError(fallbackMessage, "Supabase insert") };
+    }
     return { ok: false, error: normalizeSupabaseError(message, "Supabase insert") };
   }
 
-  return { ok: true };
+  return { ok: true, trackingNumber, trackingPersisted: true };
 }
 
 function isMissingTrackingNumberColumnError(rawText) {
@@ -352,7 +421,7 @@ async function fetchTrackingFromSupabase(lookupValue, env) {
     ok: true,
     tracking: {
       reference: order.reference,
-      trackingNumber: order.tracking_number || null,
+      trackingNumber: order.tracking_number || generateTrackingNumber(order.reference) || null,
       status: String(order.status || "new").toLowerCase(),
       statusMessage: statusMessage(order.status),
       createdAt: order.created_at,
@@ -430,16 +499,28 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: validationError }, 400);
     }
 
-    const supabaseResult = await saveOrderToSupabase(order, env);
+    const trackingNumber = resolveTrackingNumber(order);
+    const orderWithTracking = {
+      ...order,
+      trackingNumber,
+    };
+
+    const supabaseResult = await saveOrderToSupabase(orderWithTracking, env);
     if (!supabaseResult.ok) {
       return json({ ok: false, error: supabaseResult.error }, 502);
     }
 
-    const trackingUrl = buildTrackingUrl(order, request, env);
+    const resolvedTrackingNumber = supabaseResult.trackingNumber || trackingNumber || null;
+    const orderForEmail = {
+      ...orderWithTracking,
+      trackingNumber: resolvedTrackingNumber,
+    };
+
+    const trackingUrl = buildTrackingUrl(orderForEmail, request, env);
     const resendKey = env.RESEND_API_KEY;
     const toEmail = env.ORDER_RECEIVER_EMAIL || "itssirdavid@gmail.com";
     const fromEmail = env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-    const customerEmail = String(order.checkout?.email || "").trim();
+    const customerEmail = String(orderForEmail.checkout?.email || "").trim();
 
     if (!resendKey) {
       return json({
@@ -448,25 +529,27 @@ export async function onRequestPost(context) {
         emailSent: false,
         merchantEmailSent: false,
         customerEmailSent: false,
+        trackingNumber: resolvedTrackingNumber,
         trackingUrl,
-        warning: "RESEND_API_KEY is not configured. Order was saved without email notification.",
+        warning:
+          supabaseResult.warning || "RESEND_API_KEY is not configured. Order was saved without email notification.",
       });
     }
 
     const merchantPayload = {
       from: fromEmail,
       to: [toEmail],
-      subject: `Paid Store Order ${order.reference}`,
-      text: formatOrderForAdmin(order, trackingUrl),
+      subject: `Paid Store Order ${orderForEmail.reference}`,
+      text: formatOrderForAdmin(orderForEmail, trackingUrl),
       reply_to: customerEmail || undefined,
     };
 
     const customerPayload = {
       from: fromEmail,
       to: [customerEmail],
-      subject: `Payment Confirmed • ${order.reference}`,
-      text: formatCustomerText(order, trackingUrl),
-      html: formatCustomerHtml(order, trackingUrl),
+      subject: `Payment Confirmed • ${orderForEmail.reference}`,
+      text: formatCustomerText(orderForEmail, trackingUrl),
+      html: formatCustomerHtml(orderForEmail, trackingUrl),
     };
 
     const warnings = [];
@@ -479,10 +562,12 @@ export async function onRequestPost(context) {
 
     if (!merchantResult.ok) warnings.push(`Merchant email failed: ${merchantResult.error}`);
     if (!customerResult.ok) warnings.push(`Customer confirmation email failed: ${customerResult.error}`);
+    if (supabaseResult.warning) warnings.push(supabaseResult.warning);
 
     return json({
       ok: true,
       persisted: !supabaseResult.skipped,
+      trackingNumber: resolvedTrackingNumber,
       emailSent: merchantResult.ok && customerResult.ok,
       merchantEmailSent: merchantResult.ok,
       customerEmailSent: customerResult.ok,
