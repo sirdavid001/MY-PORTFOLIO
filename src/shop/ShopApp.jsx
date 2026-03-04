@@ -840,15 +840,6 @@ export default function ShopApp() {
             <p className="mt-2 text-slate-600">
               Total: <span className="font-semibold text-slate-900">{formatMoney(lastOrder.total, lastOrder.currency)}</span>
             </p>
-            {lastOrder.paymentStatus === "paid" && (
-              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-left text-sm text-blue-900">
-                <p className="font-semibold">{PAYMENT_METHOD_PAYSTACK} Completed</p>
-                <p className="mt-1">
-                  Paystack verified this payment for reference{" "}
-                  <span className="font-semibold">{lastOrder.paymentReference || lastOrder.reference}</span>.
-                </p>
-              </div>
-            )}
             {sendStatus.state !== "idle" && (
               <p
                 className={`mt-3 text-sm ${
