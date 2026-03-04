@@ -96,7 +96,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const response = await fetch(
-        `${process.env.SUPABASE_URL}/rest/v1/orders?select=id,reference,customer_name,customer_email,customer_phone,country,total,currency,status,created_at,items&order=created_at.desc&limit=200`,
+        `${process.env.SUPABASE_URL}/rest/v1/orders?select=id,reference,customer_name,customer_email,customer_phone,address,city,country,payment_method,subtotal,shipping,total,currency,notes,status,created_at,items&order=created_at.desc&limit=200`,
         {
           headers: {
             apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
