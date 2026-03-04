@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FaApplePay, FaWallet } from "react-icons/fa6";
+import { FaWallet } from "react-icons/fa6";
 import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
 import { BrandPill } from "./brandIdentity";
@@ -19,10 +19,7 @@ const sortOptions = [
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
 
-const PAYMENT_METHOD_APPLE_PAY = "Apple Pay";
-const PAYMENT_METHOD_PAYSTACK = "Paystack";
-const PAYSTACK_MODE_STANDARD = "standard";
-const PAYSTACK_MODE_BANK_TRANSFER = "bank_transfer";
+const PAYMENT_METHOD_PAYSTACK = "Paystack Secure Checkout";
 const defaultCheckout = {
   fullName: "",
   email: "",
@@ -31,25 +28,11 @@ const defaultCheckout = {
   city: "",
   country: "",
   paymentMethod: PAYMENT_METHOD_PAYSTACK,
-  paystackMode: PAYSTACK_MODE_STANDARD,
   notes: "",
 };
 const PAYSTACK_POPUP_SRC = "https://js.paystack.co/v2/inline.js";
 const SUPPORTED_PAYSTACK_CURRENCIES = new Set(["NGN", "USD"]);
 const FALLBACK_NGN_PER_USD = 1600;
-const PAYMENT_METHODS = [
-  {
-    value: PAYMENT_METHOD_APPLE_PAY,
-    description: "Quick checkout on Safari/iOS devices.",
-  },
-  {
-    value: PAYMENT_METHOD_PAYSTACK,
-    description: "Cards, bank transfer, USSD, and more via Paystack.",
-  },
-];
-const ONLINE_PAYMENT_METHODS = new Set(PAYMENT_METHODS.map((method) => method.value));
-const PAYSTACK_MODES = new Set([PAYSTACK_MODE_STANDARD, PAYSTACK_MODE_BANK_TRANSFER]);
-
 function loadFromStorage(key, fallback) {
   try {
     const raw = window.localStorage.getItem(key);
@@ -82,20 +65,16 @@ function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(email);
 }
 
-function getPaystackChannels(paymentMethod, currency, paystackMode = PAYSTACK_MODE_STANDARD) {
-  if (paymentMethod === PAYMENT_METHOD_APPLE_PAY) {
-    return currency === "NGN" ? ["apple_pay", "card", "bank_transfer"] : ["apple_pay", "card"];
-  }
-
-  if (paystackMode === PAYSTACK_MODE_BANK_TRANSFER && currency === "NGN") {
+function getPaystackChannels(currency, transferOnly = false) {
+  if (transferOnly && currency === "NGN") {
     return ["bank_transfer"];
   }
 
   if (currency === "NGN") {
-    return ["card", "bank_transfer", "bank", "ussd", "qr", "eft", "mobile_money"];
+    return ["card", "bank_transfer", "bank", "ussd", "qr", "eft", "mobile_money", "apple_pay"];
   }
 
-  return ["card"];
+  return ["card", "apple_pay"];
 }
 
 function loadPaystackScript() {
@@ -132,7 +111,6 @@ export default function ShopApp() {
   const [paymentStatus, setPaymentStatus] = useState({ state: "idle", message: "" });
   const [catalogProducts, setCatalogProducts] = useState(() => defaultProducts.map((product) => normalizeProduct(product)));
   const [shippingConfig, setShippingConfig] = useState(() => normalizeShippingConfig(defaultShippingConfig));
-  const [catalogStatus, setCatalogStatus] = useState({ loading: true, source: "defaults", error: "" });
   const [resolvedPaystackPublicKey, setResolvedPaystackPublicKey] = useState(
     () => import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ""
   );
@@ -141,17 +119,10 @@ export default function ShopApp() {
     setCart(loadFromStorage("sirdavidshop:cart", {}));
     const savedCheckout = loadFromStorage("sirdavidshop:checkout", null);
     if (savedCheckout) {
-      const normalizedPaymentMethod = ONLINE_PAYMENT_METHODS.has(savedCheckout.paymentMethod)
-        ? savedCheckout.paymentMethod
-        : defaultCheckout.paymentMethod;
-      const normalizedPaystackMode = PAYSTACK_MODES.has(savedCheckout.paystackMode)
-        ? savedCheckout.paystackMode
-        : defaultCheckout.paystackMode;
       setCheckout({
         ...defaultCheckout,
         ...savedCheckout,
-        paymentMethod: normalizedPaymentMethod,
-        paystackMode: normalizedPaystackMode,
+        paymentMethod: PAYMENT_METHOD_PAYSTACK,
       });
     }
   }, []);
@@ -168,21 +139,12 @@ export default function ShopApp() {
     let cancelled = false;
 
     async function loadCatalogConfig() {
-      setCatalogStatus((prev) => ({ ...prev, loading: true, error: "" }));
-
       try {
         const response = await fetch("/api/shop/config");
         const data = await response.json().catch(() => ({}));
         if (cancelled) return;
 
-        if (!response.ok || !data?.ok) {
-          setCatalogStatus({
-            loading: false,
-            source: "defaults",
-            error: data?.error || "Using default catalog configuration.",
-          });
-          return;
-        }
+        if (!response.ok || !data?.ok) return;
 
         const productsFromApi = Array.isArray(data.products)
           ? data.products.map((product) => normalizeProduct(product)).filter((product) => product.id && product.isActive)
@@ -193,18 +155,8 @@ export default function ShopApp() {
           setCatalogProducts(productsFromApi);
         }
         setShippingConfig(shippingFromApi);
-        setCatalogStatus({
-          loading: false,
-          source: data?.source || "supabase",
-          error: "",
-        });
       } catch {
-        if (cancelled) return;
-        setCatalogStatus({
-          loading: false,
-          source: "defaults",
-          error: "Using default catalog configuration.",
-        });
+        // Keep fallback defaults when live config is unavailable.
       }
     }
 
@@ -445,8 +397,6 @@ export default function ShopApp() {
     [subtotal, activePricing, shippingConfig]
   );
   const total = subtotal + shipping;
-  const selectedPaymentMethod = checkout.paymentMethod;
-  const isApplePaySelected = selectedPaymentMethod === PAYMENT_METHOD_APPLE_PAY;
 
   function createOrderDraft(paymentStatus = "pending_confirmation") {
     return {
@@ -469,171 +419,42 @@ export default function ShopApp() {
   }
 
   useEffect(() => {
-    const clearApplePayContainer = () => {
-      const container = document.getElementById("paystack-apple-pay");
-      if (container) container.innerHTML = "";
-    };
-
-    if (!ONLINE_PAYMENT_METHODS.has(checkout.paymentMethod)) {
-      setPaymentStatus({ state: "idle", message: "" });
-      clearApplePayContainer();
-      return undefined;
-    }
-
     if (!checkout.email || !isValidEmail(checkout.email)) {
       setPaymentStatus({
         state: "info",
-        message: `Enter a valid email to enable ${checkout.paymentMethod}.`,
+        message: "Enter a valid email to enable secure checkout.",
       });
-      clearApplePayContainer();
       return undefined;
     }
 
     if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
       setPaymentStatus({
         state: "error",
-        message: `${checkout.paymentMethod} currently supports NGN or USD only.`,
+        message: "Checkout currently supports NGN or USD only.",
       });
-      clearApplePayContainer();
-      return undefined;
-    }
-    if (
-      checkout.paymentMethod === PAYMENT_METHOD_PAYSTACK &&
-      checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER &&
-      activePricing.currency !== "NGN"
-    ) {
-      setPaymentStatus({
-        state: "error",
-        message: "Bank transfer virtual account is available for NGN checkout only.",
-      });
-      clearApplePayContainer();
       return undefined;
     }
 
     if (cartItems.length === 0 || total <= 0) {
       setPaymentStatus({
         state: "info",
-        message: `Add an item to cart to enable ${checkout.paymentMethod}.`,
+        message: "Add an item to cart to continue.",
       });
-      clearApplePayContainer();
       return undefined;
     }
 
     const paystackPublicKey = resolvedPaystackPublicKey;
     if (!paystackPublicKey) {
       setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
-      clearApplePayContainer();
       return undefined;
     }
 
-    if (checkout.paymentMethod !== PAYMENT_METHOD_APPLE_PAY) {
-      setPaymentStatus({
-        state: "ready",
-        message:
-          checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
-            ? "Paystack bank transfer is ready. A virtual account will be generated automatically."
-            : "Paystack is ready. Click Place Order or the Paystack button to continue.",
-      });
-      clearApplePayContainer();
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    async function mountApplePayRequest() {
-      setPaymentStatus({ state: "initializing", message: "Loading Apple Pay..." });
-      try {
-        const container = document.getElementById("paystack-apple-pay");
-        if (container) container.innerHTML = "";
-
-        const PaystackPop = await loadPaystackScript();
-        const popup = new PaystackPop();
-        if (typeof popup.paymentRequest !== "function") {
-          setPaymentStatus({
-            state: "error",
-            message: "Payment request API unavailable. Use Place Order instead.",
-          });
-          return;
-        }
-
-        const order = createOrderDraft("pending_gateway");
-        const paymentReference = `PS-${order.reference}-${Date.now()}`;
-
-        await popup.paymentRequest({
-          key: paystackPublicKey,
-          email: order.checkout.email,
-          amount: Math.round(order.total * 100),
-          currency: order.currency,
-          ref: paymentReference,
-          container: "paystack-apple-pay",
-          style: {
-            theme: "dark",
-            applePay: {
-              margin: "0px",
-              padding: "10px",
-              width: "100%",
-              borderRadius: "10px",
-              type: "pay",
-              locale: "en",
-            },
-          },
-          onSuccess: async (transaction) => {
-            if (cancelled) return;
-            await finalizeCardPayment(order, transaction?.reference || paymentReference);
-          },
-          onError: () => {
-            if (cancelled) return;
-            setPaymentStatus({
-              state: "error",
-              message: "Unable to load payment options.",
-            });
-          },
-          onCancel: () => {
-            if (cancelled) return;
-            setPaymentStatus({
-              state: "error",
-              message: "Payment was canceled.",
-            });
-          },
-          onElementsMount: (elements) => {
-            if (cancelled) return;
-            if (elements?.applePay) {
-              setPaymentStatus({
-                state: "ready",
-                message: "Apple Pay is available on this device/browser.",
-              });
-            } else {
-              setPaymentStatus({
-                state: "info",
-                message: "Apple Pay is unavailable on this device/browser. Switch to Paystack.",
-              });
-            }
-          },
-        });
-      } catch {
-        if (cancelled) return;
-        setPaymentStatus({
-          state: "error",
-          message: "Unable to initialize Apple Pay options.",
-        });
-      }
-    }
-
-    mountApplePayRequest();
-
-    return () => {
-      cancelled = true;
-      clearApplePayContainer();
-    };
-  }, [
-    activePricing.currency,
-    cartItems.length,
-    checkout.email,
-    checkout.paymentMethod,
-    checkout.paystackMode,
-    resolvedPaystackPublicKey,
-    total,
-  ]);
+    setPaymentStatus({
+      state: "ready",
+      message: "Secure checkout is ready.",
+    });
+    return undefined;
+  }, [activePricing.currency, cartItems.length, checkout.email, resolvedPaystackPublicKey, total]);
 
   function addToCart(productId) {
     setCart((prev) => {
@@ -678,31 +499,22 @@ export default function ShopApp() {
     return Object.keys(errors).length === 0;
   }
 
-  async function processSelectedPayment(order) {
-    if (!ONLINE_PAYMENT_METHODS.has(checkout.paymentMethod)) {
-      setCheckoutErrors((prev) => ({
-        ...prev,
-        paymentMethod: `Choose ${PAYMENT_METHOD_APPLE_PAY} or ${PAYMENT_METHOD_PAYSTACK}.`,
-      }));
-      return;
-    }
+  async function processSelectedPayment(order, options = {}) {
+    const transferOnly = options.transferOnly === true;
 
     if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: `${checkout.paymentMethod} currently supports NGN or USD only.`,
+        paymentMethod: "Secure checkout currently supports NGN or USD only.",
       }));
       return;
     }
-    if (
-      checkout.paymentMethod === PAYMENT_METHOD_PAYSTACK &&
-      checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER &&
-      activePricing.currency !== "NGN"
-    ) {
+    if (transferOnly && activePricing.currency !== "NGN") {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: "Bank transfer virtual account is available for NGN checkout only.",
+        paymentMethod: "Virtual account transfer is available for NGN checkout only.",
       }));
+      setPaymentStatus({ state: "error", message: "Virtual account transfer is available for NGN checkout only." });
       return;
     }
 
@@ -710,19 +522,16 @@ export default function ShopApp() {
     if (!paystackPublicKey) {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: `${checkout.paymentMethod} is not configured. Missing public key.`,
+        paymentMethod: "Secure checkout is not configured. Missing public key.",
       }));
       setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
       return;
     }
 
-    const openingMessage =
-      checkout.paymentMethod === PAYMENT_METHOD_APPLE_PAY
-        ? "Opening Apple Pay..."
-        : checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
-          ? "Opening Paystack bank transfer..."
-          : "Opening Paystack checkout...";
-    setPaymentStatus({ state: "initializing", message: openingMessage });
+    setPaymentStatus({
+      state: "initializing",
+      message: transferOnly ? "Requesting virtual account..." : "Opening secure checkout...",
+    });
     try {
       const PaystackPop = await loadPaystackScript();
       if (!PaystackPop) {
@@ -734,11 +543,7 @@ export default function ShopApp() {
       const popup = new PaystackPop();
       const [firstName = "", ...restNames] = (order.checkout.fullName || "").trim().split(/\s+/);
       const lastName = restNames.join(" ");
-      const channels = getPaystackChannels(
-        order.checkout.paymentMethod,
-        order.currency || "NGN",
-        order.checkout.paystackMode
-      );
+      const channels = getPaystackChannels(order.currency || "NGN", transferOnly);
       await popup.checkout({
         key: paystackPublicKey,
         email: order.checkout.email,
@@ -752,8 +557,8 @@ export default function ShopApp() {
         metadata: {
           order_reference: order.reference,
           customer_name: order.checkout.fullName || "",
-          payment_method: order.checkout.paymentMethod || PAYMENT_METHOD_PAYSTACK,
-          paystack_mode: order.checkout.paystackMode || PAYSTACK_MODE_STANDARD,
+          payment_method: PAYMENT_METHOD_PAYSTACK,
+          checkout_mode: transferOnly ? "virtual_account" : "standard",
         },
         onSuccess: async (transaction) => {
           await finalizeCardPayment(order, transaction?.reference || paymentReference);
@@ -763,11 +568,11 @@ export default function ShopApp() {
         },
         onError: (error) => {
           const fallback =
-            order.checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
-              ? "Unable to start Paystack bank transfer. Confirm transfer is enabled on your Paystack account."
+            transferOnly
+              ? "Unable to request virtual account. Confirm bank transfer is enabled on Paystack."
               : order.currency === "NGN"
-              ? "Unable to start Paystack payment. Confirm transfer is enabled on your Paystack account."
-              : "Unable to start Paystack payment.";
+              ? "Unable to start secure checkout. Confirm required Paystack channels are enabled."
+              : "Unable to start secure checkout.";
           setPaymentStatus({ state: "error", message: error?.message || fallback });
         },
       });
@@ -775,9 +580,14 @@ export default function ShopApp() {
     } catch {
       setCheckoutErrors((prev) => ({
         ...prev,
-        paymentMethod: `Unable to initialize ${checkout.paymentMethod} payment.`,
+        paymentMethod: transferOnly
+          ? "Unable to request virtual account right now."
+          : "Unable to initialize secure checkout.",
       }));
-      setPaymentStatus({ state: "error", message: `Unable to initialize ${checkout.paymentMethod} payment.` });
+      setPaymentStatus({
+        state: "error",
+        message: transferOnly ? "Unable to request virtual account right now." : "Unable to initialize secure checkout.",
+      });
     }
   }
 
@@ -788,10 +598,10 @@ export default function ShopApp() {
     await processSelectedPayment(order);
   }
 
-  async function handlePaystackQuickCheckout() {
+  async function handleRequestVirtualAccount() {
     if (!validateCheckout()) return;
     const order = createOrderDraft("pending_gateway");
-    await processSelectedPayment(order);
+    await processSelectedPayment(order, { transferOnly: true });
   }
 
   function handleCheckoutFieldChange(event) {
@@ -849,19 +659,14 @@ export default function ShopApp() {
             <p className="mt-2 text-slate-600">
               Total: <span className="font-semibold text-slate-900">{formatMoney(lastOrder.total, lastOrder.currency)}</span>
             </p>
-            {ONLINE_PAYMENT_METHODS.has(lastOrder.checkout.paymentMethod) && (
+            {lastOrder.paymentStatus === "paid" && (
               <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-left text-sm text-blue-900">
-                <p className="font-semibold">{lastOrder.checkout.paymentMethod} Completed</p>
+                <p className="font-semibold">{PAYMENT_METHOD_PAYSTACK} Completed</p>
                 <p className="mt-1">
                   Paystack verified this payment for reference{" "}
                   <span className="font-semibold">{lastOrder.paymentReference || lastOrder.reference}</span>.
                 </p>
               </div>
-            )}
-            {paymentStatus.state !== "idle" && paymentStatus.state !== "paid" && (
-              <p className={`mt-3 text-sm ${paymentStatus.state === "error" ? "text-rose-600" : "text-blue-700"}`}>
-                {paymentStatus.message}
-              </p>
             )}
             {sendStatus.state !== "idle" && (
               <p
@@ -1158,122 +963,35 @@ export default function ShopApp() {
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">Payment Method</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {PAYMENT_METHODS.map((method) => {
-                        const selected = checkout.paymentMethod === method.value;
-                        return (
-                          <button
-                            key={method.value}
-                            type="button"
-                            onClick={() => {
-                              setCheckout((prev) => ({ ...prev, paymentMethod: method.value }));
-                              setCheckoutErrors((prev) => ({ ...prev, paymentMethod: undefined }));
-                            }}
-                            className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${
-                              selected
-                                ? "border-cyan-500 bg-cyan-50/70 shadow-sm"
-                                : "border-slate-200 bg-white hover:border-slate-300"
-                            }`}
-                          >
-                            <span
-                              className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${
-                                method.value === "Apple Pay" ? "bg-slate-900 text-white" : "bg-emerald-600 text-white"
-                              }`}
-                            >
-                              {method.value === "Apple Pay" ? (
-                                <FaApplePay className="text-lg" />
-                              ) : (
-                                <FaWallet className="text-sm" />
-                              )}
-                            </span>
-                            <span className="flex-1">
-                              <span className="block text-sm font-semibold text-slate-900">{method.value}</span>
-                              <span className="mt-0.5 block text-xs text-slate-500">{method.description}</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {!isApplePaySelected && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">Paystack Mode</p>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() => setCheckout((prev) => ({ ...prev, paystackMode: PAYSTACK_MODE_STANDARD }))}
-                          className={`rounded-xl border px-3 py-2 text-left transition ${
-                            checkout.paystackMode === PAYSTACK_MODE_STANDARD
-                              ? "border-emerald-500 bg-emerald-50/70"
-                              : "border-slate-200 bg-white hover:border-slate-300"
-                          }`}
-                        >
-                          <span className="block text-sm font-semibold text-slate-900">Standard Paystack</span>
-                          <span className="block text-xs text-slate-500">Cards, transfer, USSD and more channels.</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCheckout((prev) => ({ ...prev, paystackMode: PAYSTACK_MODE_BANK_TRANSFER }))}
-                          className={`rounded-xl border px-3 py-2 text-left transition ${
-                            checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
-                              ? "border-cyan-500 bg-cyan-50/70"
-                              : "border-slate-200 bg-white hover:border-slate-300"
-                          }`}
-                        >
-                          <span className="block text-sm font-semibold text-slate-900">Bank Transfer</span>
-                          <span className="block text-xs text-slate-500">
-                            Opens transfer flow directly and generates virtual account.
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {isApplePaySelected ? (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-slate-700">Apple Pay Quick Checkout</p>
-                        <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
-                          Secure
-                        </span>
-                      </div>
-                      <div id="paystack-apple-pay" className="mt-2" />
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-emerald-800">Paystack Checkout</p>
-                        <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-700">
-                          Secure
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handlePaystackQuickCheckout}
-                        className="mt-2 flex w-full items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-3 py-2.5 text-left text-white shadow-sm transition hover:from-emerald-500 hover:to-green-500"
-                      >
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+                  <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-cyan-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white">
                           <FaWallet className="text-sm" />
                         </span>
-                        <span className="flex-1">
-                          <span className="block text-sm font-semibold">
-                            {checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
-                              ? "Paystack Bank Transfer"
-                              : "Paystack Checkout"}
-                          </span>
-                          <span className="block text-xs text-emerald-100">
-                            {checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
-                              ? "Virtual account is generated automatically"
-                              : "Cards, bank transfer, USSD and more"}
-                          </span>
-                        </span>
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">Open</span>
-                      </button>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">Secure Checkout</p>
+                          <p className="text-xs text-slate-600">Paystack handles card, transfer, USSD, and Apple Pay on supported devices.</p>
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-700">
+                        Secure
+                      </span>
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={handleRequestVirtualAccount}
+                      className="mt-3 w-full rounded-xl border border-emerald-400 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                    >
+                      Request Virtual Account (Bank Transfer)
+                    </button>
+                  </div>
                   {checkoutErrors.paymentMethod && (
                     <p className="text-xs text-rose-600">{checkoutErrors.paymentMethod}</p>
+                  )}
+                  {paymentStatus.state === "error" && <p className="text-xs text-rose-600">{paymentStatus.message}</p>}
+                  {paymentStatus.state === "initializing" && (
+                    <p className="text-xs text-blue-700">{paymentStatus.message}</p>
                   )}
 
                   <textarea
@@ -1289,11 +1007,7 @@ export default function ShopApp() {
                     type="submit"
                     className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-400"
                   >
-                    {isApplePaySelected
-                      ? "Place Order (Apple Pay)"
-                      : checkout.paystackMode === PAYSTACK_MODE_BANK_TRANSFER
-                        ? "Place Order (Bank Transfer)"
-                        : "Place Order (Paystack)"}
+                    Place Order (Secure Checkout)
                   </button>
                 </form>
               ) : !isCartPage && cartItems.length > 0 ? (

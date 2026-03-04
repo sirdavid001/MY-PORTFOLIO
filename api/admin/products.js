@@ -133,14 +133,6 @@ function normalizePayload(payload, { partial = false } = {}) {
     result.base_price_usd = basePriceUsd;
   }
 
-  if (!partial || Object.prototype.hasOwnProperty.call(payload, "stock")) {
-    const stock = toInteger(payload?.stock, NaN);
-    if (!Number.isFinite(stock) || stock < 0) {
-      return { error: "Stock must be zero or higher." };
-    }
-    result.stock = stock;
-  }
-
   if (!partial || Object.prototype.hasOwnProperty.call(payload, "image")) {
     result.image = String(payload?.image || "").trim();
   }
@@ -151,14 +143,6 @@ function normalizePayload(payload, { partial = false } = {}) {
 
   if (!partial || Object.prototype.hasOwnProperty.call(payload, "isActive")) {
     result.is_active = toBoolean(payload?.isActive, true);
-  }
-
-  if (!partial || Object.prototype.hasOwnProperty.call(payload, "sortOrder")) {
-    const sortOrder = toInteger(payload?.sortOrder, 0);
-    if (!Number.isFinite(sortOrder) || sortOrder < 0) {
-      return { error: "Sort order must be zero or higher." };
-    }
-    result.sort_order = sortOrder;
   }
 
   return { value: result };
@@ -190,6 +174,28 @@ async function loadProducts() {
   const products = sortProducts(rows).map(mapRowToProduct);
 
   return { ok: true, products };
+}
+
+function getAutoStock(condition) {
+  const normalized = String(condition || "").trim().toLowerCase();
+  return normalized.startsWith("new") ? 5 : 1;
+}
+
+async function getNextSortOrder() {
+  const response = await supabaseRest("shop_products?select=sort_order&order=sort_order.desc.nullslast&limit=1");
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      error: normalizeSupabaseError(response.error, "Resolve sort order", MISSING_TABLE_HINT),
+      status: response.status,
+    };
+  }
+
+  const rows = Array.isArray(response.data) ? response.data : [];
+  const currentMax = toInteger(rows[0]?.sort_order, 0);
+  const safeMax = Number.isFinite(currentMax) && currentMax > 0 ? currentMax : 0;
+  return { ok: true, sortOrder: safeMax + 10 };
 }
 
 export default async function handler(req, res) {
@@ -234,9 +240,15 @@ export default async function handler(req, res) {
         return json(res, 400, { ok: false, error: normalized.error });
       }
 
+      const nextSort = await getNextSortOrder();
+      if (!nextSort.ok) {
+        return json(res, nextSort.status || 502, { ok: false, error: nextSort.error });
+      }
+
       const requestedId = String(payload?.id || "").trim();
       const baseId = createProductId(requestedId || normalized.value.name);
       const productId = requestedId ? baseId : `${baseId}-${Math.random().toString(36).slice(2, 6)}`;
+      const autoStock = getAutoStock(normalized.value.condition);
 
       const response = await supabaseRest("shop_products", {
         method: "POST",
@@ -247,6 +259,8 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           id: productId,
           ...normalized.value,
+          stock: autoStock,
+          sort_order: nextSort.sortOrder,
           updated_at: new Date().toISOString(),
         }),
       });

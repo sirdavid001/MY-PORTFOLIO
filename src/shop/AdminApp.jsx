@@ -325,10 +325,8 @@ const emptyProductForm = {
   condition: "New",
   category: "",
   basePriceNgn: "",
-  stock: "",
   image: "",
   details: "",
-  sortOrder: "",
   isActive: true,
 };
 
@@ -349,10 +347,8 @@ function normalizeProductForForm(product, ngnPerUsd) {
     condition: normalized.condition,
     category: normalized.category,
     basePriceNgn: String(Math.round(normalized.basePriceUsd * ngnPerUsd)),
-    stock: String(normalized.stock),
     image: normalized.image,
     details: normalized.details,
-    sortOrder: String(normalized.sortOrder),
     isActive: Boolean(normalized.isActive),
   };
 }
@@ -791,10 +787,8 @@ export default function AdminApp() {
       condition: String(productForm.condition || "").trim(),
       category: String(productForm.category || "").trim(),
       basePriceUsd: Number(productForm.basePriceNgn || 0) / Math.max(1, ngnPerUsd),
-      stock: Number(productForm.stock || 0),
       image: String(productForm.image || "").trim(),
       details: String(productForm.details || "").trim(),
-      sortOrder: Number(productForm.sortOrder || 0),
       isActive: Boolean(productForm.isActive),
     };
 
@@ -1174,111 +1168,109 @@ export default function AdminApp() {
 
                 <form onSubmit={handleSaveProduct} className="grid gap-3">
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <select
-                      className={inputClass}
-                      value={productForm.brand}
-                      onChange={(event) => handleBrandChange(event.target.value)}
-                      required
-                    >
-                      <option value="">Select brand</option>
-                      {brandSuggestions.map((brand) => (
-                        <option key={brand} value={brand}>
-                          {brand}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className={inputClass}
-                      value={productForm.model}
-                      onChange={(event) => handleModelChange(event.target.value)}
-                      disabled={!productForm.brand || !productForm.category}
-                    >
-                      <option value="">
-                        {!productForm.brand
-                          ? "Select brand first"
-                          : !productForm.category
-                            ? "Select category first"
-                            : "Select model"}
-                      </option>
-                      {modelSuggestions.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className={inputClass}
-                      placeholder="Product name"
-                      value={productForm.name}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, name: event.target.value }))}
-                      required
-                    />
-                  </div>
-                  {productForm.brand && (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Selected Brand</p>
-                      <BrandPill brand={productForm.brand} className="mt-2" />
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Category</p>
+                      <select
+                        className={inputClass}
+                        value={productForm.category}
+                        onChange={(event) => handleCategoryChange(event.target.value)}
+                        required
+                      >
+                        <option value="">Select category</option>
+                        {categorySuggestions.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  )}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Brand</p>
+                        {productForm.brand ? <BrandPill brand={productForm.brand} /> : null}
+                      </div>
+                      <select
+                        className={inputClass}
+                        value={productForm.brand}
+                        onChange={(event) => handleBrandChange(event.target.value)}
+                        required
+                      >
+                        <option value="">Select brand</option>
+                        {brandSuggestions.map((brand) => (
+                          <option key={brand} value={brand}>
+                            {brand}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Model</p>
+                      <select
+                        className={inputClass}
+                        value={productForm.model}
+                        onChange={(event) => handleModelChange(event.target.value)}
+                        disabled={!productForm.brand || !productForm.category}
+                      >
+                        <option value="">
+                          {!productForm.brand
+                            ? "Select brand first"
+                            : !productForm.category
+                              ? "Select category first"
+                              : "Select model"}
+                        </option>
+                        {modelSuggestions.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   <p className="text-xs text-slate-500">
                     Pick category first, then brand and model to auto-fill common specifications. You can still edit any field.
                   </p>
 
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <input
-                      className={inputClass}
-                      placeholder="Category"
-                      list="gadget-category-options"
-                      value={productForm.category}
-                      onChange={(event) => handleCategoryChange(event.target.value)}
-                      required
-                    />
-                    <datalist id="gadget-category-options">
-                      {categorySuggestions.map((category) => (
-                        <option key={category} value={category} />
-                      ))}
-                    </datalist>
-                    <select
-                      className={inputClass}
-                      value={productForm.condition}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, condition: event.target.value }))}
-                    >
-                      {conditionSuggestions.map((condition) => (
-                        <option key={condition} value={condition}>
-                          {condition}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className={inputClass}
-                      placeholder="Price (NGN)"
-                      value={productForm.basePriceNgn}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, basePriceNgn: event.target.value }))}
-                      required
-                    />
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Product Name</p>
+                      <input
+                        className={inputClass}
+                        placeholder="Product name"
+                        value={productForm.name}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, name: event.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Condition</p>
+                      <select
+                        className={inputClass}
+                        value={productForm.condition}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, condition: event.target.value }))}
+                      >
+                        {conditionSuggestions.map((condition) => (
+                          <option key={condition} value={condition}>
+                            {condition}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Price (NGN)</p>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className={inputClass}
+                        placeholder="Price (NGN)"
+                        value={productForm.basePriceNgn}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, basePriceNgn: event.target.value }))}
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <input
-                      type="number"
-                      min="0"
-                      className={inputClass}
-                      placeholder="Stock"
-                      value={productForm.stock}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, stock: event.target.value }))}
-                      required
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      className={inputClass}
-                      placeholder="Sort order"
-                      value={productForm.sortOrder}
-                      onChange={(event) => setProductForm((prev) => ({ ...prev, sortOrder: event.target.value }))}
-                    />
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-700">
                       <input
                         type="checkbox"
@@ -1287,6 +1279,9 @@ export default function AdminApp() {
                       />
                       Active on storefront
                     </label>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      Stock and sort order are assigned automatically.
+                    </div>
                   </div>
 
                   <div className="space-y-2">
