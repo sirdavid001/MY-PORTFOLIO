@@ -1,3 +1,5 @@
+const ALLOWED_STATUS = new Set(["new", "paid", "processing", "in_route", "shipped", "completed", "cancelled"]);
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -86,6 +88,16 @@ function normalizeSupabaseError(rawText, action) {
   return `${action} failed: ${text}`;
 }
 
+function hasOwnProperty(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function normalizeTrackingNumber(value) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return null;
+  return normalized.slice(0, 120);
+}
+
 export async function onRequestOptions() {
   return json({ ok: true });
 }
@@ -114,16 +126,29 @@ export async function onRequestPatch(context) {
     const id = Number(params?.id);
     if (!id) return json({ ok: false, error: "Invalid order id." }, 400);
 
-    const payload = await request.json();
+    const payload = await request.json().catch(() => ({}));
     const status = String(payload?.status || "").trim();
-    const allowed = new Set(["new", "processing", "paid", "shipped", "completed", "cancelled"]);
-    if (!allowed.has(status)) {
+    const hasStatus = status.length > 0;
+    if (hasStatus && !ALLOWED_STATUS.has(status)) {
       return json({ ok: false, error: "Invalid status." }, 400);
+    }
+
+    const hasTrackingField = hasOwnProperty(payload, "trackingNumber") || hasOwnProperty(payload, "tracking_number");
+    const rawTrackingNumber = hasOwnProperty(payload, "trackingNumber")
+      ? payload?.trackingNumber
+      : payload?.tracking_number;
+    const trackingNumber = normalizeTrackingNumber(rawTrackingNumber);
+    if (!hasStatus && !hasTrackingField) {
+      return json({ ok: false, error: "No valid order updates provided." }, 400);
     }
 
     if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
       return json({ ok: false, error: "Supabase environment variables are missing." }, 500);
     }
+
+    const updatePayload = {};
+    if (hasStatus) updatePayload.status = status;
+    if (hasTrackingField) updatePayload.tracking_number = trackingNumber;
 
     const response = await fetch(`${env.SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
       method: "PATCH",
@@ -133,12 +158,13 @@ export async function onRequestPatch(context) {
         "Content-Type": "application/json",
         Prefer: "return=representation",
       },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(updatePayload),
     });
 
     if (!response.ok) {
       const message = await response.text();
-      return json({ ok: false, error: normalizeSupabaseError(message, "Update order status") }, 502);
+      const action = hasStatus && hasTrackingField ? "Update order status and tracking" : hasStatus ? "Update order status" : "Update tracking number";
+      return json({ ok: false, error: normalizeSupabaseError(message, action) }, 502);
     }
 
     const rows = await response.json();

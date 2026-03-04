@@ -2,7 +2,7 @@ import { requireAdminUser } from "../../server/_lib/admin-auth.js";
 import { applyRateLimit } from "../../server/_lib/rate-limit.js";
 import { getClientIp, isIpAllowed } from "../../server/_lib/security.js";
 
-const ALLOWED_STATUS = new Set(["new", "processing", "paid", "shipped", "completed", "cancelled"]);
+const ALLOWED_STATUS = new Set(["new", "paid", "processing", "in_route", "shipped", "completed", "cancelled"]);
 
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -18,6 +18,16 @@ function json(res, status, data, methods) {
 function firstValue(value) {
   if (Array.isArray(value)) return value[0];
   return value;
+}
+
+function hasOwnProperty(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function normalizeTrackingNumber(value) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return null;
+  return normalized.slice(0, 120);
 }
 
 function normalizeSupabaseError(rawText, action) {
@@ -96,7 +106,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const response = await fetch(
-        `${process.env.SUPABASE_URL}/rest/v1/orders?select=id,reference,customer_name,customer_email,customer_phone,address,city,country,payment_method,subtotal,shipping,total,currency,notes,status,created_at,items&order=created_at.desc&limit=200`,
+        `${process.env.SUPABASE_URL}/rest/v1/orders?select=id,reference,tracking_number,customer_name,customer_email,customer_phone,address,city,country,payment_method,subtotal,shipping,total,currency,notes,status,created_at,items&order=created_at.desc&limit=200`,
         {
           headers: {
             apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -122,9 +132,23 @@ export default async function handler(req, res) {
 
       const payload = await readJsonBody(req);
       const status = String(payload?.status || "").trim();
-      if (!ALLOWED_STATUS.has(status)) {
+      const hasStatus = status.length > 0;
+      if (hasStatus && !ALLOWED_STATUS.has(status)) {
         return json(res, 400, { ok: false, error: "Invalid status." }, methods);
       }
+
+      const hasTrackingField = hasOwnProperty(payload, "trackingNumber") || hasOwnProperty(payload, "tracking_number");
+      const rawTrackingNumber = hasOwnProperty(payload, "trackingNumber")
+        ? payload?.trackingNumber
+        : payload?.tracking_number;
+      const trackingNumber = normalizeTrackingNumber(rawTrackingNumber);
+      if (!hasStatus && !hasTrackingField) {
+        return json(res, 400, { ok: false, error: "No valid order updates provided." }, methods);
+      }
+
+      const updatePayload = {};
+      if (hasStatus) updatePayload.status = status;
+      if (hasTrackingField) updatePayload.tracking_number = trackingNumber;
 
       const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
         method: "PATCH",
@@ -134,12 +158,13 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
           Prefer: "return=representation",
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (!response.ok) {
         const message = await response.text();
-        return json(res, 502, { ok: false, error: normalizeSupabaseError(message, "Update order status") }, methods);
+        const action = hasStatus && hasTrackingField ? "Update order status and tracking" : hasStatus ? "Update order status" : "Update tracking number";
+        return json(res, 502, { ok: false, error: normalizeSupabaseError(message, action) }, methods);
       }
 
       const rows = await response.json();

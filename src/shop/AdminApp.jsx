@@ -9,7 +9,14 @@ import { defaultShippingConfig, normalizeProduct, normalizeShippingConfig } from
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
 
-const statusOptions = ["new", "processing", "paid", "shipped", "completed", "cancelled"];
+const statusOptions = [
+  { value: "new", label: "Pending Review" },
+  { value: "paid", label: "Payment Confirmed" },
+  { value: "processing", label: "Order Processing" },
+  { value: "in_route", label: "In Route" },
+  { value: "completed", label: "Delivered" },
+  { value: "cancelled", label: "Cancelled" },
+];
 const initialCategoryOptions = [
   "Phones",
   "Laptops",
@@ -419,10 +426,31 @@ function normalizeOrderItems(items) {
     .filter((item) => item.name);
 }
 
-function orderStatusBadgeClass(status) {
+function normalizeOrderStatus(status) {
   const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "shipped") return "in_route";
+  if (normalized === "delivered") return "completed";
+  if (normalized === "paid") return "paid";
+  if (normalized === "processing") return "processing";
+  if (normalized === "completed") return "completed";
+  if (normalized === "cancelled") return "cancelled";
+  return "new";
+}
+
+function orderStatusLabel(status) {
+  const normalized = normalizeOrderStatus(status);
+  if (normalized === "paid") return "Payment Confirmed";
+  if (normalized === "processing") return "Order Processing";
+  if (normalized === "in_route") return "In Route";
+  if (normalized === "completed") return "Delivered";
+  if (normalized === "cancelled") return "Cancelled";
+  return "Pending Review";
+}
+
+function orderStatusBadgeClass(status) {
+  const normalized = normalizeOrderStatus(status);
   if (normalized === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (normalized === "shipped") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (normalized === "in_route") return "border-blue-200 bg-blue-50 text-blue-700";
   if (normalized === "processing") return "border-amber-200 bg-amber-50 text-amber-700";
   if (normalized === "paid") return "border-cyan-200 bg-cyan-50 text-cyan-700";
   if (normalized === "cancelled") return "border-rose-200 bg-rose-50 text-rose-700";
@@ -442,6 +470,7 @@ export default function AdminApp() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
   const [updatingOrderStatus, setUpdatingOrderStatus] = useState({});
+  const [orderTrackingDrafts, setOrderTrackingDrafts] = useState({});
 
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -642,7 +671,20 @@ export default function AdminApp() {
         return false;
       }
 
-      setOrders(data.orders || []);
+      const loadedOrders = Array.isArray(data.orders) ? data.orders : [];
+      setOrders(loadedOrders);
+      setOrderTrackingDrafts((prev) => {
+        const next = {};
+        loadedOrders.forEach((order) => {
+          const key = String(order.id);
+          if (Object.prototype.hasOwnProperty.call(prev, key)) {
+            next[key] = prev[key];
+            return;
+          }
+          next[key] = String(order.tracking_number || "");
+        });
+        return next;
+      });
       return true;
     } catch {
       setOrdersError("Failed to load orders.");
@@ -742,9 +784,24 @@ export default function AdminApp() {
     }
   }
 
-  async function updateStatus(orderId, nextStatus) {
-    setUpdatingOrderStatus((prev) => ({ ...prev, [orderId]: true }));
+  function getTrackingDraft(order) {
+    const key = String(order.id);
+    if (Object.prototype.hasOwnProperty.call(orderTrackingDrafts, key)) {
+      return orderTrackingDrafts[key];
+    }
+    return String(order.tracking_number || "");
+  }
+
+  function updateTrackingDraft(orderId, value) {
+    const key = String(orderId);
+    setOrderTrackingDrafts((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function updateOrder(orderId, payload, fallbackErrorMessage) {
+    const key = String(orderId);
+    setUpdatingOrderStatus((prev) => ({ ...prev, [key]: true }));
     setOrdersError("");
+
     try {
       const response = await fetch(`/api/admin/orders?id=${encodeURIComponent(orderId)}`, {
         method: "PATCH",
@@ -752,27 +809,67 @@ export default function AdminApp() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify(payload),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.ok) {
         if (response.status === 401 || response.status === 403) {
           setIsAuthed(false);
           setAuthError("Your admin session expired. Sign in again.");
-          return;
+          return false;
         }
-        setOrdersError(data?.error || "Status update failed.");
-        return;
+        setOrdersError(data?.error || fallbackErrorMessage);
+        return false;
       }
 
-      setOrders((prev) =>
-        prev.map((order) => (order.id === orderId ? { ...order, status: nextStatus } : order))
-      );
+      const updatedOrder = data?.order || null;
+      if (updatedOrder) {
+        setOrders((prev) =>
+          prev.map((order) => (Number(order.id) === Number(orderId) ? { ...order, ...updatedOrder } : order))
+        );
+        setOrderTrackingDrafts((prev) => ({
+          ...prev,
+          [key]: String(updatedOrder.tracking_number || ""),
+        }));
+      } else {
+        setOrders((prev) =>
+          prev.map((order) =>
+            Number(order.id) === Number(orderId)
+              ? {
+                  ...order,
+                  ...(payload.status ? { status: payload.status } : {}),
+                  ...(Object.prototype.hasOwnProperty.call(payload, "trackingNumber")
+                    ? { tracking_number: payload.trackingNumber || null }
+                    : {}),
+                }
+              : order
+          )
+        );
+      }
+
+      return true;
     } catch {
-      setOrdersError("Status update failed.");
+      setOrdersError(fallbackErrorMessage);
+      return false;
     } finally {
-      setUpdatingOrderStatus((prev) => ({ ...prev, [orderId]: false }));
+      setUpdatingOrderStatus((prev) => ({ ...prev, [key]: false }));
     }
+  }
+
+  async function updateStatus(orderId, nextStatus) {
+    await updateOrder(orderId, { status: nextStatus }, "Status update failed.");
+  }
+
+  async function saveTrackingNumber(order) {
+    const trackingNumber = String(getTrackingDraft(order) || "").trim();
+    await updateOrder(
+      order.id,
+      {
+        status: normalizeOrderStatus(order.status || "new"),
+        trackingNumber,
+      },
+      "Tracking update failed."
+    );
   }
 
   function handleBrandChange(nextBrand) {
@@ -1244,6 +1341,8 @@ export default function AdminApp() {
                     const subtotal = Number(order.subtotal || 0);
                     const shippingFee = Number(order.shipping || 0);
                     const hasBreakdown = Number.isFinite(subtotal) && Number.isFinite(shippingFee) && (subtotal > 0 || shippingFee > 0);
+                    const trackingDraft = getTrackingDraft(order);
+                    const isUpdatingOrder = Boolean(updatingOrderStatus[String(order.id)]);
 
                     return (
                       <article key={order.id} className="px-4 py-4 sm:px-5">
@@ -1264,17 +1363,17 @@ export default function AdminApp() {
                                 order.status
                               )}`}
                             >
-                              {order.status || "new"}
+                              {orderStatusLabel(order.status)}
                             </span>
                             <select
-                              value={order.status || "new"}
-                              disabled={Boolean(updatingOrderStatus[order.id])}
+                              value={normalizeOrderStatus(order.status || "new")}
+                              disabled={isUpdatingOrder}
                               onChange={(event) => updateStatus(order.id, event.target.value)}
                               className={inputClass}
                             >
                               {statusOptions.map((status) => (
-                                <option key={status} value={status}>
-                                  {status}
+                                <option key={status.value} value={status.value}>
+                                  {status.label}
                                 </option>
                               ))}
                             </select>
@@ -1336,6 +1435,31 @@ export default function AdminApp() {
                                 Total: {formatMoney(order.total || 0, currency)}
                               </p>
                               {order.notes ? <p className="mt-2 text-xs text-slate-600">Notes: {order.notes}</p> : null}
+                            </section>
+
+                            <section className="rounded-2xl border border-slate-200 bg-white p-3">
+                              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Tracking</p>
+                              <p className="mt-2 text-xs text-slate-500">
+                                Buyers can track with either order reference or tracking number.
+                              </p>
+                              <input
+                                className={`${inputClass} mt-2`}
+                                placeholder="Add tracking number"
+                                value={trackingDraft}
+                                disabled={isUpdatingOrder}
+                                onChange={(event) => updateTrackingDraft(order.id, event.target.value)}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => saveTrackingNumber(order)}
+                                disabled={isUpdatingOrder}
+                                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
+                              >
+                                {isUpdatingOrder ? "Saving..." : "Save Tracking"}
+                              </button>
+                              <p className="mt-2 text-xs text-slate-600">
+                                Current: {order.tracking_number ? order.tracking_number : "Not assigned"}
+                              </p>
                             </section>
                           </div>
                         </div>

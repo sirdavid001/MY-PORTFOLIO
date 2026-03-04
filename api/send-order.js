@@ -154,25 +154,36 @@ function validateOrderPayload(order) {
   return null;
 }
 
+function composeOrderNotes(order) {
+  const callNumber = String(order?.checkout?.callNumber || "").trim();
+  const notes = String(order?.checkout?.notes || "").trim();
+  const parts = [];
+  if (callNumber) parts.push(`Call number: ${callNumber}`);
+  if (notes) parts.push(notes);
+  return parts.length > 0 ? parts.join("\n") : null;
+}
+
 function statusMessage(status) {
   const normalized = String(status || "").trim().toLowerCase();
   if (normalized === "paid") return "Payment confirmed. Your order is queued for processing.";
   if (normalized === "processing") return "Your order is being prepared for shipment.";
-  if (normalized === "shipped") return "Your order has been shipped and is in transit.";
-  if (normalized === "completed") return "Order delivered successfully.";
+  if (normalized === "in_route" || normalized === "shipped") return "Your order is in transit.";
+  if (normalized === "completed" || normalized === "delivered") return "Order delivered successfully.";
   if (normalized === "cancelled") return "Order was cancelled. Contact support if this is unexpected.";
-  return "Order received. We will update you soon.";
+  return "Order received and awaiting processing.";
 }
 
 function formatOrderForAdmin(order, trackingUrl) {
   const lines = (order.items || [])
     .map((item) => `- ${item.name} x${item.quantity}`)
     .join("\n");
+  const combinedNotes = composeOrderNotes(order);
 
   return `Order Reference: ${order.reference}
 Customer: ${order.checkout?.fullName || ""}
 Email: ${order.checkout?.email || ""}
 Phone: ${order.checkout?.phone || ""}
+Call Number: ${order.checkout?.callNumber || "N/A"}
 Address: ${order.checkout?.address || ""}, ${order.checkout?.city || ""}, ${order.checkout?.country || ""}
 Payment Method: ${order.checkout?.paymentMethod || "Paystack"}
 Currency: ${order.currency || ""}
@@ -183,7 +194,7 @@ ${lines}
 Subtotal: ${order.subtotal || 0}
 Shipping: ${order.shipping || 0}
 Total: ${order.total || 0}
-Notes: ${order.checkout?.notes || "N/A"}
+Notes: ${combinedNotes || "N/A"}
 Tracking URL: ${trackingUrl}`;
 }
 
@@ -198,6 +209,8 @@ Current status: Paid
 
 Track your order:
 ${trackingUrl}
+
+You can track with your order reference now, or with a tracking number once assigned by dispatch.
 
 We will update this status as your order moves to processing and shipping.
 
@@ -230,6 +243,7 @@ function formatCustomerHtml(order, trackingUrl) {
       Track Your Order
     </a>
   </p>
+  <p>You can track with your order reference now, or with a tracking number once assigned by dispatch.</p>
   <p>We will update this status as your order moves to processing and shipping.</p>
   <p>Thank you for shopping with Sirdavid Gadgets.</p>
 </div>`;
@@ -253,7 +267,7 @@ async function saveOrderToSupabase(order) {
     subtotal: Number(order.subtotal || 0),
     shipping: Number(order.shipping || 0),
     total: Number(order.total || 0),
-    notes: order.checkout?.notes || null,
+    notes: composeOrderNotes(order),
     items: order.items || [],
     status: "paid",
     created_at: new Date().toISOString(),
@@ -278,32 +292,89 @@ async function saveOrderToSupabase(order) {
   return { ok: true };
 }
 
-async function fetchTrackingFromSupabase(reference, email) {
+function isMissingTrackingNumberColumnError(rawText) {
+  const text = String(rawText || "").toLowerCase();
+  return text.includes("tracking_number") && (text.includes("column") || text.includes("42703"));
+}
+
+async function fetchTrackingOrderByField({ supabaseUrl, supabaseServiceRole, field, value }) {
+  const selectWithTracking = "reference,tracking_number,status,created_at,total,currency,customer_email,customer_name";
+  const baseHeaders = {
+    apikey: supabaseServiceRole,
+    Authorization: `Bearer ${supabaseServiceRole}`,
+  };
+
+  const request = async (selectFields) =>
+    fetch(
+      `${supabaseUrl}/rest/v1/orders?${field}=eq.${encodeURIComponent(value)}&select=${selectFields}&limit=1`,
+      {
+        headers: baseHeaders,
+      }
+    );
+
+  let response = await request(selectWithTracking);
+  if (!response.ok) {
+    const message = await response.text();
+    if (isMissingTrackingNumberColumnError(message)) {
+      if (field === "tracking_number") {
+        // Legacy schema without tracking_number column: tracking lookup unavailable.
+        return { ok: true, order: null };
+      }
+
+      const fallbackSelect = "reference,status,created_at,total,currency,customer_email,customer_name";
+      response = await request(fallbackSelect);
+      if (!response.ok) {
+        const fallbackMessage = await response.text();
+        return { ok: false, status: 502, error: normalizeSupabaseError(fallbackMessage, "Tracking lookup") };
+      }
+      const fallbackRows = await response.json().catch(() => []);
+      const order = fallbackRows?.[0] ? { ...fallbackRows[0], tracking_number: null } : null;
+      return { ok: true, order };
+    }
+
+    return { ok: false, status: 502, error: normalizeSupabaseError(message, "Tracking lookup") };
+  }
+
+  const rows = await response.json().catch(() => []);
+  return { ok: true, order: rows?.[0] || null };
+}
+
+async function fetchTrackingFromSupabase(lookupValue, email) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseServiceRole) {
     return { ok: false, status: 500, error: "Supabase environment variables are missing." };
   }
 
-  const response = await fetch(
-    `${supabaseUrl}/rest/v1/orders?reference=eq.${encodeURIComponent(
-      reference
-    )}&select=reference,status,created_at,total,currency,customer_email,customer_name&limit=1`,
-    {
-      headers: {
-        apikey: supabaseServiceRole,
-        Authorization: `Bearer ${supabaseServiceRole}`,
-      },
-    }
-  );
-
-  if (!response.ok) {
-    const message = await response.text();
-    return { ok: false, status: 502, error: normalizeSupabaseError(message, "Tracking lookup") };
+  const normalizedLookup = String(lookupValue || "").trim();
+  if (!normalizedLookup) {
+    return { ok: false, status: 400, error: "Valid order reference or tracking number is required." };
   }
 
-  const rows = await response.json().catch(() => []);
-  const order = rows?.[0];
+  const byReference = await fetchTrackingOrderByField({
+    supabaseUrl,
+    supabaseServiceRole,
+    field: "reference",
+    value: normalizedLookup,
+  });
+  if (!byReference.ok) {
+    return byReference;
+  }
+
+  const byTrackingNumber =
+    byReference.order ||
+    (await fetchTrackingOrderByField({
+      supabaseUrl,
+      supabaseServiceRole,
+      field: "tracking_number",
+      value: normalizedLookup,
+    }));
+
+  if (byReference.order == null && byTrackingNumber && !byTrackingNumber.ok) {
+    return byTrackingNumber;
+  }
+
+  const order = byReference.order || byTrackingNumber?.order || null;
   if (!order) {
     return { ok: false, status: 404, error: "Order not found." };
   }
@@ -317,6 +388,7 @@ async function fetchTrackingFromSupabase(reference, email) {
     ok: true,
     tracking: {
       reference: order.reference,
+      trackingNumber: order.tracking_number || null,
       status: String(order.status || "new").toLowerCase(),
       statusMessage: statusMessage(order.status),
       createdAt: order.created_at,
@@ -368,15 +440,18 @@ export default async function handler(req, res) {
     }
 
     const reference = String(firstValue(req.query?.reference) || "").trim();
+    const tracking = String(firstValue(req.query?.tracking) || "").trim();
+    const lookup = String(firstValue(req.query?.lookup) || "").trim();
+    const resolvedLookup = lookup || reference || tracking;
     const email = String(firstValue(req.query?.email) || "").trim();
-    if (reference.length < 5 || reference.length > 80) {
-      return json(res, 400, { ok: false, error: "Valid order reference is required." }, methods);
+    if (resolvedLookup.length < 3 || resolvedLookup.length > 120) {
+      return json(res, 400, { ok: false, error: "Valid order reference or tracking number is required." }, methods);
     }
     if (!isValidEmail(email)) {
       return json(res, 400, { ok: false, error: "Valid order email is required." }, methods);
     }
 
-    const trackingResult = await fetchTrackingFromSupabase(reference, email);
+    const trackingResult = await fetchTrackingFromSupabase(resolvedLookup, email);
     if (!trackingResult.ok) {
       return json(res, trackingResult.status, { ok: false, error: trackingResult.error }, methods);
     }

@@ -25,6 +25,7 @@ const defaultCheckout = {
   fullName: "",
   email: "",
   phone: "",
+  callNumber: "",
   address: "",
   city: "",
   country: "",
@@ -111,8 +112,10 @@ function isApplePaySupportedOnDevice() {
   const isAppleDevice = /iPhone|iPad|iPod|Macintosh/i.test(userAgent);
   const isSafari = /Safari/i.test(userAgent) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS|Android/i.test(userAgent);
 
+  if (!isAppleDevice || !isSafari) return false;
+
   try {
-    return Boolean(isAppleDevice && isSafari && ApplePaySessionRef.canMakePayments());
+    return Boolean(ApplePaySessionRef.canMakePayments());
   } catch {
     return false;
   }
@@ -122,16 +125,26 @@ function normalizeTrackingStatus(status) {
   const normalized = String(status || "").trim().toLowerCase();
   if (normalized === "paid") return "paid";
   if (normalized === "processing") return "processing";
-  if (normalized === "shipped") return "shipped";
-  if (normalized === "completed") return "completed";
+  if (normalized === "in_route" || normalized === "shipped") return "in_route";
+  if (normalized === "delivered" || normalized === "completed") return "completed";
   if (normalized === "cancelled") return "cancelled";
   return "new";
+}
+
+function trackingStatusLabel(status) {
+  const normalized = normalizeTrackingStatus(status);
+  if (normalized === "paid") return "Payment Confirmed";
+  if (normalized === "processing") return "Order Processing";
+  if (normalized === "in_route") return "In Route";
+  if (normalized === "completed") return "Delivered";
+  if (normalized === "cancelled") return "Cancelled";
+  return "Pending Review";
 }
 
 function trackingStatusPillClass(status) {
   const normalized = normalizeTrackingStatus(status);
   if (normalized === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-800";
-  if (normalized === "shipped") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (normalized === "in_route") return "border-blue-200 bg-blue-50 text-blue-800";
   if (normalized === "processing") return "border-amber-200 bg-amber-50 text-amber-800";
   if (normalized === "paid") return "border-cyan-200 bg-cyan-50 text-cyan-800";
   if (normalized === "cancelled") return "border-rose-200 bg-rose-50 text-rose-800";
@@ -172,8 +185,6 @@ export default function ShopApp() {
   const [sendStatus, setSendStatus] = useState({ state: "idle", message: "" });
   const [paymentStatus, setPaymentStatus] = useState({ state: "idle", message: "" });
   const [applePaySupported, setApplePaySupported] = useState(false);
-  const [pendingOrderForPayment, setPendingOrderForPayment] = useState(null);
-  const [showPaymentChoice, setShowPaymentChoice] = useState(false);
   const [trackingReference, setTrackingReference] = useState("");
   const [trackingEmail, setTrackingEmail] = useState("");
   const [trackingState, setTrackingState] = useState({ state: "idle", message: "" });
@@ -243,7 +254,9 @@ export default function ShopApp() {
   useEffect(() => {
     if (!isTrackingPage) return;
     const params = new URLSearchParams(location.search || "");
-    const prefReference = String(params.get("reference") || "").trim();
+    const prefReference = String(
+      params.get("reference") || params.get("tracking") || params.get("lookup") || ""
+    ).trim();
     const prefEmail = String(params.get("email") || "").trim();
     if (prefReference) setTrackingReference(prefReference);
     if (prefEmail) setTrackingEmail(prefEmail);
@@ -329,10 +342,10 @@ export default function ShopApp() {
     event.preventDefault();
     setTrackingOrder(null);
 
-    const reference = String(trackingReference || "").trim();
+    const lookup = String(trackingReference || "").trim();
     const email = String(trackingEmail || "").trim();
-    if (!reference || reference.length < 5) {
-      setTrackingState({ state: "error", message: "Enter a valid order reference." });
+    if (!lookup || lookup.length < 3) {
+      setTrackingState({ state: "error", message: "Enter a valid order reference or tracking number." });
       return;
     }
     if (!isValidEmail(email)) {
@@ -343,7 +356,7 @@ export default function ShopApp() {
     setTrackingState({ state: "loading", message: "Checking your order status..." });
     try {
       const query = new URLSearchParams({
-        reference,
+        lookup,
         email: email.toLowerCase(),
       });
       const response = await fetch(`/api/send-order?${query.toString()}`);
@@ -699,22 +712,17 @@ export default function ShopApp() {
     if (paymentStatus.state === "initializing" || paymentStatus.state === "verifying") return;
 
     const order = createOrderDraft("pending_gateway");
-
-    if (applePaySupported) {
-      setPendingOrderForPayment(order);
-      setShowPaymentChoice(true);
-      return;
-    }
-
     await processSelectedPayment(order);
   }
 
-  async function handleChoosePayment(method) {
-    const order = pendingOrderForPayment;
-    if (!order) return;
-    setShowPaymentChoice(false);
-    setPendingOrderForPayment(null);
-    await processSelectedPayment(order, { transferOnly: method === "apple_pay" });
+  async function handleApplePayOrder(event) {
+    event.preventDefault();
+    if (!applePaySupported) return;
+    if (!validateCheckout()) return;
+    if (paymentStatus.state === "initializing" || paymentStatus.state === "verifying") return;
+
+    const order = createOrderDraft("pending_gateway");
+    await processSelectedPayment(order, { transferOnly: true });
   }
 
   function handleCheckoutFieldChange(event) {
@@ -761,14 +769,16 @@ export default function ShopApp() {
           <section className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Order Tracking</p>
             <h1 className="mt-2 font-display text-3xl font-bold text-slate-900">Track your product</h1>
-            <p className="mt-2 text-sm text-slate-600">Use the order reference and checkout email to view latest status.</p>
+            <p className="mt-2 text-sm text-slate-600">
+              Use your order reference or tracking number plus checkout email to view latest status.
+            </p>
 
             <form onSubmit={handleTrackOrder} className="mt-5 space-y-3">
               <input
                 value={trackingReference}
                 onChange={(event) => setTrackingReference(event.target.value)}
                 className={inputClass}
-                placeholder="Order reference (e.g. SD-12345678)"
+                placeholder="Order reference or tracking number"
               />
               <input
                 type="email"
@@ -798,10 +808,13 @@ export default function ShopApp() {
                       trackingOrder.status
                     )}`}
                   >
-                    {trackingOrder.status}
+                    {trackingStatusLabel(trackingOrder.status)}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-slate-700">{trackingOrder.statusMessage}</p>
+                <p className="mt-2 text-xs text-slate-600">
+                  Tracking number: {trackingOrder.trackingNumber || "Not assigned yet"}
+                </p>
                 <p className="mt-2 text-xs text-slate-600">
                   Created:{" "}
                   {trackingOrder.createdAt ? new Date(trackingOrder.createdAt).toLocaleString() : "N/A"}
@@ -1168,6 +1181,14 @@ export default function ShopApp() {
                     </div>
                   </div>
 
+                  <input
+                    name="callNumber"
+                    value={checkout.callNumber || ""}
+                    onChange={handleCheckoutFieldChange}
+                    placeholder="Call number (optional)"
+                    className={inputClass}
+                  />
+
                   <textarea
                     name="notes"
                     value={checkout.notes}
@@ -1184,6 +1205,18 @@ export default function ShopApp() {
                   >
                     {paymentStatus.state === "initializing" || paymentStatus.state === "verifying" ? "Processing..." : "Place Order"}
                   </button>
+                  {applePaySupported ? (
+                    <button
+                      type="button"
+                      onClick={handleApplePayOrder}
+                      disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
+                      className="w-full rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-70"
+                    >
+                      {paymentStatus.state === "initializing" || paymentStatus.state === "verifying"
+                        ? "Processing..."
+                        : "Pay with Apple Pay"}
+                    </button>
+                  ) : null}
                 </form>
               ) : !isCartPage && cartItems.length > 0 ? (
                 <button
@@ -1206,40 +1239,6 @@ export default function ShopApp() {
           </div>
         )}
       </main>
-      {showPaymentChoice && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/60 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h3 className="font-display text-xl font-semibold text-slate-900">Choose Payment Method</h3>
-            <p className="mt-1 text-sm text-slate-600">This device supports Apple Pay. Choose how you want to pay.</p>
-            <div className="mt-4 space-y-2">
-              <button
-                type="button"
-                onClick={() => handleChoosePayment("apple_pay")}
-                className="w-full rounded-xl border border-slate-200 bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-900"
-              >
-                Pay with Apple Pay
-              </button>
-              <button
-                type="button"
-                onClick={() => handleChoosePayment("paystack")}
-                className="w-full rounded-xl border border-cyan-500 bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-400"
-              >
-                Pay with Paystack
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setShowPaymentChoice(false);
-                setPendingOrderForPayment(null);
-              }}
-              className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
