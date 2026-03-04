@@ -30,6 +30,9 @@ Set these variables in Vercel Project -> Settings -> Environment Variables:
 - `RESEND_API_KEY` = your Resend API key
 - `ORDER_RECEIVER_EMAIL` = inbox that receives order alerts (for example `itssirdavid@gmail.com`)
 - `RESEND_FROM_EMAIL` = verified sender (for example `orders@yourdomain.com`)
+- `RESEND_FROM_NAME` = sender display name (for example `Sirdavid Gadgets`)
+
+Important: `RESEND_FROM_EMAIL` must be from a domain verified in Resend. If not verified, customer emails will fail.
 
 Security note: never put API keys in frontend code or commit them to git.
 

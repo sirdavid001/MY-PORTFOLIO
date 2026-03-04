@@ -36,6 +36,52 @@ function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(String(email || ""));
 }
 
+function normalizeSenderName(name) {
+  return String(name || "")
+    .replace(/[\r\n]/g, " ")
+    .replace(/[<>"]/g, "")
+    .trim();
+}
+
+function formatSenderAddress(fromEmail, fromName) {
+  const email = String(fromEmail || "").trim();
+  if (!email) return "";
+  const name = normalizeSenderName(fromName);
+  if (!name) return email;
+  if (email.includes("<") && email.includes(">")) return email;
+  return `${name} <${email}>`;
+}
+
+function extractResendErrorMessage(resendData) {
+  if (!resendData) return "";
+  if (typeof resendData === "string") return resendData.trim();
+  if (typeof resendData?.message === "string" && resendData.message.trim()) return resendData.message.trim();
+  if (typeof resendData?.error?.message === "string" && resendData.error.message.trim()) {
+    return resendData.error.message.trim();
+  }
+  if (Array.isArray(resendData?.errors)) {
+    const firstError = resendData.errors.find((entry) => typeof entry?.message === "string" && entry.message.trim());
+    if (firstError?.message) return firstError.message.trim();
+  }
+  return "";
+}
+
+function normalizeResendError(resendData) {
+  const raw = extractResendErrorMessage(resendData);
+  if (!raw) return "Email request failed.";
+  const lower = raw.toLowerCase();
+  if (lower.includes("verify") && lower.includes("domain")) {
+    return "Sender domain is not verified in Resend. Verify your domain and use RESEND_FROM_EMAIL from that domain.";
+  }
+  if (lower.includes("testing emails") || lower.includes("test mode")) {
+    return "Resend is in test mode. Verify your domain and set RESEND_FROM_EMAIL to send customer emails.";
+  }
+  if (lower.includes("from") && lower.includes("address")) {
+    return "RESEND_FROM_EMAIL is invalid or not allowed. Use a verified sender email in Resend.";
+  }
+  return raw;
+}
+
 function normalizeSupabaseError(rawText, action) {
   const text = String(rawText || "").trim();
   if (!text) return `${action} failed.`;
@@ -444,7 +490,7 @@ async function sendResendEmail(resendKey, payload) {
     });
     const resendData = await resendResponse.json().catch(() => ({}));
     if (!resendResponse.ok) {
-      return { ok: false, error: resendData?.message || "Email request failed." };
+      return { ok: false, error: normalizeResendError(resendData) };
     }
     return { ok: true, id: resendData?.id || null };
   } catch (error) {
@@ -519,7 +565,9 @@ export async function onRequestPost(context) {
     const trackingUrl = buildTrackingUrl(orderForEmail, request, env);
     const resendKey = env.RESEND_API_KEY;
     const toEmail = env.ORDER_RECEIVER_EMAIL || "itssirdavid@gmail.com";
-    const fromEmail = env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    const configuredFromEmail = String(env.RESEND_FROM_EMAIL || "").trim();
+    const senderName = String(env.RESEND_FROM_NAME || "Sirdavid Gadgets").trim();
+    const fromEmail = formatSenderAddress(configuredFromEmail, senderName);
     const customerEmail = String(orderForEmail.checkout?.email || "").trim();
 
     if (!resendKey) {
@@ -533,6 +581,20 @@ export async function onRequestPost(context) {
         trackingUrl,
         warning:
           supabaseResult.warning || "RESEND_API_KEY is not configured. Order was saved without email notification.",
+      });
+    }
+
+    if (!configuredFromEmail || !isValidEmail(configuredFromEmail)) {
+      return json({
+        ok: true,
+        persisted: !supabaseResult.skipped,
+        emailSent: false,
+        merchantEmailSent: false,
+        customerEmailSent: false,
+        trackingNumber: resolvedTrackingNumber,
+        trackingUrl,
+        warning:
+          "RESEND_FROM_EMAIL is missing or invalid. Set it in your deployment variables to a verified sender address (example: orders@sirdavid.site).",
       });
     }
 

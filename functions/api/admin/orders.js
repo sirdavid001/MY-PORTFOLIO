@@ -103,6 +103,33 @@ function normalizeTrackingNumber(value) {
   return normalized.slice(0, 120);
 }
 
+function normalizeReference(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function generateTrackingNumber(reference) {
+  const normalizedReference = normalizeReference(reference);
+  if (!normalizedReference) return null;
+
+  const core = normalizedReference.slice(-8).padStart(8, "0");
+  let hash = 2166136261;
+  for (let i = 0; i < normalizedReference.length; i += 1) {
+    hash ^= normalizedReference.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  const checksum = hash.toString(36).toUpperCase().padStart(7, "0").slice(-7);
+  return `SDV-${core}-${checksum}`;
+}
+
+function resolveTrackingNumber(order) {
+  const existing = normalizeTrackingNumber(order?.tracking_number);
+  if (existing) return existing;
+  return generateTrackingNumber(order?.reference);
+}
+
 export async function onRequestOptions() {
   return json({ ok: true });
 }
@@ -163,7 +190,7 @@ export async function onRequestGet(context) {
 
     const orders = (await response.json().catch(() => [])).map((order) => ({
       ...order,
-      tracking_number: order?.tracking_number ?? null,
+      tracking_number: resolveTrackingNumber(order),
     }));
     return json({ ok: true, orders });
   } catch (error) {
@@ -247,7 +274,16 @@ export async function onRequestPatch(context) {
     }
 
     const rows = await response.json();
-    return json({ ok: true, order: rows?.[0] || null });
+    const updated = rows?.[0] || null;
+    return json({
+      ok: true,
+      order: updated
+        ? {
+            ...updated,
+            tracking_number: resolveTrackingNumber(updated),
+          }
+        : null,
+    });
   } catch (error) {
     return json({ ok: false, error: error?.message || "Unexpected error." }, 500);
   }

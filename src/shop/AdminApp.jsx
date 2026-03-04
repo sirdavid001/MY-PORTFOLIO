@@ -437,6 +437,33 @@ function normalizeOrderStatus(status) {
   return "new";
 }
 
+function normalizeOrderReference(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function generateOrderTrackingNumber(reference) {
+  const normalizedReference = normalizeOrderReference(reference);
+  if (!normalizedReference) return "";
+
+  const core = normalizedReference.slice(-8).padStart(8, "0");
+  let hash = 2166136261;
+  for (let i = 0; i < normalizedReference.length; i += 1) {
+    hash ^= normalizedReference.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  const checksum = hash.toString(36).toUpperCase().padStart(7, "0").slice(-7);
+  return `SDV-${core}-${checksum}`;
+}
+
+function resolveOrderTrackingNumber(order) {
+  const savedTracking = String(order?.tracking_number || "").trim();
+  if (savedTracking) return savedTracking;
+  return generateOrderTrackingNumber(order?.reference);
+}
+
 function orderStatusLabel(status) {
   const normalized = normalizeOrderStatus(status);
   if (normalized === "paid") return "Payment Confirmed";
@@ -470,7 +497,6 @@ export default function AdminApp() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
   const [updatingOrderStatus, setUpdatingOrderStatus] = useState({});
-  const [orderTrackingDrafts, setOrderTrackingDrafts] = useState({});
 
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -673,18 +699,6 @@ export default function AdminApp() {
 
       const loadedOrders = Array.isArray(data.orders) ? data.orders : [];
       setOrders(loadedOrders);
-      setOrderTrackingDrafts((prev) => {
-        const next = {};
-        loadedOrders.forEach((order) => {
-          const key = String(order.id);
-          if (Object.prototype.hasOwnProperty.call(prev, key)) {
-            next[key] = prev[key];
-            return;
-          }
-          next[key] = String(order.tracking_number || "");
-        });
-        return next;
-      });
       return true;
     } catch {
       setOrdersError("Failed to load orders.");
@@ -784,19 +798,6 @@ export default function AdminApp() {
     }
   }
 
-  function getTrackingDraft(order) {
-    const key = String(order.id);
-    if (Object.prototype.hasOwnProperty.call(orderTrackingDrafts, key)) {
-      return orderTrackingDrafts[key];
-    }
-    return String(order.tracking_number || "");
-  }
-
-  function updateTrackingDraft(orderId, value) {
-    const key = String(orderId);
-    setOrderTrackingDrafts((prev) => ({ ...prev, [key]: value }));
-  }
-
   async function updateOrder(orderId, payload, fallbackErrorMessage) {
     const key = String(orderId);
     setUpdatingOrderStatus((prev) => ({ ...prev, [key]: true }));
@@ -827,10 +828,6 @@ export default function AdminApp() {
         setOrders((prev) =>
           prev.map((order) => (Number(order.id) === Number(orderId) ? { ...order, ...updatedOrder } : order))
         );
-        setOrderTrackingDrafts((prev) => ({
-          ...prev,
-          [key]: String(updatedOrder.tracking_number || ""),
-        }));
       } else {
         setOrders((prev) =>
           prev.map((order) =>
@@ -838,9 +835,6 @@ export default function AdminApp() {
               ? {
                   ...order,
                   ...(payload.status ? { status: payload.status } : {}),
-                  ...(Object.prototype.hasOwnProperty.call(payload, "trackingNumber")
-                    ? { tracking_number: payload.trackingNumber || null }
-                    : {}),
                 }
               : order
           )
@@ -858,18 +852,6 @@ export default function AdminApp() {
 
   async function updateStatus(orderId, nextStatus) {
     await updateOrder(orderId, { status: nextStatus }, "Status update failed.");
-  }
-
-  async function saveTrackingNumber(order) {
-    const trackingNumber = String(getTrackingDraft(order) || "").trim();
-    await updateOrder(
-      order.id,
-      {
-        status: normalizeOrderStatus(order.status || "new"),
-        trackingNumber,
-      },
-      "Tracking update failed."
-    );
   }
 
   function handleBrandChange(nextBrand) {
@@ -1341,7 +1323,7 @@ export default function AdminApp() {
                     const subtotal = Number(order.subtotal || 0);
                     const shippingFee = Number(order.shipping || 0);
                     const hasBreakdown = Number.isFinite(subtotal) && Number.isFinite(shippingFee) && (subtotal > 0 || shippingFee > 0);
-                    const trackingDraft = getTrackingDraft(order);
+                    const resolvedTrackingNumber = resolveOrderTrackingNumber(order);
                     const isUpdatingOrder = Boolean(updatingOrderStatus[String(order.id)]);
 
                     return (
@@ -1440,25 +1422,10 @@ export default function AdminApp() {
                             <section className="rounded-2xl border border-slate-200 bg-white p-3">
                               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Tracking</p>
                               <p className="mt-2 text-xs text-slate-500">
-                                Buyers can track with either order reference or tracking number.
+                                Tracking number is generated automatically after payment confirmation.
                               </p>
-                              <input
-                                className={`${inputClass} mt-2`}
-                                placeholder="Add tracking number"
-                                value={trackingDraft}
-                                disabled={isUpdatingOrder}
-                                onChange={(event) => updateTrackingDraft(order.id, event.target.value)}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => saveTrackingNumber(order)}
-                                disabled={isUpdatingOrder}
-                                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
-                              >
-                                {isUpdatingOrder ? "Saving..." : "Save Tracking"}
-                              </button>
                               <p className="mt-2 text-xs text-slate-600">
-                                Current: {order.tracking_number ? order.tracking_number : "Not assigned"}
+                                Tracking Number: {resolvedTrackingNumber || "N/A"}
                               </p>
                             </section>
                           </div>

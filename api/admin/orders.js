@@ -30,6 +30,33 @@ function normalizeTrackingNumber(value) {
   return normalized.slice(0, 120);
 }
 
+function normalizeReference(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function generateTrackingNumber(reference) {
+  const normalizedReference = normalizeReference(reference);
+  if (!normalizedReference) return null;
+
+  const core = normalizedReference.slice(-8).padStart(8, "0");
+  let hash = 2166136261;
+  for (let i = 0; i < normalizedReference.length; i += 1) {
+    hash ^= normalizedReference.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  const checksum = hash.toString(36).toUpperCase().padStart(7, "0").slice(-7);
+  return `SDV-${core}-${checksum}`;
+}
+
+function resolveTrackingNumber(order) {
+  const existing = normalizeTrackingNumber(order?.tracking_number);
+  if (existing) return existing;
+  return generateTrackingNumber(order?.reference);
+}
+
 function normalizeSupabaseError(rawText, action) {
   const text = String(rawText || "").trim();
   if (!text) return `${action} failed.`;
@@ -141,7 +168,7 @@ export default async function handler(req, res) {
 
       const orders = (await response.json().catch(() => [])).map((order) => ({
         ...order,
-        tracking_number: order?.tracking_number ?? null,
+        tracking_number: resolveTrackingNumber(order),
       }));
       return json(res, 200, { ok: true, orders }, methods);
     }
@@ -201,7 +228,21 @@ export default async function handler(req, res) {
       }
 
       const rows = await response.json();
-      return json(res, 200, { ok: true, order: rows?.[0] || null }, methods);
+      const updated = rows?.[0] || null;
+      return json(
+        res,
+        200,
+        {
+          ok: true,
+          order: updated
+            ? {
+                ...updated,
+                tracking_number: resolveTrackingNumber(updated),
+              }
+            : null,
+        },
+        methods
+      );
     }
 
     return json(res, 405, { ok: false, error: "Method not allowed." }, methods);
