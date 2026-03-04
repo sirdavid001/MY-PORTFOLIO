@@ -118,6 +118,26 @@ function isApplePaySupportedOnDevice() {
   }
 }
 
+function normalizeTrackingStatus(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "paid") return "paid";
+  if (normalized === "processing") return "processing";
+  if (normalized === "shipped") return "shipped";
+  if (normalized === "completed") return "completed";
+  if (normalized === "cancelled") return "cancelled";
+  return "new";
+}
+
+function trackingStatusPillClass(status) {
+  const normalized = normalizeTrackingStatus(status);
+  if (normalized === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (normalized === "shipped") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (normalized === "processing") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (normalized === "paid") return "border-cyan-200 bg-cyan-50 text-cyan-800";
+  if (normalized === "cancelled") return "border-rose-200 bg-rose-50 text-rose-800";
+  return "border-slate-200 bg-slate-100 text-slate-700";
+}
+
 function loadPaystackScript() {
   return new Promise((resolve, reject) => {
     if (window.PaystackPop) {
@@ -140,6 +160,7 @@ export default function ShopApp() {
   const navigate = useNavigate();
   const normalizedPathname = location.pathname.replace(/\/+$/, "") || "/";
   const isCartPage = normalizedPathname === "/cart";
+  const isTrackingPage = normalizedPathname === "/track-order";
   const [activeCategory, setActiveCategory] = useState("All");
   const [conditionFilter, setConditionFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -153,6 +174,10 @@ export default function ShopApp() {
   const [applePaySupported, setApplePaySupported] = useState(false);
   const [pendingOrderForPayment, setPendingOrderForPayment] = useState(null);
   const [showPaymentChoice, setShowPaymentChoice] = useState(false);
+  const [trackingReference, setTrackingReference] = useState("");
+  const [trackingEmail, setTrackingEmail] = useState("");
+  const [trackingState, setTrackingState] = useState({ state: "idle", message: "" });
+  const [trackingOrder, setTrackingOrder] = useState(null);
   const [catalogProducts, setCatalogProducts] = useState(() => defaultProducts.map((product) => normalizeProduct(product)));
   const [shippingConfig, setShippingConfig] = useState(() => normalizeShippingConfig(defaultShippingConfig));
   const [selectedImageIndexByProduct, setSelectedImageIndexByProduct] = useState({});
@@ -216,6 +241,15 @@ export default function ShopApp() {
   }, []);
 
   useEffect(() => {
+    if (!isTrackingPage) return;
+    const params = new URLSearchParams(location.search || "");
+    const prefReference = String(params.get("reference") || "").trim();
+    const prefEmail = String(params.get("email") || "").trim();
+    if (prefReference) setTrackingReference(prefReference);
+    if (prefEmail) setTrackingEmail(prefEmail);
+  }, [isTrackingPage, location.search]);
+
+  useEffect(() => {
     if (resolvedPaystackPublicKey) return undefined;
 
     let cancelled = false;
@@ -269,14 +303,17 @@ export default function ShopApp() {
       if (data?.emailSent === false) {
         setSendStatus({
           state: "sent",
-          message: data?.warning || "Order saved to dashboard. Email notification skipped.",
+          message: data?.warning || "Order saved to dashboard. Some email notifications were skipped.",
         });
         return true;
       }
 
       setSendStatus({
         state: "sent",
-        message: "Order saved and notification sent successfully.",
+        message:
+          data?.customerEmailSent === true
+            ? "Order saved. Payment confirmation and tracking email sent to customer."
+            : "Order saved. Payment confirmation notification sent successfully.",
       });
       return true;
     } catch {
@@ -285,6 +322,44 @@ export default function ShopApp() {
         message: "Order created, but notification endpoint is unreachable.",
       });
       return false;
+    }
+  }
+
+  async function handleTrackOrder(event) {
+    event.preventDefault();
+    setTrackingOrder(null);
+
+    const reference = String(trackingReference || "").trim();
+    const email = String(trackingEmail || "").trim();
+    if (!reference || reference.length < 5) {
+      setTrackingState({ state: "error", message: "Enter a valid order reference." });
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setTrackingState({ state: "error", message: "Enter the same email used for checkout." });
+      return;
+    }
+
+    setTrackingState({ state: "loading", message: "Checking your order status..." });
+    try {
+      const query = new URLSearchParams({
+        reference,
+        email: email.toLowerCase(),
+      });
+      const response = await fetch(`/api/send-order?${query.toString()}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.ok || !data?.tracking) {
+        setTrackingState({
+          state: "error",
+          message: data?.error || "Unable to find this order. Check your reference and email.",
+        });
+        return;
+      }
+
+      setTrackingOrder(data.tracking);
+      setTrackingState({ state: "success", message: "Tracking details loaded." });
+    } catch {
+      setTrackingState({ state: "error", message: "Tracking service is unavailable right now." });
     }
   }
 
@@ -471,7 +546,7 @@ export default function ShopApp() {
     if (!checkout.email || !isValidEmail(checkout.email)) {
       setPaymentStatus({
         state: "info",
-        message: "Enter a valid email to enable secure checkout.",
+        message: "Enter a valid email to continue.",
       });
       return undefined;
     }
@@ -500,7 +575,7 @@ export default function ShopApp() {
 
     setPaymentStatus({
       state: "ready",
-      message: "Secure checkout is ready.",
+      message: "Checkout is ready.",
     });
     return undefined;
   }, [activePricing.currency, cartItems.length, checkout.email, resolvedPaystackPublicKey, total]);
@@ -550,22 +625,23 @@ export default function ShopApp() {
 
   async function processSelectedPayment(order, options = {}) {
     const transferOnly = options.transferOnly === true;
+    const paymentMethodLabel = transferOnly ? "Apple Pay" : PAYMENT_METHOD_PAYSTACK;
+    const orderForPayment = {
+      ...order,
+      checkout: {
+        ...order.checkout,
+        paymentMethod: paymentMethodLabel,
+      },
+    };
 
     if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
-      setCheckoutErrors((prev) => ({
-        ...prev,
-        paymentMethod: "Checkout currently supports NGN or USD only.",
-      }));
+      setPaymentStatus({ state: "idle", message: "" });
       return;
     }
 
     const paystackPublicKey = resolvedPaystackPublicKey;
     if (!paystackPublicKey) {
-      setCheckoutErrors((prev) => ({
-        ...prev,
-        paymentMethod: "Paystack is not configured. Missing public key.",
-      }));
-      setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
+      setPaymentStatus({ state: "idle", message: "" });
       return;
     }
 
@@ -576,55 +652,44 @@ export default function ShopApp() {
     try {
       const PaystackPop = await loadPaystackScript();
       if (!PaystackPop) {
-        setPaymentStatus({ state: "error", message: "Unable to initialize Paystack popup." });
+        setPaymentStatus({ state: "idle", message: "" });
         return;
       }
 
       const paymentReference = `PS-${order.reference}-${Date.now()}`;
       const popup = new PaystackPop();
-      const [firstName = "", ...restNames] = (order.checkout.fullName || "").trim().split(/\s+/);
+      const [firstName = "", ...restNames] = (orderForPayment.checkout.fullName || "").trim().split(/\s+/);
       const lastName = restNames.join(" ");
-      const channels = getPaystackChannels(order.currency || "NGN", transferOnly);
+      const channels = getPaystackChannels(orderForPayment.currency || "NGN", transferOnly);
       await popup.checkout({
         key: paystackPublicKey,
-        email: order.checkout.email,
-        amount: Math.round(order.total * 100),
-        currency: order.currency || "NGN",
+        email: orderForPayment.checkout.email,
+        amount: Math.round(orderForPayment.total * 100),
+        currency: orderForPayment.currency || "NGN",
         channels,
         firstName,
         lastName,
-        phone: order.checkout.phone || undefined,
+        phone: orderForPayment.checkout.phone || undefined,
         ref: paymentReference,
         metadata: {
-          order_reference: order.reference,
-          customer_name: order.checkout.fullName || "",
-          payment_method: transferOnly ? "Apple Pay" : PAYMENT_METHOD_PAYSTACK,
+          order_reference: orderForPayment.reference,
+          customer_name: orderForPayment.checkout.fullName || "",
+          payment_method: paymentMethodLabel,
           checkout_mode: transferOnly ? "apple_pay" : "standard",
         },
         onSuccess: async (transaction) => {
-          await finalizeCardPayment(order, transaction?.reference || paymentReference);
+          await finalizeCardPayment(orderForPayment, transaction?.reference || paymentReference);
         },
         onCancel: () => {
-          setPaymentStatus({ state: "error", message: "Payment popup was closed before completion." });
+          setPaymentStatus({ state: "idle", message: "" });
         },
-        onError: (error) => {
-          const fallback =
-            transferOnly
-              ? "Unable to start Apple Pay on this device."
-              : "Unable to start Paystack checkout.";
-          setPaymentStatus({ state: "error", message: error?.message || fallback });
+        onError: () => {
+          setPaymentStatus({ state: "idle", message: "" });
         },
       });
       return;
     } catch {
-      setCheckoutErrors((prev) => ({
-        ...prev,
-        paymentMethod: transferOnly ? "Unable to initialize Apple Pay right now." : "Unable to initialize Paystack checkout.",
-      }));
-      setPaymentStatus({
-        state: "error",
-        message: transferOnly ? "Unable to initialize Apple Pay right now." : "Unable to initialize Paystack checkout.",
-      });
+      setPaymentStatus({ state: "idle", message: "" });
     }
   }
 
@@ -633,7 +698,6 @@ export default function ShopApp() {
     if (!validateCheckout()) return;
     if (paymentStatus.state === "initializing" || paymentStatus.state === "verifying") return;
 
-    setCheckoutErrors((prev) => ({ ...prev, paymentMethod: undefined }));
     const order = createOrderDraft("pending_gateway");
 
     if (applePaySupported) {
@@ -671,7 +735,7 @@ export default function ShopApp() {
             <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 sm:inline-flex">
               {activePricing.countryName} ({activePricing.currency})
             </span>
-            {isCartPage ? (
+            {isCartPage || isTrackingPage ? (
               <button
                 type="button"
                 onClick={() => navigate("/")}
@@ -693,7 +757,62 @@ export default function ShopApp() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {lastOrder ? (
+        {isTrackingPage ? (
+          <section className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Order Tracking</p>
+            <h1 className="mt-2 font-display text-3xl font-bold text-slate-900">Track your product</h1>
+            <p className="mt-2 text-sm text-slate-600">Use the order reference and checkout email to view latest status.</p>
+
+            <form onSubmit={handleTrackOrder} className="mt-5 space-y-3">
+              <input
+                value={trackingReference}
+                onChange={(event) => setTrackingReference(event.target.value)}
+                className={inputClass}
+                placeholder="Order reference (e.g. SD-12345678)"
+              />
+              <input
+                type="email"
+                value={trackingEmail}
+                onChange={(event) => setTrackingEmail(event.target.value)}
+                className={inputClass}
+                placeholder="Checkout email"
+              />
+              <button
+                type="submit"
+                disabled={trackingState.state === "loading"}
+                className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-70"
+              >
+                {trackingState.state === "loading" ? "Checking..." : "Track Order"}
+              </button>
+            </form>
+
+            {trackingState.state === "error" ? (
+              <p className="mt-3 text-sm text-rose-600">{trackingState.message}</p>
+            ) : null}
+            {trackingState.state === "success" && trackingOrder ? (
+              <section className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-900">Reference {trackingOrder.reference}</p>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.13em] ${trackingStatusPillClass(
+                      trackingOrder.status
+                    )}`}
+                  >
+                    {trackingOrder.status}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-700">{trackingOrder.statusMessage}</p>
+                <p className="mt-2 text-xs text-slate-600">
+                  Created:{" "}
+                  {trackingOrder.createdAt ? new Date(trackingOrder.createdAt).toLocaleString() : "N/A"}
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Total: {formatMoney(trackingOrder.total || 0, trackingOrder.currency || activePricing.currency)}
+                </p>
+              </section>
+            ) : null}
+          </section>
+        ) : lastOrder ? (
           <section className="mx-auto max-w-3xl rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
               {lastOrder.paymentStatus === "paid" ? "Payment Successful" : "Order Placed"}
@@ -727,6 +846,19 @@ export default function ShopApp() {
               </p>
             )}
             <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    `/track-order?reference=${encodeURIComponent(lastOrder.reference)}&email=${encodeURIComponent(
+                      lastOrder?.checkout?.email || ""
+                    )}`
+                  )
+                }
+                className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Track This Order
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -1035,14 +1167,6 @@ export default function ShopApp() {
                       {checkoutErrors.country && <p className="text-xs text-rose-600">{checkoutErrors.country}</p>}
                     </div>
                   </div>
-
-                  {checkoutErrors.paymentMethod && (
-                    <p className="text-xs text-rose-600">{checkoutErrors.paymentMethod}</p>
-                  )}
-                  {paymentStatus.state === "error" && <p className="text-xs text-rose-600">{paymentStatus.message}</p>}
-                  {paymentStatus.state === "initializing" && (
-                    <p className="text-xs text-blue-700">{paymentStatus.message}</p>
-                  )}
 
                   <textarea
                     name="notes"
