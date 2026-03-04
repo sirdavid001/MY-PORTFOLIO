@@ -115,6 +115,49 @@ function normalizeBoolean(value, fallback = false) {
   return fallback;
 }
 
+function parseImageList(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeProductImages(raw) {
+  const candidates = [];
+
+  const append = (value) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return;
+    candidates.push(trimmed);
+  };
+
+  parseImageList(raw?.images).forEach(append);
+
+  const imageField = raw?.image;
+  const imageListFromImageField = parseImageList(imageField);
+  if (imageListFromImageField.length > 0) {
+    imageListFromImageField.forEach(append);
+  } else {
+    append(imageField);
+  }
+
+  const unique = [];
+  const seen = new Set();
+  candidates.forEach((url) => {
+    if (seen.has(url)) return;
+    seen.add(url);
+    unique.push(url);
+  });
+
+  return unique.slice(0, 5);
+}
+
 export function normalizeShippingConfig(raw) {
   const mode = SHIPPING_MODES.has(String(raw?.mode || "").toLowerCase())
     ? String(raw.mode).toLowerCase()
@@ -130,6 +173,7 @@ export function normalizeShippingConfig(raw) {
 
 export function normalizeProduct(raw) {
   const id = String(raw?.id || "").trim();
+  const images = normalizeProductImages(raw);
 
   return {
     id,
@@ -139,7 +183,8 @@ export function normalizeProduct(raw) {
     category: String(raw?.category || "").trim() || "Accessories",
     basePriceUsd: Math.max(0, toNumber(raw?.basePriceUsd, 0)),
     stock: Math.max(0, toInteger(raw?.stock, 0)),
-    image: String(raw?.image || "").trim(),
+    image: images[0] || "",
+    images,
     details: String(raw?.details || "").trim(),
     isActive: normalizeBoolean(raw?.isActive, true),
     sortOrder: Math.max(0, toInteger(raw?.sortOrder, 0)),

@@ -316,6 +316,7 @@ const popularBrandCatalog = {
     ...buildCategoryEntries("Infinix"),
   ],
 };
+const MAX_PRODUCT_IMAGES = 5;
 
 const emptyProductForm = {
   id: "",
@@ -325,7 +326,7 @@ const emptyProductForm = {
   condition: "New",
   category: "",
   basePriceNgn: "",
-  image: "",
+  images: [],
   details: "",
   isActive: true,
 };
@@ -347,10 +348,23 @@ function normalizeProductForForm(product, ngnPerUsd) {
     condition: normalized.condition,
     category: normalized.category,
     basePriceNgn: String(Math.round(normalized.basePriceUsd * ngnPerUsd)),
-    image: normalized.image,
+    images: Array.isArray(normalized.images) ? normalized.images.slice(0, MAX_PRODUCT_IMAGES) : [],
     details: normalized.details,
     isActive: Boolean(normalized.isActive),
   };
+}
+
+function normalizeImageList(value) {
+  const values = Array.isArray(value) ? value : [];
+  const unique = [];
+  const seen = new Set();
+  values.forEach((url) => {
+    const trimmed = String(url || "").trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    unique.push(trimmed);
+  });
+  return unique.slice(0, MAX_PRODUCT_IMAGES);
 }
 
 function fileToDataUrl(file) {
@@ -399,6 +413,7 @@ export default function AdminApp() {
   const [savingProduct, setSavingProduct] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState("");
   const [imageUploadError, setImageUploadError] = useState("");
   const [imageUploadMessage, setImageUploadMessage] = useState("");
 
@@ -464,6 +479,7 @@ export default function AdminApp() {
       ])
     ).filter(Boolean);
   }, [productForm.condition, products]);
+  const selectedProductImages = useMemo(() => normalizeImageList(productForm.images), [productForm.images]);
   const gadgetCategories = useMemo(
     () =>
       Array.from(new Set(products.map((product) => String(product.category || "").trim()).filter(Boolean))).sort((a, b) =>
@@ -762,16 +778,80 @@ export default function AdminApp() {
   function handleModelChange(nextModel) {
     const model = String(nextModel || "").trim();
     const template = getModelTemplate(productForm.brand, productForm.category, model);
+    const templateImage = String(template?.image || "").trim();
 
+    setProductForm((prev) => {
+      const currentImages = normalizeImageList(prev.images);
+      const nextImages =
+        currentImages.length > 0 || !templateImage ? currentImages : normalizeImageList([templateImage, ...currentImages]);
+
+      return {
+        ...prev,
+        model,
+        name: model || prev.name,
+        category: template?.category || prev.category,
+        condition: template?.condition || prev.condition,
+        details: template?.details || prev.details,
+        images: nextImages,
+      };
+    });
+  }
+
+  function appendProductImage(url, successMessage = "Image added.") {
+    const trimmed = String(url || "").trim();
+    if (!trimmed) {
+      setImageUploadError("Enter a valid image URL.");
+      return;
+    }
+
+    let added = false;
+    let atLimit = false;
+
+    setProductForm((prev) => {
+      const current = normalizeImageList(prev.images);
+      if (current.includes(trimmed)) return prev;
+      if (current.length >= MAX_PRODUCT_IMAGES) {
+        atLimit = true;
+        return prev;
+      }
+      added = true;
+      return { ...prev, images: normalizeImageList([...current, trimmed]) };
+    });
+
+    if (atLimit) {
+      setImageUploadError(`You can upload up to ${MAX_PRODUCT_IMAGES} images.`);
+      return;
+    }
+
+    if (added) {
+      setImageUploadError("");
+      setImageUploadMessage(successMessage);
+    }
+  }
+
+  function removeProductImage(imageUrl) {
     setProductForm((prev) => ({
       ...prev,
-      model,
-      name: model || prev.name,
-      category: template?.category || prev.category,
-      condition: template?.condition || prev.condition,
-      details: template?.details || prev.details,
-      image: prev.image || template?.image || prev.image,
+      images: normalizeImageList(prev.images).filter((url) => url !== imageUrl),
     }));
+    setImageUploadError("");
+    setImageUploadMessage("Image removed.");
+  }
+
+  function setPrimaryProductImage(imageUrl) {
+    setProductForm((prev) => {
+      const current = normalizeImageList(prev.images);
+      if (!current.includes(imageUrl)) return prev;
+      const reordered = [imageUrl, ...current.filter((url) => url !== imageUrl)];
+      return { ...prev, images: reordered };
+    });
+    setImageUploadError("");
+    setImageUploadMessage("Primary image updated.");
+  }
+
+  function handleAddImageUrl() {
+    appendProductImage(imageUrlInput, "Image URL added.");
+    setImageUrlInput("");
   }
 
   async function handleSaveProduct(event) {
@@ -779,6 +859,7 @@ export default function AdminApp() {
     setProductsError("");
     setImageUploadError("");
     setSavingProduct(true);
+    const normalizedImages = normalizeImageList(productForm.images);
 
     const payload = {
       id: productForm.id.trim(),
@@ -787,7 +868,7 @@ export default function AdminApp() {
       condition: String(productForm.condition || "").trim(),
       category: String(productForm.category || "").trim(),
       basePriceUsd: Number(productForm.basePriceNgn || 0) / Math.max(1, ngnPerUsd),
-      image: String(productForm.image || "").trim(),
+      images: normalizedImages,
       details: String(productForm.details || "").trim(),
       isActive: Boolean(productForm.isActive),
     };
@@ -827,6 +908,7 @@ export default function AdminApp() {
       }
 
       setProductForm(emptyProductForm);
+      setImageUrlInput("");
       setEditingProductId("");
       setImageUploadMessage("");
       await loadProducts();
@@ -873,6 +955,12 @@ export default function AdminApp() {
     setImageUploadError("");
     setImageUploadMessage("");
 
+    const currentCount = normalizeImageList(productForm.images).length;
+    if (currentCount >= MAX_PRODUCT_IMAGES) {
+      setImageUploadError(`You can upload up to ${MAX_PRODUCT_IMAGES} images.`);
+      return;
+    }
+
     if (!String(file.type || "").startsWith("image/")) {
       setImageUploadError("Please choose a valid image file.");
       return;
@@ -909,8 +997,7 @@ export default function AdminApp() {
         return;
       }
 
-      setProductForm((prev) => ({ ...prev, image: data.url || prev.image }));
-      setImageUploadMessage("Image uploaded successfully.");
+      appendProductImage(data.url, "Image uploaded successfully.");
     } catch {
       setImageUploadError("Image upload failed.");
     } finally {
@@ -965,6 +1052,7 @@ export default function AdminApp() {
     setPassword("");
     setEditingProductId("");
     setProductForm(emptyProductForm);
+    setImageUrlInput("");
     setImageUploadError("");
     setImageUploadMessage("");
     setAuthError("");
@@ -1185,23 +1273,28 @@ export default function AdminApp() {
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Brand</p>
-                        {productForm.brand ? <BrandPill brand={productForm.brand} /> : null}
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Brand</p>
+                      <div className="relative">
+                        {productForm.brand ? (
+                          <BrandPill
+                            brand={productForm.brand}
+                            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2"
+                          />
+                        ) : null}
+                        <select
+                          className={`${inputClass} ${productForm.brand ? "pl-24" : ""}`}
+                          value={productForm.brand}
+                          onChange={(event) => handleBrandChange(event.target.value)}
+                          required
+                        >
+                          <option value="">Select brand</option>
+                          {brandSuggestions.map((brand) => (
+                            <option key={brand} value={brand}>
+                              {brand}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                      <select
-                        className={inputClass}
-                        value={productForm.brand}
-                        onChange={(event) => handleBrandChange(event.target.value)}
-                        required
-                      >
-                        <option value="">Select brand</option>
-                        {brandSuggestions.map((brand) => (
-                          <option key={brand} value={brand}>
-                            {brand}
-                          </option>
-                        ))}
-                      </select>
                     </div>
                     <div className="space-y-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Model</p>
@@ -1285,33 +1378,78 @@ export default function AdminApp() {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Product Images</p>
+                      <p className="text-xs text-slate-500">
+                        {selectedProductImages.length}/{MAX_PRODUCT_IMAGES}
+                      </p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                       <input
                         className={inputClass}
-                        placeholder="Image URL (auto-filled after upload)"
-                        value={productForm.image}
-                        onChange={(event) => setProductForm((prev) => ({ ...prev, image: event.target.value }))}
+                        placeholder="Paste image URL"
+                        value={imageUrlInput}
+                        onChange={(event) => setImageUrlInput(event.target.value)}
                       />
+                      <button
+                        type="button"
+                        onClick={handleAddImageUrl}
+                        className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                      >
+                        Add URL
+                      </button>
                       <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                         <input
                           type="file"
                           accept="image/*"
                           className="hidden"
                           onChange={handleProductImageUpload}
-                          disabled={uploadingImage}
+                          disabled={uploadingImage || selectedProductImages.length >= MAX_PRODUCT_IMAGES}
                         />
                         {uploadingImage ? "Uploading..." : "Upload Image"}
                       </label>
                     </div>
                     {imageUploadError ? <p className="text-xs text-rose-600">{imageUploadError}</p> : null}
                     {imageUploadMessage ? <p className="text-xs text-emerald-700">{imageUploadMessage}</p> : null}
-                    {productForm.image ? (
-                      <img
-                        src={productForm.image}
-                        alt="Product preview"
-                        className="h-28 w-28 rounded-lg border border-slate-200 object-cover"
-                      />
-                    ) : null}
+                    {selectedProductImages.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                        {selectedProductImages.map((imageUrl, index) => (
+                          <div key={`${imageUrl}-${index}`} className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => setPrimaryProductImage(imageUrl)}
+                              className={`relative block w-full overflow-hidden rounded-lg border ${
+                                index === 0 ? "border-cyan-500" : "border-slate-200"
+                              }`}
+                            >
+                              <img src={imageUrl} alt={`Preview ${index + 1}`} className="h-20 w-full object-cover" />
+                            </button>
+                            <div className="flex items-center justify-between gap-1">
+                              {index === 0 ? (
+                                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-700">Primary</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setPrimaryProductImage(imageUrl)}
+                                  className="text-[10px] font-semibold text-slate-500 hover:text-slate-700"
+                                >
+                                  Set Primary
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeProductImage(imageUrl)}
+                                className="text-[10px] font-semibold text-rose-600 hover:text-rose-700"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">Add between 1 and 5 product images.</p>
+                    )}
                   </div>
 
                   <textarea
@@ -1337,6 +1475,7 @@ export default function AdminApp() {
                         onClick={() => {
                           setEditingProductId("");
                           setProductForm(emptyProductForm);
+                          setImageUrlInput("");
                           setImageUploadError("");
                           setImageUploadMessage("");
                         }}
@@ -1544,6 +1683,7 @@ export default function AdminApp() {
                                       onClick={() => {
                                         setEditingProductId(product.id);
                                         setProductForm(normalizeProductForForm(product, ngnPerUsd));
+                                        setImageUrlInput("");
                                         setImageUploadError("");
                                         setImageUploadMessage("");
                                         goToAdminPage("add-gadget");

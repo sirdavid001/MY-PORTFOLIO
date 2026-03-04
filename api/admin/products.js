@@ -83,6 +83,54 @@ function createProductId(nameOrId) {
   return slug;
 }
 
+function parseImageList(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeImageUrls(payload) {
+  const raw = [];
+  const append = (value) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return;
+    raw.push(trimmed);
+  };
+
+  const appendMany = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(append);
+      return;
+    }
+    const parsed = parseImageList(value);
+    if (parsed.length > 0) {
+      parsed.forEach(append);
+      return;
+    }
+    append(value);
+  };
+
+  appendMany(payload?.images);
+  appendMany(payload?.image);
+
+  const unique = [];
+  const seen = new Set();
+  raw.forEach((url) => {
+    if (seen.has(url)) return;
+    seen.add(url);
+    unique.push(url);
+  });
+
+  return unique.slice(0, 5);
+}
+
 function mapRowToProduct(row) {
   return normalizeProduct({
     id: row?.id,
@@ -133,8 +181,11 @@ function normalizePayload(payload, { partial = false } = {}) {
     result.base_price_usd = basePriceUsd;
   }
 
-  if (!partial || Object.prototype.hasOwnProperty.call(payload, "image")) {
-    result.image = String(payload?.image || "").trim();
+  const hasImageField = Object.prototype.hasOwnProperty.call(payload, "image");
+  const hasImagesField = Object.prototype.hasOwnProperty.call(payload, "images");
+  if (!partial || hasImageField || hasImagesField) {
+    const images = normalizeImageUrls(payload);
+    result.image = images.length <= 1 ? images[0] || "" : JSON.stringify(images);
   }
 
   if (!partial || Object.prototype.hasOwnProperty.call(payload, "details")) {

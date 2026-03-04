@@ -18,6 +18,8 @@ const sortOptions = [
 ];
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
+const PRODUCT_FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=900&q=80";
 
 const PAYMENT_METHOD_PAYSTACK = "Paystack Secure Checkout";
 const defaultCheckout = {
@@ -77,6 +79,30 @@ function getPaystackChannels(currency, transferOnly = false) {
   return ["card", "apple_pay"];
 }
 
+function getProductGallery(product) {
+  const raw = [];
+  const append = (value) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return;
+    raw.push(trimmed);
+  };
+
+  if (Array.isArray(product?.images)) {
+    product.images.forEach(append);
+  }
+  append(product?.image);
+
+  const unique = [];
+  const seen = new Set();
+  raw.forEach((url) => {
+    if (seen.has(url)) return;
+    seen.add(url);
+    unique.push(url);
+  });
+
+  return unique.slice(0, 5);
+}
+
 function loadPaystackScript() {
   return new Promise((resolve, reject) => {
     if (window.PaystackPop) {
@@ -111,6 +137,7 @@ export default function ShopApp() {
   const [paymentStatus, setPaymentStatus] = useState({ state: "idle", message: "" });
   const [catalogProducts, setCatalogProducts] = useState(() => defaultProducts.map((product) => normalizeProduct(product)));
   const [shippingConfig, setShippingConfig] = useState(() => normalizeShippingConfig(defaultShippingConfig));
+  const [selectedImageIndexByProduct, setSelectedImageIndexByProduct] = useState({});
   const [resolvedPaystackPublicKey, setResolvedPaystackPublicKey] = useState(
     () => import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ""
   );
@@ -780,47 +807,71 @@ export default function ShopApp() {
                       </span>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {group.items.map((product) => (
-                        <article key={product.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                          <img
-                            src={
-                              product.image ||
-                              "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=900&q=80"
-                            }
-                            alt={product.name}
-                            className="h-44 w-full object-cover"
-                          />
-                          <div className="p-5">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h3>
-                              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-                                {product.category}
-                              </span>
+                      {group.items.map((product) => {
+                        const gallery = getProductGallery(product);
+                        const maxIndex = Math.max(0, gallery.length - 1);
+                        const selectedIndex = Math.min(
+                          Number(selectedImageIndexByProduct[product.id] || 0),
+                          maxIndex
+                        );
+                        const selectedImage = gallery[selectedIndex] || PRODUCT_FALLBACK_IMAGE;
+
+                        return (
+                          <article key={product.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <img src={selectedImage} alt={product.name} className="h-44 w-full object-cover" />
+                            {gallery.length > 1 && (
+                              <div className="flex gap-2 overflow-x-auto border-b border-slate-100 px-3 py-2">
+                                {gallery.map((imageUrl, index) => (
+                                  <button
+                                    key={`${product.id}-image-${index}`}
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedImageIndexByProduct((prev) => ({
+                                        ...prev,
+                                        [product.id]: index,
+                                      }))
+                                    }
+                                    className={`h-12 w-12 flex-none overflow-hidden rounded-md border ${
+                                      index === selectedIndex ? "border-cyan-500" : "border-slate-200"
+                                    }`}
+                                  >
+                                    <img src={imageUrl} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            <div className="p-5">
+                              <div className="flex items-start justify-between gap-2">
+                                <h3 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h3>
+                                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                                  {product.category}
+                                </span>
+                              </div>
+                              <BrandPill brand={product.brand} className="mt-2" />
+                              <p className="mt-2 text-sm font-semibold text-blue-700">{product.condition}</p>
+                              <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
+                              <div className="mt-4 flex items-center justify-between">
+                                <p className="text-2xl font-bold text-slate-900">
+                                  {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
+                                </p>
+                                <p className="text-xs font-medium text-slate-500">{product.stock} in stock</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => addToCart(product.id)}
+                                disabled={Number(product.stock) <= 0}
+                                className={`mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${
+                                  Number(product.stock) > 0
+                                    ? "bg-slate-900 hover:bg-slate-800"
+                                    : "cursor-not-allowed bg-slate-400"
+                                }`}
+                              >
+                                {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
+                              </button>
                             </div>
-                            <BrandPill brand={product.brand} className="mt-2" />
-                            <p className="mt-2 text-sm font-semibold text-blue-700">{product.condition}</p>
-                            <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
-                            <div className="mt-4 flex items-center justify-between">
-                              <p className="text-2xl font-bold text-slate-900">
-                                {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
-                              </p>
-                              <p className="text-xs font-medium text-slate-500">{product.stock} in stock</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => addToCart(product.id)}
-                              disabled={Number(product.stock) <= 0}
-                              className={`mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${
-                                Number(product.stock) > 0
-                                  ? "bg-slate-900 hover:bg-slate-800"
-                                  : "cursor-not-allowed bg-slate-400"
-                              }`}
-                            >
-                              {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
-                            </button>
-                          </div>
-                        </article>
-                      ))}
+                          </article>
+                        );
+                      })}
                     </div>
                   </section>
                 ))}

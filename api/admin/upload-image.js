@@ -60,6 +60,13 @@ function sanitizeFileName(name) {
     .slice(0, 48);
 }
 
+function normalizeBucketName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^["'`“”‘’]+|["'`“”‘’]+$/g, "")
+    .trim();
+}
+
 function fileExtensionForMime(mimeType) {
   switch (mimeType) {
     case "image/jpeg":
@@ -129,6 +136,53 @@ function encodeStoragePath(path) {
     .join("/");
 }
 
+async function ensureStorageBucket({ supabaseUrl, serviceRoleKey, bucket }) {
+  const encodedBucket = encodeURIComponent(bucket);
+  const readResponse = await fetch(`${supabaseUrl}/storage/v1/bucket/${encodedBucket}`, {
+    method: "GET",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+  });
+
+  if (readResponse.ok) {
+    return { ok: true, created: false };
+  }
+
+  if (readResponse.status !== 404) {
+    const body = await readResponse.text().catch(() => "");
+    return {
+      ok: false,
+      error: body || `Unable to validate storage bucket "${bucket}".`,
+    };
+  }
+
+  const createResponse = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+    method: "POST",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id: bucket,
+      name: bucket,
+      public: true,
+    }),
+  });
+
+  if (createResponse.ok) {
+    return { ok: true, created: true };
+  }
+
+  const createText = await createResponse.text().catch(() => "");
+  return {
+    ok: false,
+    error: createText || `Unable to create storage bucket "${bucket}".`,
+  };
+}
+
 export default async function handler(req, res) {
   const clientIp = getClientIp(req);
 
@@ -160,7 +214,8 @@ export default async function handler(req, res) {
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const bucket = String(process.env.SUPABASE_STORAGE_BUCKET || "product-images").trim();
+  const bucketFromEnv = normalizeBucketName(process.env.SUPABASE_STORAGE_BUCKET);
+  const bucket = bucketFromEnv || "product-images";
 
   if (!supabaseUrl || !serviceRoleKey) {
     return json(res, 500, { ok: false, error: "Supabase environment variables are missing." });
@@ -171,6 +226,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    const ensuredBucket = await ensureStorageBucket({ supabaseUrl, serviceRoleKey, bucket });
+    if (!ensuredBucket.ok) {
+      return json(res, 502, {
+        ok: false,
+        error: `Storage bucket "${bucket}" is not available. ${ensuredBucket.error}`,
+      });
+    }
+
     const payload = await readJsonBody(req);
     const parsed = decodeImagePayload(payload);
     if (parsed.error) {
@@ -209,7 +272,7 @@ export default async function handler(req, res) {
       }
 
       if (message.toLowerCase().includes("bucket") && message.toLowerCase().includes("not")) {
-        message = `Storage bucket "${bucket}" not found. Create a public Supabase Storage bucket with this name.`;
+        message = `Storage bucket "${bucket}" not found. Create a public Supabase Storage bucket with this exact name.`;
       }
 
       return json(res, 502, { ok: false, error: message });
