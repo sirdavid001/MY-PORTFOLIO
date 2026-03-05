@@ -211,6 +211,85 @@ function composeOrderNotes(order) {
   return parts.length > 0 ? parts.join("\n") : null;
 }
 
+function isExplicitlyFalse(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off";
+}
+
+function shouldSendDiscordAlerts(value) {
+  if (value == null || String(value).trim() === "") return true;
+  return !isExplicitlyFalse(value);
+}
+
+function buildDiscordAlertText(order, trackingUrl) {
+  const trackingNumber = resolveTrackingNumber(order) || "N/A";
+  const customerName = String(order?.checkout?.fullName || "N/A").trim() || "N/A";
+  const customerPhone = String(order?.checkout?.phone || "N/A").trim() || "N/A";
+  const customerEmail = String(order?.checkout?.email || "N/A").trim() || "N/A";
+  const total = formatMoney(order?.total || 0, order?.currency || "NGN");
+  const method = String(order?.checkout?.paymentMethod || "Paystack").trim() || "Paystack";
+  const topItems = (order?.items || [])
+    .slice(0, 4)
+    .map((item) => `${String(item?.name || "Item").trim() || "Item"} x${Number(item?.quantity || 1)}`)
+    .join(", ");
+
+  return [
+    "New paid order received",
+    `Reference: ${String(order?.reference || "").trim()}`,
+    `Tracking: ${trackingNumber}`,
+    `Customer: ${customerName}`,
+    `Phone: ${customerPhone}`,
+    `Email: ${customerEmail}`,
+    `Payment: ${method}`,
+    `Total: ${total}`,
+    `Items: ${topItems || "N/A"}`,
+    `Track: ${trackingUrl}`,
+  ].join("\n");
+}
+
+async function sendDiscordAlert({ webhookUrl, order, trackingUrl }) {
+  const normalizedWebhookUrl = String(webhookUrl || "").trim();
+  if (!normalizedWebhookUrl) {
+    return { ok: false, skipped: true, error: "Discord webhook URL missing." };
+  }
+
+  const payload = {
+    content: buildDiscordAlertText(order, trackingUrl),
+    allowed_mentions: {
+      parse: [],
+    },
+  };
+
+  try {
+    const response = await fetch(normalizedWebhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const message = await response.text().catch(() => "");
+      return {
+        ok: false,
+        skipped: false,
+        error: message || `Discord webhook request failed with status ${response.status}.`,
+      };
+    }
+
+    return {
+      ok: true,
+      skipped: false,
+      id: null,
+    };
+  } catch (error) {
+    return { ok: false, skipped: false, error: error?.message || "Discord webhook request failed." };
+  }
+}
+
 function statusMessage(status) {
   const normalized = String(status || "").trim().toLowerCase();
   if (normalized === "paid") return "Payment confirmed. Your order is queued for processing.";
@@ -646,6 +725,18 @@ export async function onRequestPost(context) {
     };
 
     const trackingUrl = buildTrackingUrl(orderForEmail, request, env);
+    const discordEnabled = shouldSendDiscordAlerts(env.DISCORD_ALERTS_ENABLED);
+    const discordResult = discordEnabled
+      ? await sendDiscordAlert({
+          webhookUrl: env.DISCORD_WEBHOOK_URL,
+          order: orderForEmail,
+          trackingUrl,
+        })
+      : { ok: false, skipped: true, error: "Discord alerts disabled." };
+    if (!discordResult.ok && !discordResult.skipped) {
+      console.warn("[send-order] Discord alert failed", discordResult.error);
+    }
+
     const resendKey = env.RESEND_API_KEY;
     const toEmail = env.ORDER_RECEIVER_EMAIL || "itssirdavid@gmail.com";
     const configuredFromEmail = String(env.RESEND_FROM_EMAIL || "").trim();
@@ -660,6 +751,7 @@ export async function onRequestPost(context) {
         emailSent: false,
         merchantEmailSent: false,
         customerEmailSent: false,
+        discordAlertSent: discordResult.ok,
         trackingNumber: resolvedTrackingNumber,
         trackingUrl,
         warning:
@@ -674,6 +766,7 @@ export async function onRequestPost(context) {
         emailSent: false,
         merchantEmailSent: false,
         customerEmailSent: false,
+        discordAlertSent: discordResult.ok,
         trackingNumber: resolvedTrackingNumber,
         trackingUrl,
         warning:
@@ -706,6 +799,7 @@ export async function onRequestPost(context) {
       ? await sendResendEmail(resendKey, customerPayload)
       : { ok: false, error: "Customer email is invalid." };
 
+    if (!discordResult.ok && !discordResult.skipped) warnings.push(`Discord alert failed: ${discordResult.error}`);
     if (!merchantResult.ok) warnings.push(`Merchant email failed: ${merchantResult.error}`);
     if (!customerResult.ok) warnings.push(`Customer confirmation email failed: ${customerResult.error}`);
     if (supabaseResult.warning) warnings.push(supabaseResult.warning);
@@ -714,6 +808,7 @@ export async function onRequestPost(context) {
       ok: true,
       persisted: !supabaseResult.skipped,
       trackingNumber: resolvedTrackingNumber,
+      discordAlertSent: discordResult.ok,
       emailSent: merchantResult.ok && customerResult.ok,
       merchantEmailSent: merchantResult.ok,
       customerEmailSent: customerResult.ok,

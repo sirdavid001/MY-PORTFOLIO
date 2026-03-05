@@ -285,7 +285,7 @@ export default function ShopApp() {
   }, [resolvedPaystackPublicKey]);
 
   async function sendOrderNotification(order) {
-    setSendStatus({ state: "sending", message: "Sending order notification..." });
+    setSendStatus({ state: "sending", message: "Sending your confirmation..." });
     try {
       const response = await fetch("/api/send-order", {
         method: "POST",
@@ -297,7 +297,7 @@ export default function ShopApp() {
       if (!response.ok || !data?.ok) {
         setSendStatus({
           state: "error",
-          message: data?.error || "Order paid, but notification sync failed.",
+          message: data?.error || "Payment confirmed, but we could not send your confirmation email yet.",
         });
         return false;
       }
@@ -305,7 +305,7 @@ export default function ShopApp() {
       if (data?.persisted === false) {
         setSendStatus({
           state: "error",
-          message: data?.warning || "Order paid, but dashboard persistence is not configured.",
+          message: data?.warning || "Payment confirmed. We are finalizing your order record.",
         });
         return false;
       }
@@ -313,7 +313,7 @@ export default function ShopApp() {
       if (data?.emailSent === false) {
         setSendStatus({
           state: "sent",
-          message: data?.warning || "Order saved to dashboard. Some email notifications were skipped.",
+          message: data?.warning || "Payment confirmed. Some email updates were delayed.",
         });
         return true;
       }
@@ -322,14 +322,14 @@ export default function ShopApp() {
         state: "sent",
         message:
           data?.customerEmailSent === true
-            ? "Order saved. Payment confirmation and tracking email sent to customer."
-            : "Order saved. Payment confirmation notification sent successfully.",
+            ? "Payment confirmed. Your receipt and tracking details have been sent to your email."
+            : "Payment confirmed. Your order has been received successfully.",
       });
       return true;
     } catch {
       setSendStatus({
         state: "error",
-        message: "Order created, but notification endpoint is unreachable.",
+        message: "Payment confirmed. We could not reach the email service right now.",
       });
       return false;
     }
