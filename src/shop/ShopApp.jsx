@@ -1629,9 +1629,6 @@ export default function ShopApp() {
                                 <p className="text-2xl font-bold text-slate-900">
                                   {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
                                 </p>
-                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                  {product.stock} in stock
-                                </p>
                               </div>
 
                               <button
