@@ -131,7 +131,7 @@ export default function Home() {
             Open to freelance opportunities, collaborations, and product partnerships. Let&apos;s talk about your next project.
           </p>
           <a
-            href="mailto:itssirdavid@gmail.com"
+            href="mailto:support@sirdavid.site"
             className="mt-8 inline-flex rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 sm:px-7 sm:text-base"
           >
             Start a Conversation

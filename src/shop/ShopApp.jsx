@@ -72,7 +72,7 @@ const SHOP_POLICY_CONTENT = {
       {
         heading: "Contact",
         paragraphs: [
-          "For account, order, or legal questions, contact us at itssirdavid@gmail.com.",
+          "For account, order, or legal questions, contact us at support@sirdavid.site.",
         ],
       },
     ],
@@ -170,7 +170,7 @@ const SHOP_POLICY_CONTENT = {
       {
         heading: "How do I contact support?",
         paragraphs: [
-          "Email itssirdavid@gmail.com with your order reference and issue details.",
+          "Email support@sirdavid.site with your order reference and issue details.",
         ],
       },
     ],

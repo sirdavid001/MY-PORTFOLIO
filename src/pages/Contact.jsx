@@ -162,7 +162,7 @@ ${formData.features}`
     );
 
     alert("Request prepared. Your email app will open so you can send your project brief.");
-    window.location.href = `mailto:itssirdavid@gmail.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:support@sirdavid.site?subject=${subject}&body=${body}`;
   }
 
   function SelectArrow() {
@@ -197,8 +197,8 @@ ${formData.features}`
               </div>
               <div>
                 <p className="text-xl font-semibold text-slate-900">Email</p>
-                <a className="text-lg text-slate-600 hover:text-blue-600" href="mailto:itssirdavid@gmail.com">
-                  itssirdavid@gmail.com
+                <a className="text-lg text-slate-600 hover:text-blue-600" href="mailto:support@sirdavid.site">
+                  support@sirdavid.site
                 </a>
               </div>
             </div>

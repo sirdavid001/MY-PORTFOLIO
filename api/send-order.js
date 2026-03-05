@@ -371,10 +371,6 @@ function formatOrderForAdminHtml(order, trackingUrl) {
   const total = escapeHtml(formatMoney(order.total || 0, order.currency));
   const notes = escapeHtml(composeOrderNotes(order) || "N/A").replace(/\n/g, "<br />");
   const safeTrackingUrl = escapeHtml(trackingUrl);
-  const rawEmail = String(order.checkout?.email || "").trim();
-  const emailAction = isValidEmail(rawEmail)
-    ? `<a href="mailto:${escapeHtml(rawEmail)}" style="display:inline-block;padding:10px 16px;border-radius:10px;background:#e2e8f0;color:#0f172a;text-decoration:none;font-weight:700">Email Buyer</a>`
-    : "";
   const itemsHtml =
     Array.isArray(order.items) && order.items.length > 0
       ? order.items
@@ -427,14 +423,13 @@ function formatOrderForAdminHtml(order, trackingUrl) {
 
       <div style="margin-top:18px;display:flex;flex-wrap:wrap;gap:10px">
         <a href="${safeTrackingUrl}" style="display:inline-block;padding:10px 16px;border-radius:10px;background:#06b6d4;color:#082f49;text-decoration:none;font-weight:700">Track Order</a>
-        ${emailAction}
       </div>
     </div>
   </div>
 </div>`;
 }
 
-function formatCustomerText(order, trackingUrl) {
+function formatCustomerText(order, trackingUrl, supportEmail = "support@sirdavid.site") {
   const customerName = String(order.checkout?.fullName || "Customer").trim();
   const trackingNumber = resolveTrackingNumber(order);
   return `Hi ${customerName},
@@ -452,6 +447,8 @@ You can track with your order reference now, or with a tracking number once assi
 
 We will update this status as your order moves to processing and shipping.
 
+Need help? Contact ${supportEmail}.
+
 Thank you for shopping with Sirdavid Gadgets.`;
 }
 
@@ -464,12 +461,13 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function formatCustomerHtml(order, trackingUrl) {
+function formatCustomerHtml(order, trackingUrl, supportEmail = "support@sirdavid.site") {
   const customerName = escapeHtml(order.checkout?.fullName || "Customer");
   const reference = escapeHtml(order.reference);
   const trackingNumber = escapeHtml(resolveTrackingNumber(order) || "Pending assignment");
   const total = escapeHtml(formatMoney(order.total, order.currency));
   const safeTrackingUrl = escapeHtml(trackingUrl);
+  const safeSupportEmail = escapeHtml(supportEmail);
   return `
 <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a">
   <h2 style="margin:0 0 12px">Payment Confirmed</h2>
@@ -485,6 +483,7 @@ function formatCustomerHtml(order, trackingUrl) {
   </p>
   <p>You can track with your order reference now, or with a tracking number once assigned by dispatch.</p>
   <p>We will update this status as your order moves to processing and shipping.</p>
+  <p>Need help? Contact <a href="mailto:${safeSupportEmail}">${safeSupportEmail}</a>.</p>
   <p>Thank you for shopping with Sirdavid Gadgets.</p>
 </div>`;
 }
@@ -774,10 +773,12 @@ export default async function handler(req, res) {
     }
 
     const resendKey = process.env.RESEND_API_KEY;
-    const toEmail = process.env.ORDER_RECEIVER_EMAIL || "itssirdavid@gmail.com";
-    const configuredFromEmail = String(process.env.RESEND_FROM_EMAIL || "").trim();
+    const toEmail = process.env.ORDER_RECEIVER_EMAIL || "support@sirdavid.site";
+    const configuredFromEmail = String(process.env.RESEND_FROM_EMAIL || "noreply@sirdavid.site").trim();
     const senderName = String(process.env.RESEND_FROM_NAME || "Sirdavid Gadgets").trim();
+    const supportEmail = String(process.env.SUPPORT_EMAIL || "support@sirdavid.site").trim();
     const fromEmail = formatSenderAddress(configuredFromEmail, senderName);
+    const replyToEmail = isValidEmail(supportEmail) ? supportEmail : undefined;
     const customerEmail = String(orderForEmail.checkout?.email || "").trim();
 
     if (!resendKey) {
@@ -815,7 +816,7 @@ export default async function handler(req, res) {
           trackingNumber: resolvedTrackingNumber,
           trackingUrl,
           warning:
-            "RESEND_FROM_EMAIL is missing or invalid. Set it in Vercel to a verified sender address (example: orders@sirdavid.site).",
+            "RESEND_FROM_EMAIL is invalid. Set it in Vercel to a verified sender address (example: noreply@sirdavid.site).",
         },
         methods
       );
@@ -827,15 +828,16 @@ export default async function handler(req, res) {
       subject: `Paid Store Order ${orderForEmail.reference}`,
       text: formatOrderForAdmin(orderForEmail, trackingUrl),
       html: formatOrderForAdminHtml(orderForEmail, trackingUrl),
-      reply_to: customerEmail || undefined,
+      reply_to: replyToEmail,
     };
 
     const customerPayload = {
       from: fromEmail,
       to: [customerEmail],
       subject: `Payment Confirmed • ${orderForEmail.reference}`,
-      text: formatCustomerText(orderForEmail, trackingUrl),
-      html: formatCustomerHtml(orderForEmail, trackingUrl),
+      text: formatCustomerText(orderForEmail, trackingUrl, supportEmail),
+      html: formatCustomerHtml(orderForEmail, trackingUrl, supportEmail),
+      reply_to: replyToEmail,
     };
 
     const warnings = [];

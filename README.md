@@ -28,9 +28,10 @@ The e-commerce checkout calls a Vercel API Route at `POST /api/send-order`.
 Set these variables in Vercel Project -> Settings -> Environment Variables:
 
 - `RESEND_API_KEY` = your Resend API key
-- `ORDER_RECEIVER_EMAIL` = inbox that receives order alerts (for example `itssirdavid@gmail.com`)
-- `RESEND_FROM_EMAIL` = verified sender (for example `orders@yourdomain.com`)
+- `ORDER_RECEIVER_EMAIL` = inbox that receives order alerts (recommended: `support@sirdavid.site`)
+- `RESEND_FROM_EMAIL` = verified sender (recommended: `noreply@sirdavid.site`)
 - `RESEND_FROM_NAME` = sender display name (for example `Sirdavid Gadgets`)
+- `SUPPORT_EMAIL` = reply address customers can contact (recommended: `support@sirdavid.site`)
 - `DISCORD_WEBHOOK_URL` = optional Discord channel webhook URL for paid-order alerts
 - `DISCORD_ALERTS_ENABLED` = optional (`true`/`false`, default `true`)
 

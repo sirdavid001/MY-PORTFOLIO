@@ -26,7 +26,7 @@ export default function Footer() {
             <div className="mt-3 flex items-center gap-2">
               <a className="rounded-full border border-slate-300 px-3 py-1 text-slate-700 hover:bg-slate-100" href="https://github.com/sirdavid001" target="_blank" rel="noreferrer">GitHub</a>
               <a className="rounded-full border border-slate-300 px-3 py-1 text-slate-700 hover:bg-slate-100" href="https://instagram.com/sirdavid._" target="_blank" rel="noreferrer">Instagram</a>
-              <a className="rounded-full border border-slate-300 px-3 py-1 text-slate-700 hover:bg-slate-100" href="mailto:itssirdavid@gmail.com">Email</a>
+              <a className="rounded-full border border-slate-300 px-3 py-1 text-slate-700 hover:bg-slate-100" href="mailto:support@sirdavid.site">Email</a>
             </div>
           </div>
         </div>
