@@ -15,7 +15,11 @@ import {
 } from "./products";
 
 const inputClass =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
+  "w-full rounded-xl border border-slate-200 bg-white/95 px-3 py-2.5 text-sm text-slate-900 shadow-[0_1px_0_rgba(15,23,42,0.02)] outline-none ring-cyan-300/60 transition focus:border-cyan-500 focus:ring";
+const panelClass =
+  "rounded-3xl border border-slate-200/80 bg-white/95 shadow-[0_22px_48px_rgba(15,23,42,0.1)]";
+const sectionClass =
+  "rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_18px_42px_rgba(15,23,42,0.08)]";
 
 const statusOptions = [
   { value: "new", label: "Pending Review" },
@@ -1335,8 +1339,8 @@ export default function AdminApp() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen bg-[#f4f7fb] px-4 py-10 text-slate-900">
-        <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_10%_15%,rgba(6,182,212,0.14),transparent_36%),radial-gradient(circle_at_90%_10%,rgba(14,165,233,0.08),transparent_33%),linear-gradient(180deg,#f9fcff_0%,#f4f7fb_45%,#eef2f8_100%)] px-4 py-10 text-slate-900">
+        <div className="mx-auto max-w-md rounded-2xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_20px_46px_rgba(15,23,42,0.1)]">
           <p className="text-sm text-slate-600">Checking admin session...</p>
         </div>
       </div>
@@ -1345,10 +1349,11 @@ export default function AdminApp() {
 
   if (!isAuthed) {
     return (
-      <div className="min-h-screen bg-[#f4f7fb] px-4 py-10 text-slate-900">
-        <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="font-display text-3xl font-bold text-slate-900">Store Admin</h1>
-          <p className="mt-2 text-sm text-slate-600">Sign in with your admin account email and password.</p>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_10%_15%,rgba(6,182,212,0.14),transparent_36%),radial-gradient(circle_at_90%_10%,rgba(14,165,233,0.08),transparent_33%),linear-gradient(180deg,#f9fcff_0%,#f4f7fb_45%,#eef2f8_100%)] px-4 py-10 text-slate-900">
+        <div className="mx-auto max-w-md rounded-2xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_20px_46px_rgba(15,23,42,0.1)]">
+          <p className="text-xs font-semibold tracking-[0.1em] text-cyan-700">Admin Access</p>
+          <h1 className="font-display text-3xl font-bold text-slate-900">Store Command Center</h1>
+          <p className="mt-2 text-sm text-slate-600">Sign in with your authorized admin account.</p>
           <form onSubmit={handleLogin} className="mt-5 space-y-3">
             <input
               type="email"
@@ -1368,7 +1373,7 @@ export default function AdminApp() {
             />
             <button
               type="submit"
-              className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="w-full rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(3,105,161,0.28)] transition hover:brightness-110"
             >
               Sign in
             </button>
@@ -1385,12 +1390,15 @@ export default function AdminApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_20%_20%,#e0f2fe_0%,#f8fafc_45%,#f1f5f9_100%)] text-slate-900">
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_10%_15%,rgba(6,182,212,0.14),transparent_36%),radial-gradient(circle_at_90%_10%,rgba(14,165,233,0.08),transparent_33%),linear-gradient(180deg,#f9fcff_0%,#f4f7fb_45%,#eef2f8_100%)] text-slate-900">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.03)_1px,transparent_1px)] bg-[size:42px_42px] opacity-40" />
+      <div className="relative z-10">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur">
+        <header className={`${panelClass} p-5 backdrop-blur`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="font-display text-3xl font-bold text-slate-900">Store Admin</h1>
+              <p className="text-xs font-semibold tracking-[0.1em] text-cyan-700">Operations</p>
+              <h1 className="font-display text-3xl font-bold text-slate-900">Store Command Center</h1>
               <p className="text-sm text-slate-600">
                 {orders.length} orders, {products.length} products {adminEmail ? `• ${adminEmail}` : ""}
               </p>
@@ -1407,7 +1415,7 @@ export default function AdminApp() {
               <button
                 type="button"
                 onClick={logout}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-rose-50/60 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100/70"
               >
                 <FiLogOut className="h-4 w-4" />
                 Logout
@@ -1417,7 +1425,7 @@ export default function AdminApp() {
 
           <div className="mt-4 border-t border-slate-200/80 pt-4">
             <div className="sm:hidden">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Admin Menu</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Control Menu</label>
               <select
                 value={activePage}
                 onChange={(event) => goToAdminPage(event.target.value)}
@@ -1457,7 +1465,7 @@ export default function AdminApp() {
 
         <main className="mt-6 space-y-6">
             {activePage === "orders" && (
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm">
+              <section className={panelClass}>
                 <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -1862,7 +1870,7 @@ export default function AdminApp() {
             )}
 
             {activePage === "add-gadget" && (
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-sm">
+              <section className={sectionClass}>
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="font-display text-xl font-semibold text-slate-900">
                     {editingProductId ? "Edit Gadget" : "Add Gadget"}
@@ -2195,7 +2203,7 @@ export default function AdminApp() {
             )}
 
             {activePage === "shipping" && (
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-sm">
+              <section className={sectionClass}>
                 <h2 className="font-display text-xl font-semibold text-slate-900">Shipping Settings</h2>
                 <p className="mt-1 text-xs text-slate-500">
                   Set how shipping is charged. For percentage, enter a whole number (example: 3 means 3%).
@@ -2298,7 +2306,7 @@ export default function AdminApp() {
             )}
 
             {activePage === "gadgets" && (
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-sm">
+              <section className={sectionClass}>
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="font-display text-xl font-semibold text-slate-900">Gadget List</h2>
                   <span className="text-xs text-slate-500">{filteredGadgetProducts.length} items</span>
@@ -2434,6 +2442,7 @@ export default function AdminApp() {
               </section>
             )}
         </main>
+      </div>
       </div>
     </div>
   );

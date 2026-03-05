@@ -11,6 +11,7 @@ const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]
 const SECURE_ADMIN_PATH = "/secure-admin-portal-xyz";
 const SHOP_PATHS = new Set([
   "/shop",
+  `/shop${SECURE_ADMIN_PATH}`,
   "/cart",
   "/track-order",
   "/terms-and-conditions",
@@ -33,12 +34,14 @@ export default function App() {
   const isBusinessSubdomain = hostLabels.some((label) => BUSINESS_SUBDOMAINS.has(label));
   const isShopPath =
     normalizedPathname.startsWith(SECURE_ADMIN_PATH) ||
+    normalizedPathname.startsWith(`/shop${SECURE_ADMIN_PATH}`) ||
     SHOP_PATHS.has(normalizedPathname);
 
   if (isBusinessSubdomain || isShopPath) {
     return (
       <Routes>
         <Route path={`${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
+        <Route path={`/shop${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
         <Route path="/shop" element={<ShopApp />} />
         <Route path="/" element={<ShopApp />} />
         <Route path="/cart" element={<ShopApp />} />
