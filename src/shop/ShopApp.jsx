@@ -946,7 +946,7 @@ export default function ShopApp() {
           </div>
           <div className="inline-flex items-center gap-3">
             <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 sm:inline-flex">
-              {activePricing.countryName} ({activePricing.currency})
+              Currency: {activePricing.currency}
             </span>
             {isCartPage || isTrackingPage || isPolicyPage ? (
               <button
@@ -981,7 +981,7 @@ export default function ShopApp() {
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {isPolicyPage ? (
           <section className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-            <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+            <aside className="static h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Policy Center</p>
               <h2 className="mt-2 text-lg font-semibold text-slate-900">Store Policies</h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{activePolicyMeta.description}</p>
@@ -1501,7 +1501,7 @@ export default function ShopApp() {
           <div className="grid gap-7 lg:grid-cols-[1.7fr_1fr]">
             <section className="space-y-4">
               <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex flex-wrap items-start gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.15em] text-cyan-700">Sirdavid Storefront</p>
                     <h1 className="mt-1 font-display text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">
@@ -1511,9 +1511,6 @@ export default function ShopApp() {
                       Discover verified devices, compare by category, and place orders in your local pricing context.
                     </p>
                   </div>
-                  <p className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                    {visibleProducts.length} products
-                  </p>
                 </div>
               </section>
 
@@ -1532,7 +1529,7 @@ export default function ShopApp() {
                   >
                     {categories.map((category) => (
                       <option key={category} value={category}>
-                        {category}
+                        {category} ({categoryItemCounts[category] ?? 0})
                       </option>
                     ))}
                   </select>
@@ -1558,47 +1555,16 @@ export default function ShopApp() {
                   </select>
                 </div>
 
-                <div className="mt-3 overflow-x-auto">
-                  <div className="flex min-w-max gap-2 pr-2">
-                    {categories.map((category) => {
-                      const isActive = activeCategory === category;
-                      return (
-                        <button
-                          key={category}
-                          type="button"
-                          onClick={() => setActiveCategory(category)}
-                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                            isActive
-                              ? "border-cyan-600 bg-cyan-600 text-white"
-                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >
-                          <span>{category}</span>
-                          <span
-                            className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                              isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-                            }`}
-                          >
-                            {categoryItemCounts[category] ?? 0}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
               </section>
 
               <section className="space-y-7">
                 {groupedVisibleProducts.map((group) => (
                   <section key={group.category} className="space-y-4">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
                       <div>
                         <h2 className="font-display text-2xl font-semibold text-slate-900">{group.category}</h2>
                         <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Curated selection</p>
                       </div>
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                        {group.items.length} items
-                      </span>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
