@@ -42,6 +42,28 @@ const SHOP_POLICY_LINKS = [
   { path: "/faqs", label: "FAQs" },
   { path: "/shipping-policy", label: "Shipping Policy" },
 ];
+const SHOP_POLICY_META = {
+  "/terms-and-conditions": {
+    tag: "Legal",
+    description: "The rules and usage terms that apply to every order and customer interaction.",
+  },
+  "/refund-policy": {
+    tag: "Returns",
+    description: "Clear conditions for refunds, replacements, and issue resolution timelines.",
+  },
+  "/privacy-policy": {
+    tag: "Data",
+    description: "How customer data is collected, protected, and processed across the storefront.",
+  },
+  "/faqs": {
+    tag: "Support",
+    description: "Fast answers to common payment, shipping, and order tracking questions.",
+  },
+  "/shipping-policy": {
+    tag: "Logistics",
+    description: "Delivery timelines, shipping charges, and escalation steps for delivery issues.",
+  },
+};
 const SHOP_POLICY_CONTENT = {
   "/terms-and-conditions": {
     title: "Terms and Conditions",
@@ -349,6 +371,7 @@ export default function ShopApp() {
   const isTrackingPage = normalizedPathname === "/track-order";
   const policyPath = normalizedPathname === "/faq" ? "/faqs" : normalizedPathname;
   const policyPage = SHOP_POLICY_CONTENT[policyPath] || null;
+  const activePolicyMeta = SHOP_POLICY_META[policyPath] || { tag: "Policy", description: "" };
   const isPolicyPage = Boolean(policyPage);
   const [activeCategory, setActiveCategory] = useState("All");
   const [conditionFilter, setConditionFilter] = useState("All");
@@ -942,42 +965,86 @@ export default function ShopApp() {
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {isPolicyPage ? (
-          <section className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Policy</p>
-            <h1 className="mt-2 font-display text-3xl font-bold text-slate-900">{policyPage.title}</h1>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">{policyPage.summary}</p>
-            <div className="mt-6 space-y-5">
-              {policyPage.sections.map((section) => (
-                <section key={section.heading} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <h2 className="text-base font-semibold text-slate-900">{section.heading}</h2>
-                  <div className="mt-2 space-y-2">
-                    {section.paragraphs.map((paragraph) => (
-                      <p key={paragraph} className="text-sm leading-relaxed text-slate-700">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">More Information</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {SHOP_POLICY_LINKS.map((link) => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                      link.path === policyPath
-                        ? "border-cyan-600 bg-cyan-600 text-white"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
+          <section className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+            <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Policy Center</p>
+              <h2 className="mt-2 text-lg font-semibold text-slate-900">Store Policies</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{activePolicyMeta.description}</p>
+              <nav className="mt-5 space-y-2">
+                {SHOP_POLICY_LINKS.map((link) => {
+                  const linkMeta = SHOP_POLICY_META[link.path] || { tag: "Policy" };
+                  const isActiveLink = link.path === policyPath;
+                  return (
+                    <Link
+                      key={link.path}
+                      to={link.path}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 transition ${
+                        isActiveLink
+                          ? "border-cyan-500 bg-cyan-50 text-cyan-900"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="text-sm font-semibold">{link.label}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                          isActiveLink ? "bg-cyan-600 text-white" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {linkMeta.tag}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </nav>
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Support</p>
+                <p className="mt-1 text-sm text-slate-700">Questions about an order or policy?</p>
+                <a
+                  href="mailto:support@sirdavid.site"
+                  className="mt-2 inline-flex rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                >
+                  support@sirdavid.site
+                </a>
+              </div>
+            </aside>
+
+            <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 sm:px-8">
+                <span className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                  {activePolicyMeta.tag}
+                </span>
+                <h1 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">{policyPage.title}</h1>
+                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-200 sm:text-base">{policyPage.summary}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
+                    Effective March 5, 2026
+                  </span>
+                  <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
+                    Applies to all storefront orders
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-4 p-6 sm:p-8">
+                {policyPage.sections.map((section, index) => (
+                  <section key={section.heading} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 sm:p-6">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                        {index + 1}
+                      </span>
+                      <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{section.heading}</h2>
+                    </div>
+                    <div className="mt-3 space-y-3 pl-0.5">
+                      {section.paragraphs.map((paragraph) => (
+                        <p key={paragraph} className="text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+                          {paragraph}
+                        </p>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
-            </div>
+            </article>
           </section>
         ) : isTrackingPage ? (
           <section className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
