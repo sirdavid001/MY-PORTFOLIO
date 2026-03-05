@@ -1,4 +1,4 @@
-const ALLOWED_STATUS = new Set(["new", "paid", "processing", "in_route", "shipped", "completed", "cancelled"]);
+const ALLOWED_STATUS = new Set(["new", "paid", "processing", "in_route", "completed", "cancelled"]);
 
 function json(data, status = 200, methods = "GET, PATCH, OPTIONS") {
   return new Response(JSON.stringify(data), {
@@ -103,6 +103,17 @@ function normalizeTrackingNumber(value) {
   return normalized.slice(0, 120);
 }
 
+function normalizeStatusInput(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (!normalized) return "";
+  if (normalized === "shipped" || normalized === "inroute" || normalized === "in_transit") return "in_route";
+  if (normalized === "delivered") return "completed";
+  return normalized;
+}
+
 function normalizeReference(value) {
   return String(value || "")
     .trim()
@@ -190,6 +201,7 @@ export async function onRequestGet(context) {
 
     const orders = (await response.json().catch(() => [])).map((order) => ({
       ...order,
+      status: normalizeStatusInput(order?.status) || "new",
       tracking_number: resolveTrackingNumber(order),
     }));
     return json({ ok: true, orders });
@@ -224,7 +236,7 @@ export async function onRequestPatch(context) {
     if (!id) return json({ ok: false, error: "Invalid order id." }, 400);
 
     const payload = await request.json().catch(() => ({}));
-    const status = String(payload?.status || "").trim();
+    const status = normalizeStatusInput(payload?.status);
     const hasStatus = status.length > 0;
     if (hasStatus && !ALLOWED_STATUS.has(status)) {
       return json({ ok: false, error: "Invalid status." }, 400);

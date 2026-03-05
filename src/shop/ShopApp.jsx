@@ -4,6 +4,7 @@ import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
 import { BrandPill } from "./brandIdentity";
 import {
+  categoryOptions,
   defaultShippingConfig,
   normalizeProduct,
   normalizeShippingConfig,
@@ -19,6 +20,7 @@ const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
 const PRODUCT_FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=900&q=80";
+const carrierCategorySet = new Set(["phones", "tablets", "wearables"]);
 
 const PAYMENT_METHOD_PAYSTACK = "Paystack";
 const defaultCheckout = {
@@ -298,6 +300,34 @@ function getProductGallery(product) {
   return unique.slice(0, 5);
 }
 
+function categorySupportsNetworkInfo(category) {
+  return carrierCategorySet.has(String(category || "").trim().toLowerCase());
+}
+
+function getProductSpecs(product) {
+  const specs = [];
+  const storageGb = Number.parseInt(String(product?.storageGb ?? ""), 10);
+  const batteryHealth = Number.parseInt(String(product?.batteryHealth ?? ""), 10);
+  const networkLock = String(product?.networkLock || "").trim();
+  const networkCarrier = String(product?.networkCarrier || "").trim();
+
+  if (Number.isFinite(storageGb) && storageGb > 0) {
+    specs.push(`${storageGb}GB`);
+  }
+  if (Number.isFinite(batteryHealth) && batteryHealth >= 0 && batteryHealth <= 100) {
+    specs.push(`Battery ${batteryHealth}%`);
+  }
+  if (categorySupportsNetworkInfo(product?.category)) {
+    if (networkLock === "Locked" && networkCarrier) {
+      specs.push(`Locked • ${networkCarrier}`);
+    } else if (networkLock === "Unlocked") {
+      specs.push("Unlocked");
+    }
+  }
+
+  return specs.slice(0, 3);
+}
+
 function isApplePaySupportedOnDevice() {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
   const ApplePaySessionRef = window.ApplePaySession;
@@ -317,7 +347,11 @@ function isApplePaySupportedOnDevice() {
 }
 
 function normalizeTrackingStatus(status) {
-  const normalized = String(status || "").trim().toLowerCase();
+  const normalized = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (normalized === "inroute") return "in_route";
   if (normalized === "paid") return "paid";
   if (normalized === "processing") return "processing";
   if (normalized === "in_route" || normalized === "shipped") return "in_route";
@@ -398,6 +432,7 @@ export default function ShopApp() {
   const [trackingState, setTrackingState] = useState({ state: "idle", message: "" });
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [catalogProducts, setCatalogProducts] = useState(() => defaultProducts.map((product) => normalizeProduct(product)));
+  const [catalogCategories, setCatalogCategories] = useState(() => [...categoryOptions]);
   const [shippingConfig, setShippingConfig] = useState(() => normalizeShippingConfig(defaultShippingConfig));
   const [selectedImageIndexByProduct, setSelectedImageIndexByProduct] = useState({});
   const [resolvedPaystackPublicKey, setResolvedPaystackPublicKey] = useState(
@@ -438,10 +473,16 @@ export default function ShopApp() {
         const productsFromApi = Array.isArray(data.products)
           ? data.products.map((product) => normalizeProduct(product)).filter((product) => product.id && product.isActive)
           : null;
+        const categoriesFromApi = Array.isArray(data.categories)
+          ? data.categories.map((category) => String(category || "").trim()).filter(Boolean)
+          : null;
         const shippingFromApi = normalizeShippingConfig(data.shipping || defaultShippingConfig);
 
         if (Array.isArray(productsFromApi)) {
           setCatalogProducts(productsFromApi);
+        }
+        if (Array.isArray(categoriesFromApi) && categoriesFromApi.length > 0) {
+          setCatalogCategories(Array.from(new Set(categoriesFromApi)));
         }
         setShippingConfig(shippingFromApi);
       } catch {
@@ -642,11 +683,10 @@ export default function ShopApp() {
   }, [pricingContext]);
 
   const categories = useMemo(() => {
-    const dynamicCategories = Array.from(
-      new Set(catalogProducts.map((product) => product.category).filter(Boolean))
-    );
-    return ["All", ...dynamicCategories];
-  }, [catalogProducts]);
+    const dynamicCategories = catalogProducts.map((product) => String(product.category || "").trim()).filter(Boolean);
+    const merged = Array.from(new Set([...categoryOptions, ...catalogCategories, ...dynamicCategories]));
+    return ["All", ...merged];
+  }, [catalogCategories, catalogProducts]);
   const categoryItemCounts = useMemo(() => {
     const counts = { All: catalogProducts.length };
     categories
@@ -674,7 +714,10 @@ export default function ShopApp() {
         query.length === 0 ||
         product.name.toLowerCase().includes(query) ||
         product.brand.toLowerCase().includes(query) ||
-        product.details.toLowerCase().includes(query);
+        product.details.toLowerCase().includes(query) ||
+        String(product.storageGb || "").toLowerCase().includes(query) ||
+        String(product.networkLock || "").toLowerCase().includes(query) ||
+        String(product.networkCarrier || "").toLowerCase().includes(query);
       return categoryMatch && conditionMatch && searchMatch;
     });
 
@@ -1576,6 +1619,7 @@ export default function ShopApp() {
                           maxIndex
                         );
                         const selectedImage = gallery[selectedIndex] || PRODUCT_FALLBACK_IMAGE;
+                        const specs = getProductSpecs(product);
 
                         return (
                           <article
@@ -1623,6 +1667,18 @@ export default function ShopApp() {
                             <div className="p-5">
                               <h3 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h3>
                               <BrandPill brand={product.brand} className="mt-2" />
+                              {specs.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {specs.map((spec) => (
+                                    <span
+                                      key={`${product.id}-${spec}`}
+                                      className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-600"
+                                    >
+                                      {spec}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
                               <p className="mt-3 min-h-[44px] text-sm leading-relaxed text-slate-600">{product.details}</p>
 
                               <div className="mt-4 flex items-end justify-between">

@@ -2,7 +2,7 @@ import { requireAdminUser } from "../../server/_lib/admin-auth.js";
 import { applyRateLimit } from "../../server/_lib/rate-limit.js";
 import { getClientIp, isIpAllowed } from "../../server/_lib/security.js";
 
-const ALLOWED_STATUS = new Set(["new", "paid", "processing", "in_route", "shipped", "completed", "cancelled"]);
+const ALLOWED_STATUS = new Set(["new", "paid", "processing", "in_route", "completed", "cancelled"]);
 
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -28,6 +28,17 @@ function normalizeTrackingNumber(value) {
   const normalized = String(value ?? "").trim();
   if (!normalized) return null;
   return normalized.slice(0, 120);
+}
+
+function normalizeStatusInput(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (!normalized) return "";
+  if (normalized === "shipped" || normalized === "inroute" || normalized === "in_transit") return "in_route";
+  if (normalized === "delivered") return "completed";
+  return normalized;
 }
 
 function normalizeReference(value) {
@@ -168,6 +179,7 @@ export default async function handler(req, res) {
 
       const orders = (await response.json().catch(() => [])).map((order) => ({
         ...order,
+        status: normalizeStatusInput(order?.status) || "new",
         tracking_number: resolveTrackingNumber(order),
       }));
       return json(res, 200, { ok: true, orders }, methods);
@@ -180,7 +192,7 @@ export default async function handler(req, res) {
       }
 
       const payload = await readJsonBody(req);
-      const status = String(payload?.status || "").trim();
+      const status = normalizeStatusInput(payload?.status);
       const hasStatus = status.length > 0;
       if (hasStatus && !ALLOWED_STATUS.has(status)) {
         return json(res, 400, { ok: false, error: "Invalid status." }, methods);

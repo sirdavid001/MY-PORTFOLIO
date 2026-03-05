@@ -7,6 +7,9 @@ import { normalizeSupabaseError, supabaseRest } from "../../server/_lib/supabase
 const METHODS = "GET, POST, PATCH, DELETE, OPTIONS";
 const MISSING_TABLE_HINT =
   "Supabase table public.shop_products is missing. Run supabase/catalog.sql in Supabase SQL Editor.";
+const MISSING_COLUMNS_HINT =
+  "Your shop_products schema is outdated. Run the updated supabase/catalog.sql in Supabase SQL Editor and refresh.";
+const NETWORK_LOCK_VALUES = new Set(["Unlocked", "Locked"]);
 
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -138,6 +141,10 @@ function mapRowToProduct(row) {
     brand: row?.brand,
     condition: row?.condition,
     category: row?.category,
+    storageGb: row?.storage_gb,
+    batteryHealth: row?.battery_health,
+    networkLock: row?.network_lock,
+    networkCarrier: row?.network_carrier,
     basePriceUsd: row?.base_price_usd,
     stock: row?.stock,
     image: row?.image,
@@ -173,6 +180,57 @@ function normalizePayload(payload, { partial = false } = {}) {
     if (category) result.category = category;
   }
 
+  if (!partial || Object.prototype.hasOwnProperty.call(payload, "storageGb")) {
+    const rawStorageGb = payload?.storageGb;
+    if (rawStorageGb === "" || rawStorageGb == null) {
+      result.storage_gb = null;
+    } else {
+      const storageGb = toInteger(rawStorageGb, NaN);
+      if (!Number.isFinite(storageGb) || storageGb < 1 || storageGb > 8192) {
+        return { error: "Storage (GB) must be between 1 and 8192." };
+      }
+      result.storage_gb = storageGb;
+    }
+  }
+
+  if (!partial || Object.prototype.hasOwnProperty.call(payload, "batteryHealth")) {
+    const rawBatteryHealth = payload?.batteryHealth;
+    if (rawBatteryHealth === "" || rawBatteryHealth == null) {
+      result.battery_health = null;
+    } else {
+      const batteryHealth = toInteger(rawBatteryHealth, NaN);
+      if (!Number.isFinite(batteryHealth) || batteryHealth < 0 || batteryHealth > 100) {
+        return { error: "Battery health must be between 0 and 100." };
+      }
+      result.battery_health = batteryHealth;
+    }
+  }
+
+  const hasNetworkLock = Object.prototype.hasOwnProperty.call(payload, "networkLock");
+  let normalizedNetworkLock = null;
+  if (!partial || hasNetworkLock) {
+    const networkLock = String(payload?.networkLock || "").trim() || "Unlocked";
+    if (!NETWORK_LOCK_VALUES.has(networkLock)) {
+      return { error: "Network lock must be Unlocked or Locked." };
+    }
+    normalizedNetworkLock = networkLock;
+    result.network_lock = networkLock;
+  }
+
+  const hasNetworkCarrier = Object.prototype.hasOwnProperty.call(payload, "networkCarrier");
+  if (!partial || hasNetworkCarrier || hasNetworkLock) {
+    const networkCarrier = String(payload?.networkCarrier || "").trim();
+    const lockToUse = normalizedNetworkLock || String(payload?.networkLock || "").trim() || "Unlocked";
+    if (lockToUse === "Locked") {
+      if (!networkCarrier) {
+        return { error: "Select a network carrier when the device is locked." };
+      }
+      result.network_carrier = networkCarrier;
+    } else {
+      result.network_carrier = "";
+    }
+  }
+
   if (!partial || Object.prototype.hasOwnProperty.call(payload, "basePriceUsd")) {
     const basePriceUsd = toNumber(payload?.basePriceUsd, NaN);
     if (!Number.isFinite(basePriceUsd) || basePriceUsd < 0) {
@@ -199,6 +257,14 @@ function normalizePayload(payload, { partial = false } = {}) {
   return { value: result };
 }
 
+function addCatalogColumnsHint(errorMessage, rawError) {
+  const rawText = String(rawError || "");
+  if (/(storage_gb|battery_health|network_lock|network_carrier)/i.test(rawText) && /does not exist/i.test(rawText)) {
+    return `${errorMessage} ${MISSING_COLUMNS_HINT}`;
+  }
+  return errorMessage;
+}
+
 function sortProducts(rows) {
   return [...rows].sort((a, b) => {
     const aOrder = Number(a?.sort_order ?? 0);
@@ -210,13 +276,16 @@ function sortProducts(rows) {
 
 async function loadProducts() {
   const response = await supabaseRest(
-    "shop_products?select=id,name,brand,condition,category,base_price_usd,stock,image,details,is_active,sort_order,created_at"
+    "shop_products?select=id,name,brand,condition,category,storage_gb,battery_health,network_lock,network_carrier,base_price_usd,stock,image,details,is_active,sort_order,created_at"
   );
 
   if (!response.ok) {
     return {
       ok: false,
-      error: normalizeSupabaseError(response.error, "Load products", MISSING_TABLE_HINT),
+      error: addCatalogColumnsHint(
+        normalizeSupabaseError(response.error, "Load products", MISSING_TABLE_HINT),
+        response.error
+      ),
       status: response.status,
     };
   }
@@ -317,9 +386,10 @@ export default async function handler(req, res) {
       });
 
       if (!response.ok) {
+        const normalizedError = normalizeSupabaseError(response.error, "Create product", MISSING_TABLE_HINT);
         return json(res, 502, {
           ok: false,
-          error: normalizeSupabaseError(response.error, "Create product", MISSING_TABLE_HINT),
+          error: addCatalogColumnsHint(normalizedError, response.error),
         });
       }
 
@@ -356,9 +426,10 @@ export default async function handler(req, res) {
       });
 
       if (!response.ok) {
+        const normalizedError = normalizeSupabaseError(response.error, "Update product", MISSING_TABLE_HINT);
         return json(res, 502, {
           ok: false,
-          error: normalizeSupabaseError(response.error, "Update product", MISSING_TABLE_HINT),
+          error: addCatalogColumnsHint(normalizedError, response.error),
         });
       }
 

@@ -1,3 +1,36 @@
+export const SHOP_CATEGORY_OPTIONS = [
+  "Phones",
+  "Laptops",
+  "Tablets",
+  "Wearables",
+  "Audio",
+  "Gaming",
+  "Accessories",
+  "Smart Home",
+  "Cameras",
+  "Networking",
+  "Storage",
+  "Monitors",
+  "Components",
+];
+
+export const STORAGE_GB_OPTIONS = [16, 32, 64, 128, 256, 512, 1024, 2048];
+export const NETWORK_LOCK_OPTIONS = ["Unlocked", "Locked"];
+export const NETWORK_CARRIER_OPTIONS = [
+  "MTN",
+  "Airtel",
+  "Glo",
+  "9mobile",
+  "Verizon",
+  "AT&T",
+  "T-Mobile",
+  "Vodafone",
+  "Orange",
+  "EE",
+  "O2",
+  "Other",
+];
+
 export const DEFAULT_PRODUCTS = [
   {
     id: "iphone-13-used",
@@ -5,6 +38,10 @@ export const DEFAULT_PRODUCTS = [
     brand: "Apple",
     condition: "Used - Excellent",
     category: "Phones",
+    storageGb: 128,
+    batteryHealth: 89,
+    networkLock: "Unlocked",
+    networkCarrier: "",
     basePriceUsd: 520,
     stock: 4,
     image:
@@ -19,6 +56,10 @@ export const DEFAULT_PRODUCTS = [
     brand: "Samsung",
     condition: "New",
     category: "Phones",
+    storageGb: 256,
+    batteryHealth: null,
+    networkLock: "Unlocked",
+    networkCarrier: "",
     basePriceUsd: 760,
     stock: 6,
     image:
@@ -33,6 +74,10 @@ export const DEFAULT_PRODUCTS = [
     brand: "Dell",
     condition: "Used - Very Good",
     category: "Laptops",
+    storageGb: 512,
+    batteryHealth: null,
+    networkLock: "Unlocked",
+    networkCarrier: "",
     basePriceUsd: 680,
     stock: 3,
     image:
@@ -47,6 +92,10 @@ export const DEFAULT_PRODUCTS = [
     brand: "Apple",
     condition: "New",
     category: "Accessories",
+    storageGb: null,
+    batteryHealth: null,
+    networkLock: "Unlocked",
+    networkCarrier: "",
     basePriceUsd: 210,
     stock: 10,
     image:
@@ -61,6 +110,10 @@ export const DEFAULT_PRODUCTS = [
     brand: "Sony",
     condition: "Used - Excellent",
     category: "Gaming",
+    storageGb: 825,
+    batteryHealth: null,
+    networkLock: "Unlocked",
+    networkCarrier: "",
     basePriceUsd: 440,
     stock: 5,
     image:
@@ -75,6 +128,10 @@ export const DEFAULT_PRODUCTS = [
     brand: "Apple",
     condition: "New",
     category: "Wearables",
+    storageGb: 64,
+    batteryHealth: null,
+    networkLock: "Unlocked",
+    networkCarrier: "",
     basePriceUsd: 350,
     stock: 7,
     image:
@@ -102,6 +159,14 @@ function toNumber(value, fallback = 0) {
 function toInteger(value, fallback = 0) {
   const num = Number.parseInt(String(value), 10);
   return Number.isFinite(num) ? num : fallback;
+}
+
+function toNullableInteger(value, { min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY } = {}) {
+  if (value == null || value === "") return null;
+  const num = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(num)) return null;
+  if (num < min || num > max) return null;
+  return num;
 }
 
 function normalizeBoolean(value, fallback = false) {
@@ -158,6 +223,11 @@ function normalizeProductImages(raw) {
   return unique.slice(0, 5);
 }
 
+function normalizeNetworkLock(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "locked" ? "Locked" : "Unlocked";
+}
+
 export function normalizeShippingConfig(raw) {
   const mode = SHIPPING_MODES.has(String(raw?.mode || "").toLowerCase())
     ? String(raw.mode).toLowerCase()
@@ -174,6 +244,9 @@ export function normalizeShippingConfig(raw) {
 export function normalizeProduct(raw) {
   const id = String(raw?.id || "").trim();
   const images = normalizeProductImages(raw);
+  const networkLock = normalizeNetworkLock(raw?.networkLock ?? raw?.network_lock);
+  const networkCarrier =
+    networkLock === "Locked" ? String(raw?.networkCarrier ?? raw?.network_carrier ?? "").trim() : "";
 
   return {
     id,
@@ -181,6 +254,10 @@ export function normalizeProduct(raw) {
     brand: String(raw?.brand || "").trim() || "Sirdavid",
     condition: String(raw?.condition || "").trim() || "Used - Good",
     category: String(raw?.category || "").trim() || "Accessories",
+    storageGb: toNullableInteger(raw?.storageGb ?? raw?.storage_gb, { min: 1, max: 8192 }),
+    batteryHealth: toNullableInteger(raw?.batteryHealth ?? raw?.battery_health, { min: 0, max: 100 }),
+    networkLock,
+    networkCarrier,
     basePriceUsd: Math.max(0, toNumber(raw?.basePriceUsd, 0)),
     stock: Math.max(0, toInteger(raw?.stock, 0)),
     image: images[0] || "",

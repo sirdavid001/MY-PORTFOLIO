@@ -4,6 +4,10 @@ create table if not exists public.shop_products (
   brand text not null default 'Sirdavid',
   condition text not null default 'Used - Good',
   category text not null default 'Accessories',
+  storage_gb integer,
+  battery_health integer,
+  network_lock text not null default 'Unlocked',
+  network_carrier text not null default '',
   base_price_usd numeric not null default 0,
   stock integer not null default 0,
   image text,
@@ -13,6 +17,24 @@ create table if not exists public.shop_products (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table if exists public.shop_products
+  add column if not exists storage_gb integer;
+
+alter table if exists public.shop_products
+  add column if not exists battery_health integer;
+
+alter table if exists public.shop_products
+  add column if not exists network_lock text not null default 'Unlocked';
+
+alter table if exists public.shop_products
+  add column if not exists network_carrier text not null default '';
+
+update public.shop_products
+set
+  network_lock = coalesce(network_lock, 'Unlocked'),
+  network_carrier = coalesce(network_carrier, '')
+where network_lock is null or network_carrier is null;
 
 create table if not exists public.shop_settings (
   id smallint primary key check (id = 1),
@@ -37,6 +59,10 @@ insert into public.shop_products (
   brand,
   condition,
   category,
+  storage_gb,
+  battery_health,
+  network_lock,
+  network_carrier,
   base_price_usd,
   stock,
   image,
@@ -51,6 +77,10 @@ values
     'Apple',
     'Used - Excellent',
     'Phones',
+    128,
+    89,
+    'Unlocked',
+    '',
     520,
     4,
     'https://images.unsplash.com/photo-1589492477829-5e65395b66cc?auto=format&fit=crop&w=900&q=80',
@@ -64,6 +94,10 @@ values
     'Samsung',
     'New',
     'Phones',
+    256,
+    null,
+    'Unlocked',
+    '',
     760,
     6,
     'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=900&q=80',
@@ -77,6 +111,10 @@ values
     'Dell',
     'Used - Very Good',
     'Laptops',
+    512,
+    null,
+    'Unlocked',
+    '',
     680,
     3,
     'https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?auto=format&fit=crop&w=900&q=80',
@@ -90,6 +128,10 @@ values
     'Apple',
     'New',
     'Accessories',
+    null,
+    null,
+    'Unlocked',
+    '',
     210,
     10,
     'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f37?auto=format&fit=crop&w=900&q=80',
@@ -103,6 +145,10 @@ values
     'Sony',
     'Used - Excellent',
     'Gaming',
+    825,
+    null,
+    'Unlocked',
+    '',
     440,
     5,
     'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=900&q=80',
@@ -116,6 +162,10 @@ values
     'Apple',
     'New',
     'Wearables',
+    64,
+    null,
+    'Unlocked',
+    '',
     350,
     7,
     'https://images.unsplash.com/photo-1579586337278-3f436f25d4d6?auto=format&fit=crop&w=900&q=80',

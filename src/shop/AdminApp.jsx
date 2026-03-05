@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiLogOut, FiRefreshCw } from "react-icons/fi";
+import { FiChevronDown, FiChevronUp, FiLogOut, FiRefreshCw } from "react-icons/fi";
 import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
 import { BrandPill } from "./brandIdentity";
-import { defaultShippingConfig, normalizeProduct, normalizeShippingConfig } from "./products";
+import {
+  categoryOptions,
+  defaultShippingConfig,
+  networkCarrierOptions,
+  networkLockOptions,
+  normalizeProduct,
+  normalizeShippingConfig,
+  storageGbOptions,
+} from "./products";
 
 const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring";
@@ -17,22 +25,10 @@ const statusOptions = [
   { value: "completed", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ];
-const initialCategoryOptions = [
-  "Phones",
-  "Laptops",
-  "Tablets",
-  "Wearables",
-  "Audio",
-  "Gaming",
-  "Accessories",
-  "Smart Home",
-  "Cameras",
-  "Networking",
-  "Storage",
-  "Monitors",
-  "Components",
-];
+const initialCategoryOptions = categoryOptions;
 const initialConditionOptions = ["New", "Used", "Used - Excellent", "Used - Very Good", "Used - Good"];
+const carrierCategorySet = new Set(["phones", "tablets", "wearables"]);
+const batteryHealthCategorySet = new Set(["phones", "tablets", "wearables"]);
 const FALLBACK_NGN_PER_USD = 1600;
 const ADMIN_BASE_PATH = "/secure-admin-portal-xyz";
 const adminPages = [
@@ -268,11 +264,33 @@ const nonPhoneModelsByBrand = {
   },
 };
 
+function getDefaultStorageGbForCategory(category) {
+  const normalized = String(category || "").trim().toLowerCase();
+  if (normalized === "phones") return 128;
+  if (normalized === "tablets") return 128;
+  if (normalized === "laptops") return 512;
+  if (normalized === "gaming") return 512;
+  if (normalized === "wearables") return 64;
+  return null;
+}
+
+function categorySupportsCarrierSelection(category) {
+  return carrierCategorySet.has(String(category || "").trim().toLowerCase());
+}
+
+function categorySupportsBatterySelection(category) {
+  return batteryHealthCategorySet.has(String(category || "").trim().toLowerCase());
+}
+
 function buildPhoneEntries(models) {
   return models.map((model) => ({
     model,
     category: "Phones",
     condition: "Used - Excellent",
+    storageGb: 128,
+    batteryHealth: 88,
+    networkLock: "Unlocked",
+    networkCarrier: "",
     details: "Popular phone model from 2020 to current lineup. Confirm exact storage and variant before publishing.",
   }));
 }
@@ -284,6 +302,10 @@ function buildCategoryEntries(brand) {
       model,
       category,
       condition: "Used - Very Good",
+      storageGb: getDefaultStorageGbForCategory(category),
+      batteryHealth: categorySupportsBatterySelection(category) ? 90 : null,
+      networkLock: categorySupportsCarrierSelection(category) ? "Unlocked" : "Unlocked",
+      networkCarrier: "",
       details: `${brand} ${category.toLowerCase()} model. Confirm exact variant and included accessories before publishing.`,
     }))
   );
@@ -332,6 +354,10 @@ const emptyProductForm = {
   brand: "",
   condition: "New",
   category: "",
+  storageGb: "",
+  batteryHealth: "",
+  networkLock: "Unlocked",
+  networkCarrier: "",
   basePriceNgn: "",
   images: [],
   details: "",
@@ -354,6 +380,10 @@ function normalizeProductForForm(product, ngnPerUsd) {
     brand: normalized.brand,
     condition: normalized.condition,
     category: normalized.category,
+    storageGb: normalized.storageGb == null ? "" : String(normalized.storageGb),
+    batteryHealth: normalized.batteryHealth == null ? "" : String(normalized.batteryHealth),
+    networkLock: normalized.networkLock || "Unlocked",
+    networkCarrier: normalized.networkCarrier || "",
     basePriceNgn: String(Math.round(normalized.basePriceUsd * ngnPerUsd)),
     images: Array.isArray(normalized.images) ? normalized.images.slice(0, MAX_PRODUCT_IMAGES) : [],
     details: normalized.details,
@@ -427,8 +457,13 @@ function normalizeOrderItems(items) {
 }
 
 function normalizeOrderStatus(status) {
-  const normalized = String(status || "").trim().toLowerCase();
+  const normalized = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (normalized === "inroute") return "in_route";
   if (normalized === "shipped") return "in_route";
+  if (normalized === "in_transit") return "in_route";
   if (normalized === "delivered") return "completed";
   if (normalized === "paid") return "paid";
   if (normalized === "processing") return "processing";
@@ -497,6 +532,9 @@ export default function AdminApp() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
   const [updatingOrderStatus, setUpdatingOrderStatus] = useState({});
+  const [expandedOrderRows, setExpandedOrderRows] = useState({});
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
 
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -574,6 +612,14 @@ export default function AdminApp() {
     ).filter(Boolean);
   }, [productForm.condition, products]);
   const selectedProductImages = useMemo(() => normalizeImageList(productForm.images), [productForm.images]);
+  const supportsCarrierSelection = useMemo(
+    () => categorySupportsCarrierSelection(productForm.category),
+    [productForm.category]
+  );
+  const supportsBatteryHealthSelection = useMemo(
+    () => categorySupportsBatterySelection(productForm.category),
+    [productForm.category]
+  );
   const gadgetCategories = useMemo(
     () =>
       Array.from(new Set(products.map((product) => String(product.category || "").trim()).filter(Boolean))).sort((a, b) =>
@@ -617,6 +663,60 @@ export default function AdminApp() {
     if (!tail) return "orders";
     return allowedAdminPageIds.has(tail) ? tail : "orders";
   }, [location.pathname]);
+  const ordersSummary = useMemo(() => {
+    const counts = {
+      new: 0,
+      paid: 0,
+      processing: 0,
+      in_route: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+    let revenue = 0;
+    orders.forEach((order) => {
+      const status = normalizeOrderStatus(order.status);
+      counts[status] = (counts[status] || 0) + 1;
+      const total = Number(order.total || 0);
+      if (Number.isFinite(total) && total > 0) revenue += total;
+    });
+    return {
+      total: orders.length,
+      revenue,
+      counts,
+    };
+  }, [orders]);
+  const visibleOrders = useMemo(() => {
+    const query = String(orderSearch || "").trim().toLowerCase();
+    const filtered = orders.filter((order) => {
+      const normalizedStatus = normalizeOrderStatus(order.status);
+      const statusMatch = orderStatusFilter === "all" || normalizedStatus === orderStatusFilter;
+      if (!statusMatch) return false;
+      if (!query) return true;
+
+      const tracking = resolveOrderTrackingNumber(order);
+      const searchable = [
+        order.reference,
+        order.customer_name,
+        order.customer_email,
+        order.customer_phone,
+        order.address,
+        order.city,
+        order.country,
+        tracking,
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
+
+      return searchable.includes(query);
+    });
+
+    const toTimestamp = (value) => {
+      const timestamp = Date.parse(String(value || ""));
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
+
+    return filtered.sort((a, b) => toTimestamp(b.created_at) - toTimestamp(a.created_at));
+  }, [orders, orderSearch, orderStatusFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -854,6 +954,14 @@ export default function AdminApp() {
     await updateOrder(orderId, { status: nextStatus }, "Status update failed.");
   }
 
+  function toggleOrderDetails(orderId) {
+    const key = String(orderId);
+    setExpandedOrderRows((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  }
+
   function handleBrandChange(nextBrand) {
     const brand = String(nextBrand || "").trim();
     setProductForm((prev) => {
@@ -875,6 +983,9 @@ export default function AdminApp() {
   function handleCategoryChange(nextCategory) {
     const category = String(nextCategory || "").trim();
     const normalizedCategory = category.toLowerCase();
+    const supportsCarrier = categorySupportsCarrierSelection(category);
+    const supportsBattery = categorySupportsBatterySelection(category);
+    const defaultStorageGb = getDefaultStorageGbForCategory(category);
 
     setProductForm((prev) => {
       const selectedBrand = String(prev.brand || "").trim();
@@ -889,6 +1000,10 @@ export default function AdminApp() {
         ...prev,
         category,
         model: existingModelStillValid ? prev.model : "",
+        storageGb: prev.storageGb || (defaultStorageGb == null ? "" : String(defaultStorageGb)),
+        networkLock: supportsCarrier ? prev.networkLock || "Unlocked" : "Unlocked",
+        networkCarrier: supportsCarrier && prev.networkLock === "Locked" ? prev.networkCarrier : "",
+        batteryHealth: supportsBattery ? prev.batteryHealth : "",
       };
     });
   }
@@ -909,6 +1024,21 @@ export default function AdminApp() {
         name: model || prev.name,
         category: template?.category || prev.category,
         condition: template?.condition || prev.condition,
+        storageGb:
+          template?.storageGb != null
+            ? String(template.storageGb)
+            : prev.storageGb || String(getDefaultStorageGbForCategory(template?.category || prev.category) || ""),
+        networkLock: template?.networkLock || prev.networkLock || "Unlocked",
+        networkCarrier:
+          (template?.networkLock || prev.networkLock || "Unlocked") === "Locked"
+            ? template?.networkCarrier || prev.networkCarrier
+            : "",
+        batteryHealth:
+          template?.batteryHealth != null
+            ? String(template.batteryHealth)
+            : categorySupportsBatterySelection(template?.category || prev.category)
+              ? prev.batteryHealth
+              : "",
         details: template?.details || prev.details,
         images: nextImages,
       };
@@ -978,6 +1108,22 @@ export default function AdminApp() {
     setImageUploadError("");
     setSavingProduct(true);
     const normalizedImages = normalizeImageList(productForm.images);
+    const parsedStorageGb = Number.parseInt(String(productForm.storageGb || ""), 10);
+    const parsedBatteryHealth = Number.parseInt(String(productForm.batteryHealth || ""), 10);
+
+    if (supportsCarrierSelection && productForm.networkLock === "Locked" && !String(productForm.networkCarrier || "").trim()) {
+      setProductsError("Select a network carrier for locked devices.");
+      setSavingProduct(false);
+      return;
+    }
+
+    if (productForm.batteryHealth !== "") {
+      if (!Number.isFinite(parsedBatteryHealth) || parsedBatteryHealth < 0 || parsedBatteryHealth > 100) {
+        setProductsError("Battery health must be between 0 and 100.");
+        setSavingProduct(false);
+        return;
+      }
+    }
 
     const payload = {
       id: productForm.id.trim(),
@@ -985,6 +1131,14 @@ export default function AdminApp() {
       brand: String(productForm.brand || "").trim(),
       condition: String(productForm.condition || "").trim(),
       category: String(productForm.category || "").trim(),
+      storageGb: Number.isFinite(parsedStorageGb) && parsedStorageGb > 0 ? parsedStorageGb : null,
+      batteryHealth:
+        supportsBatteryHealthSelection && Number.isFinite(parsedBatteryHealth) ? parsedBatteryHealth : null,
+      networkLock: supportsCarrierSelection ? productForm.networkLock || "Unlocked" : "Unlocked",
+      networkCarrier:
+        supportsCarrierSelection && productForm.networkLock === "Locked"
+          ? String(productForm.networkCarrier || "").trim()
+          : "",
       basePriceUsd: Number(productForm.basePriceNgn || 0) / Math.max(1, ngnPerUsd),
       images: normalizedImages,
       details: String(productForm.details || "").trim(),
@@ -1166,6 +1320,9 @@ export default function AdminApp() {
 
     setIsAuthed(false);
     setOrders([]);
+    setExpandedOrderRows({});
+    setOrderSearch("");
+    setOrderStatusFilter("all");
     setProducts([]);
     setPassword("");
     setEditingProductId("");
@@ -1301,19 +1458,78 @@ export default function AdminApp() {
         <main className="mt-6 space-y-6">
             {activePage === "orders" && (
               <section className="rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                  <h2 className="font-display text-xl font-semibold text-slate-900">Orders</h2>
-                  {ordersLoading ? <span className="text-xs text-slate-500">Loading...</span> : null}
-                </div>
-                {ordersError && <p className="px-4 pt-3 text-sm text-rose-600">{ordersError}</p>}
-                {isOrdersTableMissing && (
-                  <p className="px-4 pt-2 text-xs text-slate-600">
-                    Run <code>supabase/orders.sql</code> in Supabase SQL Editor, then refresh.
-                  </p>
-                )}
+                <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="font-display text-2xl font-semibold text-slate-900">Orders</h2>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Monitor paid orders, update statuses, and track customer fulfillment progress.
+                      </p>
+                    </div>
+                    {ordersLoading ? <span className="text-xs text-slate-500">Loading...</span> : null}
+                  </div>
 
-                <div className="divide-y divide-slate-100">
-                  {orders.map((order) => {
+                  {ordersError && <p className="mt-3 text-sm text-rose-600">{ordersError}</p>}
+                  {isOrdersTableMissing && (
+                    <p className="mt-2 text-xs text-slate-600">
+                      Run <code>supabase/orders.sql</code> in Supabase SQL Editor, then refresh.
+                    </p>
+                  )}
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Total Orders</p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">{ordersSummary.total}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Revenue</p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(ordersSummary.revenue, "NGN")}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pending</p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">{ordersSummary.counts.new}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Processing</p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">{ordersSummary.counts.processing}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">In Route</p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">{ordersSummary.counts.in_route}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Delivered</p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">{ordersSummary.counts.completed}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-[1.2fr_0.8fr] xl:grid-cols-[1.6fr_1fr_auto]">
+                    <input
+                      value={orderSearch}
+                      onChange={(event) => setOrderSearch(event.target.value)}
+                      placeholder="Search by reference, customer, email, phone, or tracking number"
+                      className={inputClass}
+                    />
+                    <select
+                      value={orderStatusFilter}
+                      onChange={(event) => setOrderStatusFilter(event.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="all">All statuses</option>
+                      {statusOptions.map((status) => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
+                      Showing {visibleOrders.length}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4 sm:p-5 lg:hidden">
+                  {visibleOrders.map((order) => {
                     const orderItems = normalizeOrderItems(order.items);
                     const currency = order.currency || "USD";
                     const addressParts = [order.address, order.city, order.country]
@@ -1322,20 +1538,19 @@ export default function AdminApp() {
                     const deliveryAddress = addressParts.length > 0 ? addressParts.join(", ") : "N/A";
                     const subtotal = Number(order.subtotal || 0);
                     const shippingFee = Number(order.shipping || 0);
-                    const hasBreakdown = Number.isFinite(subtotal) && Number.isFinite(shippingFee) && (subtotal > 0 || shippingFee > 0);
+                    const hasBreakdown =
+                      Number.isFinite(subtotal) && Number.isFinite(shippingFee) && (subtotal > 0 || shippingFee > 0);
                     const resolvedTrackingNumber = resolveOrderTrackingNumber(order);
                     const isUpdatingOrder = Boolean(updatingOrderStatus[String(order.id)]);
+                    const trackingLink = `/track-order?reference=${encodeURIComponent(String(order.reference || ""))}`;
 
                     return (
-                      <article key={order.id} className="px-4 py-4 sm:px-5">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
+                      <article key={order.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">{order.reference}</p>
+                            <p className="text-base font-semibold text-slate-900">{order.reference}</p>
                             <p className="mt-1 text-xs text-slate-500">
                               {order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown creation time"}
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-slate-900">
-                              {formatMoney(order.total || 0, currency)}
                             </p>
                           </div>
 
@@ -1362,7 +1577,7 @@ export default function AdminApp() {
                           </div>
                         </div>
 
-                        <div className="mt-4 grid gap-3 xl:grid-cols-[1.6fr_1fr]">
+                        <div className="grid gap-3 p-4 sm:p-5 xl:grid-cols-[1.6fr_1fr]">
                           <section className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Items Purchased</p>
                             {orderItems.length > 0 ? (
@@ -1421,25 +1636,228 @@ export default function AdminApp() {
 
                             <section className="rounded-2xl border border-slate-200 bg-white p-3">
                               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Tracking</p>
-                              <p className="mt-2 text-xs text-slate-500">
-                                Tracking number is generated automatically after payment confirmation.
-                              </p>
-                              <p className="mt-2 text-xs text-slate-600">
-                                Tracking Number: {resolvedTrackingNumber || "N/A"}
-                              </p>
+                              <p className="mt-2 text-xs text-slate-600">Tracking Number: {resolvedTrackingNumber || "N/A"}</p>
+                              {order.reference ? (
+                                <a
+                                  href={trackingLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-2 inline-flex rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                >
+                                  Open Tracking Page
+                                </a>
+                              ) : null}
                             </section>
                           </div>
                         </div>
                       </article>
                     );
                   })}
-
-                  {!ordersLoading && orders.length === 0 && (
-                    <div className="px-4 py-8 text-center text-slate-500">
-                      No orders found yet. Only paid orders synced to Supabase appear here.
-                    </div>
-                  )}
                 </div>
+
+                <div className="hidden lg:block p-4 sm:p-5">
+                  {visibleOrders.length > 0 ? (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200">
+                      <table className="min-w-full border-collapse">
+                        <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                          <tr>
+                            <th className="px-3 py-2">Date</th>
+                            <th className="px-3 py-2">Reference</th>
+                            <th className="px-3 py-2">Customer</th>
+                            <th className="px-3 py-2">Items</th>
+                            <th className="px-3 py-2">Total</th>
+                            <th className="px-3 py-2">Status</th>
+                            <th className="px-3 py-2">Update</th>
+                            <th className="px-3 py-2">Tracking</th>
+                            <th className="px-3 py-2 text-right">Details</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white text-sm">
+                          {visibleOrders.map((order) => {
+                            const key = String(order.id);
+                            const orderItems = normalizeOrderItems(order.items);
+                            const currency = order.currency || "USD";
+                            const addressParts = [order.address, order.city, order.country]
+                              .map((value) => String(value || "").trim())
+                              .filter(Boolean);
+                            const deliveryAddress = addressParts.length > 0 ? addressParts.join(", ") : "N/A";
+                            const subtotal = Number(order.subtotal || 0);
+                            const shippingFee = Number(order.shipping || 0);
+                            const hasBreakdown =
+                              Number.isFinite(subtotal) && Number.isFinite(shippingFee) && (subtotal > 0 || shippingFee > 0);
+                            const resolvedTrackingNumber = resolveOrderTrackingNumber(order);
+                            const isUpdatingOrder = Boolean(updatingOrderStatus[key]);
+                            const isExpanded = Boolean(expandedOrderRows[key]);
+                            const trackingLink = `/track-order?reference=${encodeURIComponent(String(order.reference || ""))}`;
+
+                            return (
+                              <Fragment key={key}>
+                                <tr className="align-top">
+                                  <td className="px-3 py-3 text-xs text-slate-500">
+                                    {order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown"}
+                                  </td>
+                                  <td className="px-3 py-3 font-semibold text-slate-900">{order.reference}</td>
+                                  <td className="px-3 py-3">
+                                    <p className="font-medium text-slate-900">{order.customer_name || "N/A"}</p>
+                                    <p className="text-xs text-slate-500">{order.customer_email || "No email"}</p>
+                                  </td>
+                                  <td className="px-3 py-3 text-slate-700">
+                                    {orderItems.length > 0 ? `${orderItems.length} item(s)` : "No items"}
+                                  </td>
+                                  <td className="px-3 py-3 font-semibold text-slate-900">
+                                    {formatMoney(order.total || 0, currency)}
+                                  </td>
+                                  <td className="px-3 py-3">
+                                    <span
+                                      className={`rounded-full border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] ${orderStatusBadgeClass(
+                                        order.status
+                                      )}`}
+                                    >
+                                      {orderStatusLabel(order.status)}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-3">
+                                    <select
+                                      value={normalizeOrderStatus(order.status || "new")}
+                                      disabled={isUpdatingOrder}
+                                      onChange={(event) => updateStatus(order.id, event.target.value)}
+                                      className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none ring-cyan-300/60 focus:border-cyan-500 focus:ring"
+                                    >
+                                      {statusOptions.map((status) => (
+                                        <option key={status.value} value={status.value}>
+                                          {status.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                  <td className="px-3 py-3 text-xs text-slate-600">
+                                    <div className="max-w-[200px] truncate" title={resolvedTrackingNumber || "N/A"}>
+                                      {resolvedTrackingNumber || "N/A"}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleOrderDetails(order.id)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                    >
+                                      {isExpanded ? "Hide" : "View"}
+                                      {isExpanded ? <FiChevronUp className="h-3.5 w-3.5" /> : <FiChevronDown className="h-3.5 w-3.5" />}
+                                    </button>
+                                  </td>
+                                </tr>
+                                {isExpanded ? (
+                                  <tr className="bg-slate-50/70">
+                                    <td colSpan={9} className="px-3 py-3">
+                                      <div className="grid gap-3 xl:grid-cols-[1.6fr_1fr]">
+                                        <section className="rounded-xl border border-slate-200 bg-white p-3">
+                                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                                            Items Purchased
+                                          </p>
+                                          {orderItems.length > 0 ? (
+                                            <div className="mt-2 space-y-2">
+                                              {orderItems.map((item, index) => {
+                                                const lineTotal = item.unitPrice == null ? null : item.unitPrice * item.quantity;
+                                                return (
+                                                  <div
+                                                    key={`${item.id}-${index}`}
+                                                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                                                  >
+                                                    <p className="font-semibold text-slate-900">{item.name}</p>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                                                      <span>Qty: {item.quantity}</span>
+                                                      {item.unitPrice != null ? (
+                                                        <span>Unit: {formatMoney(item.unitPrice, currency)}</span>
+                                                      ) : (
+                                                        <span>Unit: N/A</span>
+                                                      )}
+                                                      {lineTotal != null ? <span>Line: {formatMoney(lineTotal, currency)}</span> : null}
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          ) : (
+                                            <p className="mt-2 text-sm text-slate-500">No line items were captured for this order.</p>
+                                          )}
+                                        </section>
+
+                                        <div className="space-y-3">
+                                          <section className="rounded-xl border border-slate-200 bg-white p-3">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                                              Customer Details
+                                            </p>
+                                            <p className="mt-2 text-sm font-semibold text-slate-900">{order.customer_name || "N/A"}</p>
+                                            <p className="mt-1 text-xs text-slate-600">{order.customer_email || "No email provided"}</p>
+                                            <p className="mt-1 text-xs text-slate-600">{order.customer_phone || "No phone provided"}</p>
+                                            <p className="mt-2 text-xs text-slate-600">{deliveryAddress}</p>
+                                          </section>
+
+                                          <section className="rounded-xl border border-slate-200 bg-white p-3">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                                              Payment & Totals
+                                            </p>
+                                            <p className="mt-2 text-xs text-slate-600">
+                                              Method: {String(order.payment_method || "Paystack").trim() || "Paystack"}
+                                            </p>
+                                            {hasBreakdown ? (
+                                              <>
+                                                <p className="mt-1 text-xs text-slate-600">
+                                                  Subtotal: {formatMoney(subtotal, currency)}
+                                                </p>
+                                                <p className="mt-1 text-xs text-slate-600">
+                                                  Shipping: {formatMoney(shippingFee, currency)}
+                                                </p>
+                                              </>
+                                            ) : null}
+                                            <p className="mt-1 text-sm font-semibold text-slate-900">
+                                              Total: {formatMoney(order.total || 0, currency)}
+                                            </p>
+                                            {order.notes ? <p className="mt-2 text-xs text-slate-600">Notes: {order.notes}</p> : null}
+                                          </section>
+
+                                          <section className="rounded-xl border border-slate-200 bg-white p-3">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                                              Tracking
+                                            </p>
+                                            <p className="mt-2 text-xs text-slate-600">
+                                              Tracking Number: {resolvedTrackingNumber || "N/A"}
+                                            </p>
+                                            {order.reference ? (
+                                              <a
+                                                href={trackingLink}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="mt-2 inline-flex rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                              >
+                                                Open Tracking Page
+                                              </a>
+                                            ) : null}
+                                          </section>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ) : null}
+                              </Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+                </div>
+
+                {!ordersLoading && orders.length === 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-slate-500">
+                    No orders found yet. Only paid orders synced to Supabase appear here.
+                  </div>
+                )}
+                {!ordersLoading && orders.length > 0 && visibleOrders.length === 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-slate-500">
+                    No orders match the current search/filter.
+                  </div>
+                )}
               </section>
             )}
 
@@ -1558,6 +1976,88 @@ export default function AdminApp() {
                         onChange={(event) => setProductForm((prev) => ({ ...prev, basePriceNgn: event.target.value }))}
                         required
                       />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Storage (GB)</p>
+                      <select
+                        className={inputClass}
+                        value={productForm.storageGb}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, storageGb: event.target.value }))}
+                      >
+                        <option value="">Select storage</option>
+                        {storageGbOptions.map((sizeGb) => (
+                          <option key={sizeGb} value={sizeGb}>
+                            {sizeGb}GB
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Network</p>
+                      <select
+                        className={inputClass}
+                        value={productForm.networkLock}
+                        onChange={(event) =>
+                          setProductForm((prev) => ({
+                            ...prev,
+                            networkLock: event.target.value,
+                            networkCarrier: event.target.value === "Locked" ? prev.networkCarrier : "",
+                          }))
+                        }
+                        disabled={!supportsCarrierSelection}
+                      >
+                        {networkLockOptions.map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                      {!supportsCarrierSelection ? (
+                        <p className="text-[11px] text-slate-500">Network lock applies to phones, tablets, and wearables.</p>
+                      ) : null}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Carrier</p>
+                      <select
+                        className={inputClass}
+                        value={productForm.networkCarrier}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, networkCarrier: event.target.value }))}
+                        disabled={!supportsCarrierSelection || productForm.networkLock !== "Locked"}
+                      >
+                        <option value="">
+                          {productForm.networkLock === "Locked" ? "Select carrier" : "Any carrier (unlocked)"}
+                        </option>
+                        {networkCarrierOptions.map((carrier) => (
+                          <option key={carrier} value={carrier}>
+                            {carrier}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Battery Health (%)
+                      </p>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        className={inputClass}
+                        placeholder={supportsBatteryHealthSelection ? "Example: 89" : "Not required"}
+                        value={productForm.batteryHealth}
+                        onChange={(event) => setProductForm((prev) => ({ ...prev, batteryHealth: event.target.value }))}
+                        disabled={!supportsBatteryHealthSelection}
+                      />
+                      {!supportsBatteryHealthSelection ? (
+                        <p className="text-[11px] text-slate-500">Battery health is mainly for phones, tablets, and wearables.</p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -1853,6 +2353,7 @@ export default function AdminApp() {
                             <tr>
                               <th className="px-3 py-2">Name</th>
                               <th className="px-3 py-2">Brand</th>
+                              <th className="px-3 py-2">Specs</th>
                               <th className="px-3 py-2">Price (NGN)</th>
                               <th className="px-3 py-2">Stock</th>
                               <th className="px-3 py-2">Active</th>
@@ -1868,6 +2369,28 @@ export default function AdminApp() {
                                 </td>
                                 <td className="px-3 py-2">
                                   <BrandPill brand={product.brand} />
+                                </td>
+                                <td className="px-3 py-2 text-xs text-slate-600">
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.storageGb ? (
+                                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5">
+                                        {product.storageGb}GB
+                                      </span>
+                                    ) : null}
+                                    {product.batteryHealth != null ? (
+                                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5">
+                                        Battery {product.batteryHealth}%
+                                      </span>
+                                    ) : null}
+                                    {product.networkLock ? (
+                                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5">
+                                        {product.networkLock}
+                                        {product.networkLock === "Locked" && product.networkCarrier
+                                          ? ` • ${product.networkCarrier}`
+                                          : ""}
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </td>
                                 <td className="px-3 py-2 font-semibold text-slate-900">
                                   {formatMoney(product.basePriceUsd * ngnPerUsd, "NGN")}

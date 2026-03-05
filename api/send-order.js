@@ -314,12 +314,28 @@ async function sendDiscordAlert({ webhookUrl, order, trackingUrl }) {
   }
 }
 
+function normalizeTrackingStatus(status) {
+  const normalized = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (normalized === "inroute") return "in_route";
+  if (normalized === "in_transit") return "in_route";
+  if (normalized === "shipped") return "in_route";
+  if (normalized === "delivered") return "completed";
+  if (normalized === "completed") return "completed";
+  if (normalized === "cancelled") return "cancelled";
+  if (normalized === "processing") return "processing";
+  if (normalized === "paid") return "paid";
+  return "new";
+}
+
 function statusMessage(status) {
-  const normalized = String(status || "").trim().toLowerCase();
+  const normalized = normalizeTrackingStatus(status);
   if (normalized === "paid") return "Payment confirmed. Your order is queued for processing.";
   if (normalized === "processing") return "Your order is being prepared for shipment.";
-  if (normalized === "in_route" || normalized === "shipped") return "Your order is in transit.";
-  if (normalized === "completed" || normalized === "delivered") return "Order delivered successfully.";
+  if (normalized === "in_route") return "Your order is in transit.";
+  if (normalized === "completed") return "Order delivered successfully.";
   if (normalized === "cancelled") return "Order was cancelled. Contact support if this is unexpected.";
   return "Order received and awaiting processing.";
 }
@@ -655,7 +671,7 @@ async function fetchTrackingFromSupabase(lookupValue) {
     tracking: {
       reference: order.reference,
       trackingNumber: order.tracking_number || generateTrackingNumber(order.reference) || null,
-      status: String(order.status || "new").toLowerCase(),
+      status: normalizeTrackingStatus(order.status),
       statusMessage: statusMessage(order.status),
       createdAt: order.created_at,
       total: Number(order.total || 0),
