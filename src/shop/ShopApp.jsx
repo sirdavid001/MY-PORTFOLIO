@@ -326,6 +326,16 @@ function normalizeTrackingStatus(status) {
   return "new";
 }
 
+function trackingStepIndex(status) {
+  const normalized = normalizeTrackingStatus(status);
+  if (normalized === "cancelled") return -1;
+  if (normalized === "completed") return 4;
+  if (normalized === "in_route") return 3;
+  if (normalized === "processing") return 2;
+  if (normalized === "paid") return 1;
+  return 0;
+}
+
 function trackingStatusLabel(status) {
   const normalized = normalizeTrackingStatus(status);
   if (normalized === "paid") return "Payment Confirmed";
@@ -921,6 +931,11 @@ export default function ShopApp() {
     setCheckoutErrors((prev) => ({ ...prev, [name]: undefined, cart: undefined }));
   }
 
+  const trackingProgressIndex = trackingOrder ? trackingStepIndex(trackingOrder.status) : 0;
+  const isTrackingCancelled = trackingOrder
+    ? normalizeTrackingStatus(trackingOrder.status) === "cancelled"
+    : false;
+
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-slate-900">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -1047,160 +1062,535 @@ export default function ShopApp() {
             </article>
           </section>
         ) : isTrackingPage ? (
-          <section className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Order Tracking</p>
-            <h1 className="mt-2 font-display text-3xl font-bold text-slate-900">Track your product</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Use your order reference or tracking number to view latest status.
-            </p>
+          <section className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+            <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 sm:px-8">
+                <p className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                  Order Tracking
+                </p>
+                <h1 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">Track your package</h1>
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-200 sm:text-base">
+                  Enter your order reference or tracking number to view real-time fulfillment status.
+                </p>
+              </div>
 
-            <form onSubmit={handleTrackOrder} className="mt-5 space-y-3">
-              <input
-                value={trackingReference}
-                onChange={(event) => setTrackingReference(event.target.value)}
-                className={inputClass}
-                placeholder="Order reference or tracking number"
-              />
-              <button
-                type="submit"
-                disabled={trackingState.state === "loading"}
-                className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-70"
-              >
-                {trackingState.state === "loading" ? "Checking..." : "Track Order"}
-              </button>
-            </form>
-
-            {trackingState.state === "error" ? (
-              <p className="mt-3 text-sm text-rose-600">{trackingState.message}</p>
-            ) : null}
-            {trackingState.state === "success" && trackingOrder ? (
-              <section className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">Reference {trackingOrder.reference}</p>
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.13em] ${trackingStatusPillClass(
-                      trackingOrder.status
-                    )}`}
+              <div className="space-y-5 p-6 sm:p-8">
+                <form onSubmit={handleTrackOrder} className="space-y-3">
+                  <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Order Reference / Tracking Number
+                  </label>
+                  <input
+                    value={trackingReference}
+                    onChange={(event) => setTrackingReference(event.target.value)}
+                    className={inputClass}
+                    placeholder="Example: SD-12345678 or SDV-12345678-AB12CD"
+                  />
+                  <button
+                    type="submit"
+                    disabled={trackingState.state === "loading"}
+                    className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-70"
                   >
-                    {trackingStatusLabel(trackingOrder.status)}
-                  </span>
+                    {trackingState.state === "loading" ? "Checking..." : "Track Order"}
+                  </button>
+                </form>
+
+                {trackingState.state === "error" ? (
+                  <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                    {trackingState.message}
+                  </p>
+                ) : null}
+
+                <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status Flow</p>
+                  <div className="mt-3 space-y-3">
+                    {[
+                      { key: "paid", label: "Payment Confirmed" },
+                      { key: "processing", label: "Order Processing" },
+                      { key: "in_route", label: "In Route" },
+                      { key: "completed", label: "Delivered" },
+                    ].map((step, index) => {
+                      const stepOrder = index + 1;
+                      const isCompleted = trackingProgressIndex >= stepOrder && !isTrackingCancelled;
+                      return (
+                        <div key={step.key} className="flex items-center gap-3">
+                          <span
+                            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${
+                              isCompleted
+                                ? "border-cyan-600 bg-cyan-600 text-white"
+                                : "border-slate-300 bg-white text-slate-500"
+                            }`}
+                          >
+                            {stepOrder}
+                          </span>
+                          <p className={`text-sm font-medium ${isCompleted ? "text-slate-900" : "text-slate-500"}`}>
+                            {step.label}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              </div>
+            </article>
+
+            <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Current Status</p>
+              {trackingState.state === "success" && trackingOrder ? (
+                <section className="mt-3 space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-900">Reference {trackingOrder.reference}</p>
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.13em] ${trackingStatusPillClass(
+                        trackingOrder.status
+                      )}`}
+                    >
+                      {trackingStatusLabel(trackingOrder.status)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-700">{trackingOrder.statusMessage}</p>
+
+                  <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                    <div className="flex items-center justify-between gap-3 text-slate-700">
+                      <span>Tracking number</span>
+                      <span className="font-semibold text-slate-900">
+                        {trackingOrder.trackingNumber || "Not assigned yet"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-slate-700">
+                      <span>Created</span>
+                      <span className="font-semibold text-slate-900">
+                        {trackingOrder.createdAt ? new Date(trackingOrder.createdAt).toLocaleString() : "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-slate-700">
+                      <span>Total</span>
+                      <span className="font-semibold text-slate-900">
+                        {formatMoney(trackingOrder.total || 0, trackingOrder.currency || activePricing.currency)}
+                      </span>
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  Enter your order reference to load delivery and payment status details.
                 </div>
-                <p className="mt-2 text-sm text-slate-700">{trackingOrder.statusMessage}</p>
-                <p className="mt-2 text-xs text-slate-600">
-                  Tracking number: {trackingOrder.trackingNumber || "Not assigned yet"}
-                </p>
-                <p className="mt-2 text-xs text-slate-600">
-                  Created:{" "}
-                  {trackingOrder.createdAt ? new Date(trackingOrder.createdAt).toLocaleString() : "N/A"}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Total: {formatMoney(trackingOrder.total || 0, trackingOrder.currency || activePricing.currency)}
-                </p>
-              </section>
-            ) : null}
+              )}
+            </aside>
           </section>
         ) : lastOrder ? (
-          <section className="mx-auto max-w-3xl rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              {lastOrder.paymentStatus === "paid" ? "Payment Successful" : "Order Placed"}
-            </p>
-            <h1 className="mt-3 font-display text-4xl font-bold text-slate-900">
-              {lastOrder.paymentStatus === "paid" ? "Payment Confirmed" : "Thank you for your order"}
-            </h1>
-            <p className="mt-3 text-slate-600">
-              Reference <span className="font-semibold text-slate-900">{lastOrder.reference}</span> was created
-              successfully.
-            </p>
-            <p className="mt-2 text-slate-600">
-              Total: <span className="font-semibold text-slate-900">{formatMoney(lastOrder.total, lastOrder.currency)}</span>
-            </p>
-            {sendStatus.state !== "idle" && (
-              <p
-                className={`mt-3 text-sm ${
-                  sendStatus.state === "error" ? "text-rose-600" : "text-emerald-700"
-                }`}
-              >
-                {sendStatus.message}
-              </p>
-            )}
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigate(`/track-order?reference=${encodeURIComponent(lastOrder.reference)}`)}
-                className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Track This Order
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLastOrder(null);
-                  setSendStatus({ state: "idle", message: "" });
-                  setPaymentStatus({ state: "idle", message: "" });
-                  navigate("/");
-                }}
-                className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                Continue Shopping
-              </button>
-            </div>
-          </section>
-        ) : (
-          <div className={isCartPage ? "mx-auto max-w-3xl" : "grid gap-6 lg:grid-cols-[1.6fr_1fr]"}>
-            {!isCartPage && (
-            <section>
-              <section className="overflow-hidden rounded-3xl bg-slate-900 px-6 py-10 text-white sm:px-10">
-                <p className="text-sm uppercase tracking-[0.2em] text-cyan-300">Trusted Devices</p>
-                <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
-                  New and Used Gadgets With Real Checkout Flow
-                </h1>
-                <p className="mt-4 max-w-3xl text-slate-200 sm:text-lg">
-                  Search, filter, add to cart, and place orders. Prices are shown in Naira and adjusted by visitor location.
+          <section className="mx-auto max-w-5xl space-y-6">
+            <article className="overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-sm">
+              <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-cyan-700 px-6 py-7 text-white sm:px-8">
+                <p className="inline-flex rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                  {lastOrder.paymentStatus === "paid" ? "Payment Successful" : "Order Placed"}
                 </p>
+                <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
+                  {lastOrder.paymentStatus === "paid" ? "Payment Confirmed" : "Order Received"}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-emerald-50 sm:text-base">
+                  Your order has been captured successfully and is now in our fulfillment queue.
+                </p>
+              </div>
+
+              <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Reference</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-slate-900">{lastOrder.reference}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Amount Paid</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {formatMoney(lastOrder.total, lastOrder.currency)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Payment</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {lastOrder.paymentStatus === "paid" ? "Confirmed" : "Pending"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Order Time</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {lastOrder.createdAt ? new Date(lastOrder.createdAt).toLocaleString() : "N/A"}
+                  </p>
+                </div>
+              </div>
+            </article>
+
+            <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+                <h2 className="font-display text-2xl font-semibold text-slate-900">What happens next</h2>
+                <ul className="mt-4 space-y-3 text-sm text-slate-700">
+                  <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    1. We confirm product availability and prepare dispatch.
+                  </li>
+                  <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    2. Tracking status updates as your order moves to processing and in-route.
+                  </li>
+                  <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    3. Delivery confirmation is reflected on the tracking page.
+                  </li>
+                </ul>
+                {sendStatus.state !== "idle" ? (
+                  <p
+                    className={`mt-4 rounded-xl border px-3 py-2 text-sm ${
+                      sendStatus.state === "error"
+                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {sendStatus.message}
+                  </p>
+                ) : null}
               </section>
 
-              <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search products..."
-                    className={inputClass}
-                  />
-                  <select
-                    value={activeCategory}
-                    onChange={(event) => setActiveCategory(event.target.value)}
-                    className={inputClass}
+              <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+                <h2 className="font-display text-2xl font-semibold text-slate-900">Order Actions</h2>
+                <p className="mt-2 text-sm text-slate-600">Track this order now or continue shopping.</p>
+                <div className="mt-5 space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/track-order?reference=${encodeURIComponent(lastOrder.reference)}`)}
+                    className="w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={conditionFilter}
-                    onChange={(event) => setConditionFilter(event.target.value)}
-                    className={inputClass}
+                    Track This Order
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLastOrder(null);
+                      setSendStatus({ state: "idle", message: "" });
+                      setPaymentStatus({ state: "idle", message: "" });
+                      navigate("/");
+                    }}
+                    className="w-full rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
                   >
-                    <option value="All">All Conditions</option>
-                    <option value="New">New</option>
-                    <option value="Used">Used</option>
-                  </select>
-                  <select
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value)}
-                    className={inputClass}
-                  >
-                    {sortOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                    Continue Shopping
+                  </button>
                 </div>
-                <div className="mt-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Browse by category</p>
+              </aside>
+            </div>
+          </section>
+        ) : isCartPage ? (
+          <section className="mx-auto max-w-6xl space-y-6">
+            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 text-white sm:px-8">
+                <p className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                  Checkout
+                </p>
+                <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">Complete your order</h1>
+                <p className="mt-2 max-w-2xl text-sm text-slate-200 sm:text-base">
+                  Review your cart, confirm delivery details, and place your order securely.
+                </p>
+              </div>
+              <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Items</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">{cartCount}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Subtotal</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {formatMoney(subtotal, activePricing.currency)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Shipping</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {formatMoney(shipping, activePricing.currency)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-cyan-700">Total</p>
+                  <p className="mt-1 text-lg font-semibold text-cyan-900">
+                    {formatMoney(total, activePricing.currency)}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {cartItems.length === 0 ? (
+              <section className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+                <h2 className="font-display text-3xl font-semibold text-slate-900">Your cart is empty</h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  Add gadgets from the storefront, then return here to complete checkout.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="mt-6 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Continue Shopping
+                </button>
+              </section>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-display text-2xl font-semibold text-slate-900">Order Summary</h2>
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                    >
+                      Clear Cart
+                    </button>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    {cartItems.map((item) => (
+                      <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                        <div className="flex gap-3">
+                          <img
+                            src={getProductGallery(item)[0] || PRODUCT_FALLBACK_IMAGE}
+                            alt={item.name}
+                            className="h-16 w-16 rounded-xl border border-slate-200 object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="truncate text-sm font-semibold text-slate-900">{item.name}</p>
+                              <p className="text-sm font-semibold text-slate-900">
+                                {formatMoney(item.totalPrice, activePricing.currency)}
+                              </p>
+                            </div>
+                            <BrandPill brand={item.brand} className="mt-1" />
+                            <p className="mt-1 text-xs text-slate-500">
+                              {formatMoney(item.unitPrice, activePricing.currency)} each
+                            </p>
+                            <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 text-slate-700"
+                              >
+                                -
+                              </button>
+                              <span className="w-7 text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 text-slate-700"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+                  <h2 className="font-display text-2xl font-semibold text-slate-900">Customer Details</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Fill in delivery information and place your order.
+                  </p>
+
+                  <form onSubmit={handlePlaceOrder} className="mt-5 space-y-3">
+                    {checkoutErrors.cart && (
+                      <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                        {checkoutErrors.cart}
+                      </p>
+                    )}
+
+                    <input
+                      name="fullName"
+                      value={checkout.fullName}
+                      onChange={handleCheckoutFieldChange}
+                      placeholder="Full name"
+                      className={inputClass}
+                    />
+                    {checkoutErrors.fullName && <p className="text-xs text-rose-600">{checkoutErrors.fullName}</p>}
+
+                    <input
+                      name="email"
+                      value={checkout.email}
+                      onChange={handleCheckoutFieldChange}
+                      placeholder="Email"
+                      className={inputClass}
+                    />
+                    {checkoutErrors.email && <p className="text-xs text-rose-600">{checkoutErrors.email}</p>}
+
+                    <input
+                      name="phone"
+                      value={checkout.phone}
+                      onChange={handleCheckoutFieldChange}
+                      placeholder="Phone"
+                      className={inputClass}
+                    />
+                    {checkoutErrors.phone && <p className="text-xs text-rose-600">{checkoutErrors.phone}</p>}
+
+                    <input
+                      name="address"
+                      value={checkout.address}
+                      onChange={handleCheckoutFieldChange}
+                      placeholder="Address"
+                      className={inputClass}
+                    />
+                    {checkoutErrors.address && <p className="text-xs text-rose-600">{checkoutErrors.address}</p>}
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <input
+                          name="city"
+                          value={checkout.city}
+                          onChange={handleCheckoutFieldChange}
+                          placeholder="City"
+                          className={inputClass}
+                        />
+                        {checkoutErrors.city && <p className="text-xs text-rose-600">{checkoutErrors.city}</p>}
+                      </div>
+                      <div>
+                        <input
+                          name="country"
+                          value={checkout.country}
+                          onChange={handleCheckoutFieldChange}
+                          placeholder="Country"
+                          className={inputClass}
+                        />
+                        {checkoutErrors.country && <p className="text-xs text-rose-600">{checkoutErrors.country}</p>}
+                      </div>
+                    </div>
+
+                    <input
+                      name="callNumber"
+                      value={checkout.callNumber || ""}
+                      onChange={handleCheckoutFieldChange}
+                      placeholder="Call number (optional)"
+                      className={inputClass}
+                    />
+
+                    <textarea
+                      name="notes"
+                      value={checkout.notes}
+                      onChange={handleCheckoutFieldChange}
+                      placeholder="Order notes (optional)"
+                      rows={3}
+                      className={inputClass}
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
+                      className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-400"
+                    >
+                      {paymentStatus.state === "initializing" || paymentStatus.state === "verifying"
+                        ? "Processing..."
+                        : "Place Order"}
+                    </button>
+                    {applePaySupported ? (
+                      <button
+                        type="button"
+                        onClick={handleApplePayOrder}
+                        disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
+                        className="w-full rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-70"
+                      >
+                        {paymentStatus.state === "initializing" || paymentStatus.state === "verifying"
+                          ? "Processing..."
+                          : "Pay with Apple Pay"}
+                      </button>
+                    ) : null}
+                  </form>
+                </aside>
+              </div>
+            )}
+          </section>
+        ) : (
+          <div className="grid gap-7 lg:grid-cols-[1.7fr_1fr]">
+            <section className="space-y-6">
+              <section className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-900 px-6 py-10 text-white shadow-xl sm:px-10">
+                <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
+                <div className="pointer-events-none absolute -left-20 bottom-0 h-40 w-40 rounded-full bg-blue-500/20 blur-2xl" />
+                <p className="text-sm uppercase tracking-[0.2em] text-cyan-300">Sirdavid Storefront</p>
+                <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
+                  Premium Gadgets With Fast, Secure Checkout
+                </h1>
+                <p className="mt-4 max-w-3xl text-slate-200 sm:text-lg">
+                  Discover verified devices, compare by category, and place orders in your local pricing context.
+                </p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100">Products Found</p>
+                    <p className="mt-1 text-xl font-semibold text-white">{visibleProducts.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100">Categories</p>
+                    <p className="mt-1 text-xl font-semibold text-white">{Math.max(0, categories.length - 1)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100">Items In Cart</p>
+                    <p className="mt-1 text-xl font-semibold text-white">{cartCount}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-cyan-700">Catalog Controls</p>
+                    <h2 className="mt-1 font-display text-2xl font-semibold text-slate-900">Filter & Sort Gadgets</h2>
+                  </div>
+                  <p className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                    {visibleProducts.length} matching products
+                  </p>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Search</p>
+                    <input
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Search by name or brand"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Category</p>
+                    <select
+                      value={activeCategory}
+                      onChange={(event) => setActiveCategory(event.target.value)}
+                      className={inputClass}
+                    >
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Condition</p>
+                    <select
+                      value={conditionFilter}
+                      onChange={(event) => setConditionFilter(event.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="All">All Conditions</option>
+                      <option value="New">New</option>
+                      <option value="Used">Used</option>
+                    </select>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Sort By</p>
+                    <select
+                      value={sortBy}
+                      onChange={(event) => setSortBy(event.target.value)}
+                      className={inputClass}
+                    >
+                      {sortOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Browse by Category</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {categories.map((category) => {
                       const isActive = activeCategory === category;
@@ -1209,13 +1599,20 @@ export default function ShopApp() {
                           key={category}
                           type="button"
                           onClick={() => setActiveCategory(category)}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                             isActive
                               ? "border-cyan-600 bg-cyan-600 text-white"
-                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                           }`}
                         >
-                          {category} ({categoryItemCounts[category] ?? 0})
+                          <span>{category}</span>
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                              isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {categoryItemCounts[category] ?? 0}
+                          </span>
                         </button>
                       );
                     })}
@@ -1223,15 +1620,19 @@ export default function ShopApp() {
                 </div>
               </section>
 
-              <section className="mt-6 space-y-6">
+              <section className="space-y-7">
                 {groupedVisibleProducts.map((group) => (
-                  <section key={group.category}>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h2 className="font-display text-2xl font-semibold text-slate-900">{group.category}</h2>
-                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <section key={group.category} className="space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h2 className="font-display text-2xl font-semibold text-slate-900">{group.category}</h2>
+                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Curated selection</p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
                         {group.items.length} items
                       </span>
                     </div>
+
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                       {group.items.map((product) => {
                         const gallery = getProductGallery(product);
@@ -1243,8 +1644,26 @@ export default function ShopApp() {
                         const selectedImage = gallery[selectedIndex] || PRODUCT_FALLBACK_IMAGE;
 
                         return (
-                          <article key={product.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                            <img src={selectedImage} alt={product.name} className="h-44 w-full object-cover" />
+                          <article
+                            key={product.id}
+                            className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                          >
+                            <div className="relative overflow-hidden">
+                              <img
+                                src={selectedImage}
+                                alt={product.name}
+                                className="h-48 w-full object-cover transition duration-300 group-hover:scale-105"
+                              />
+                              <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                                <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-700">
+                                  {product.category}
+                                </span>
+                                <span className="rounded-full bg-cyan-500/90 px-2.5 py-1 text-[10px] font-semibold text-slate-900">
+                                  {product.condition}
+                                </span>
+                              </div>
+                            </div>
+
                             {gallery.length > 1 && (
                               <div className="flex gap-2 overflow-x-auto border-b border-slate-100 px-3 py-2">
                                 {gallery.map((imageUrl, index) => (
@@ -1266,22 +1685,21 @@ export default function ShopApp() {
                                 ))}
                               </div>
                             )}
+
                             <div className="p-5">
-                              <div className="flex items-start justify-between gap-2">
-                                <h3 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h3>
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-                                  {product.category}
-                                </span>
-                              </div>
+                              <h3 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h3>
                               <BrandPill brand={product.brand} className="mt-2" />
-                              <p className="mt-2 text-sm font-semibold text-blue-700">{product.condition}</p>
-                              <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.details}</p>
-                              <div className="mt-4 flex items-center justify-between">
+                              <p className="mt-3 min-h-[44px] text-sm leading-relaxed text-slate-600">{product.details}</p>
+
+                              <div className="mt-4 flex items-end justify-between">
                                 <p className="text-2xl font-bold text-slate-900">
                                   {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
                                 </p>
-                                <p className="text-xs font-medium text-slate-500">{product.stock} in stock</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                  {product.stock} in stock
+                                </p>
                               </div>
+
                               <button
                                 type="button"
                                 onClick={() => addToCart(product.id)}
@@ -1302,22 +1720,21 @@ export default function ShopApp() {
                   </section>
                 ))}
                 {visibleProducts.length === 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-                    No gadgets match your filter right now.
+                  <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
+                    No gadgets match your current filters. Try changing category or search keywords.
                   </div>
                 )}
               </section>
             </section>
-            )}
 
-            <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-2xl font-semibold text-slate-900">Your Cart</h2>
                 {cartItems.length > 0 && (
                   <button
                     type="button"
                     onClick={clearCart}
-                    className="text-sm font-semibold text-rose-600 hover:text-rose-700"
+                    className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                   >
                     Clear
                   </button>
@@ -1325,20 +1742,22 @@ export default function ShopApp() {
               </div>
 
               {cartItems.length === 0 ? (
-                <p className="mt-4 text-sm text-slate-600">No items yet. Add products to start checkout.</p>
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  No items yet. Add products to start checkout.
+                </div>
               ) : (
-                <div className="mt-4 space-y-4">
+                <div className="mt-4 space-y-3">
                   {cartItems.map((item) => (
-                    <div key={item.id} className="rounded-xl border border-slate-200 p-3">
+                    <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
                       <p className="text-sm font-semibold text-slate-900">{item.name}</p>
                       <BrandPill brand={item.brand} className="mt-1" />
                       <p className="mt-1 text-xs text-slate-500">{formatMoney(item.unitPrice, activePricing.currency)} each</p>
                       <div className="mt-3 flex items-center justify-between">
-                        <div className="inline-flex items-center gap-2">
+                        <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-1.5 py-1">
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            className="h-7 w-7 rounded-md border border-slate-300 text-slate-700"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-slate-300 text-slate-700"
                           >
                             -
                           </button>
@@ -1346,7 +1765,7 @@ export default function ShopApp() {
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="h-7 w-7 rounded-md border border-slate-300 text-slate-700"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-slate-300 text-slate-700"
                           >
                             +
                           </button>
@@ -1360,138 +1779,28 @@ export default function ShopApp() {
                 </div>
               )}
 
-              <div className="mt-6 space-y-2 border-t border-slate-200 pt-4 text-sm">
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Subtotal</span>
                   <span>{formatMoney(subtotal, activePricing.currency)}</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-600">
+                <div className="mt-2 flex items-center justify-between text-slate-600">
                   <span>Shipping</span>
                   <span>{formatMoney(shipping, activePricing.currency)}</span>
                 </div>
-                <div className="flex items-center justify-between text-base font-bold text-slate-900">
+                <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-base font-bold text-slate-900">
                   <span>Total</span>
                   <span>{formatMoney(total, activePricing.currency)}</span>
                 </div>
               </div>
 
-              {isCartPage && cartItems.length > 0 ? (
-                <form onSubmit={handlePlaceOrder} className="mt-6 space-y-3 border-t border-slate-200 pt-4">
-                  <h3 className="font-display text-xl font-semibold text-slate-900">Checkout</h3>
-
-                  {checkoutErrors.cart && <p className="text-sm text-rose-600">{checkoutErrors.cart}</p>}
-
-                  <input
-                    name="fullName"
-                    value={checkout.fullName}
-                    onChange={handleCheckoutFieldChange}
-                    placeholder="Full name"
-                    className={inputClass}
-                  />
-                  {checkoutErrors.fullName && <p className="text-xs text-rose-600">{checkoutErrors.fullName}</p>}
-
-                  <input
-                    name="email"
-                    value={checkout.email}
-                    onChange={handleCheckoutFieldChange}
-                    placeholder="Email"
-                    className={inputClass}
-                  />
-                  {checkoutErrors.email && <p className="text-xs text-rose-600">{checkoutErrors.email}</p>}
-
-                  <input
-                    name="phone"
-                    value={checkout.phone}
-                    onChange={handleCheckoutFieldChange}
-                    placeholder="Phone"
-                    className={inputClass}
-                  />
-                  {checkoutErrors.phone && <p className="text-xs text-rose-600">{checkoutErrors.phone}</p>}
-
-                  <input
-                    name="address"
-                    value={checkout.address}
-                    onChange={handleCheckoutFieldChange}
-                    placeholder="Address"
-                    className={inputClass}
-                  />
-                  {checkoutErrors.address && <p className="text-xs text-rose-600">{checkoutErrors.address}</p>}
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <input
-                        name="city"
-                        value={checkout.city}
-                        onChange={handleCheckoutFieldChange}
-                        placeholder="City"
-                        className={inputClass}
-                      />
-                      {checkoutErrors.city && <p className="text-xs text-rose-600">{checkoutErrors.city}</p>}
-                    </div>
-                    <div>
-                      <input
-                        name="country"
-                        value={checkout.country}
-                        onChange={handleCheckoutFieldChange}
-                        placeholder="Country"
-                        className={inputClass}
-                      />
-                      {checkoutErrors.country && <p className="text-xs text-rose-600">{checkoutErrors.country}</p>}
-                    </div>
-                  </div>
-
-                  <input
-                    name="callNumber"
-                    value={checkout.callNumber || ""}
-                    onChange={handleCheckoutFieldChange}
-                    placeholder="Call number (optional)"
-                    className={inputClass}
-                  />
-
-                  <textarea
-                    name="notes"
-                    value={checkout.notes}
-                    onChange={handleCheckoutFieldChange}
-                    placeholder="Order notes (optional)"
-                    rows={3}
-                    className={inputClass}
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
-                    className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-400"
-                  >
-                    {paymentStatus.state === "initializing" || paymentStatus.state === "verifying" ? "Processing..." : "Place Order"}
-                  </button>
-                  {applePaySupported ? (
-                    <button
-                      type="button"
-                      onClick={handleApplePayOrder}
-                      disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
-                      className="w-full rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-70"
-                    >
-                      {paymentStatus.state === "initializing" || paymentStatus.state === "verifying"
-                        ? "Processing..."
-                        : "Pay with Apple Pay"}
-                    </button>
-                  ) : null}
-                </form>
-              ) : !isCartPage && cartItems.length > 0 ? (
+              {cartItems.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => navigate("/cart")}
-                  className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Go To Cart & Checkout
-                </button>
-              ) : isCartPage ? (
-                <button
-                  type="button"
-                  onClick={() => navigate("/")}
-                  className="mt-6 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                >
-                  Continue Shopping
                 </button>
               ) : null}
             </aside>
