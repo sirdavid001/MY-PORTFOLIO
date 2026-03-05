@@ -1517,7 +1517,7 @@ export default function ShopApp() {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+              <section className="sticky top-20 z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   <input
                     value={search}
