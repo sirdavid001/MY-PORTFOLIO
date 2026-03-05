@@ -1499,99 +1499,67 @@ export default function ShopApp() {
           </section>
         ) : (
           <div className="grid gap-7 lg:grid-cols-[1.7fr_1fr]">
-            <section className="space-y-6">
-              <section className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-900 px-6 py-10 text-white shadow-xl sm:px-10">
-                <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
-                <div className="pointer-events-none absolute -left-20 bottom-0 h-40 w-40 rounded-full bg-blue-500/20 blur-2xl" />
-                <p className="text-sm uppercase tracking-[0.2em] text-cyan-300">Sirdavid Storefront</p>
-                <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
-                  Premium Gadgets With Fast, Secure Checkout
-                </h1>
-                <p className="mt-4 max-w-3xl text-slate-200 sm:text-lg">
-                  Discover verified devices, compare by category, and place orders in your local pricing context.
-                </p>
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100">Products Found</p>
-                    <p className="mt-1 text-xl font-semibold text-white">{visibleProducts.length}</p>
+            <section className="space-y-4">
+              <section className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-cyan-700">Sirdavid Storefront</p>
+                    <h1 className="mt-1 font-display text-2xl font-semibold leading-tight text-slate-900 sm:text-3xl">
+                      Premium Gadgets With Fast, Secure Checkout
+                    </h1>
+                    <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">
+                      Discover verified devices, compare by category, and place orders in your local pricing context.
+                    </p>
                   </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100">Categories</p>
-                    <p className="mt-1 text-xl font-semibold text-white">{Math.max(0, categories.length - 1)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100">Items In Cart</p>
-                    <p className="mt-1 text-xl font-semibold text-white">{cartCount}</p>
-                  </div>
+                  <p className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                    {visibleProducts.length} products
+                  </p>
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-cyan-700">Catalog Controls</p>
-                    <h2 className="mt-1 font-display text-2xl font-semibold text-slate-900">Filter & Sort Gadgets</h2>
-                  </div>
-                  <p className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                    {visibleProducts.length} matching products
-                  </p>
+              <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search products..."
+                    className={inputClass}
+                  />
+                  <select
+                    value={activeCategory}
+                    onChange={(event) => setActiveCategory(event.target.value)}
+                    className={inputClass}
+                  >
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={conditionFilter}
+                    onChange={(event) => setConditionFilter(event.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="All">All Conditions</option>
+                    <option value="New">New</option>
+                    <option value="Used">Used</option>
+                  </select>
+                  <select
+                    value={sortBy}
+                    onChange={(event) => setSortBy(event.target.value)}
+                    className={inputClass}
+                  >
+                    {sortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <div>
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Search</p>
-                    <input
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Search by name or brand"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Category</p>
-                    <select
-                      value={activeCategory}
-                      onChange={(event) => setActiveCategory(event.target.value)}
-                      className={inputClass}
-                    >
-                      {categories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Condition</p>
-                    <select
-                      value={conditionFilter}
-                      onChange={(event) => setConditionFilter(event.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="All">All Conditions</option>
-                      <option value="New">New</option>
-                      <option value="Used">Used</option>
-                    </select>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Sort By</p>
-                    <select
-                      value={sortBy}
-                      onChange={(event) => setSortBy(event.target.value)}
-                      className={inputClass}
-                    >
-                      {sortOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Browse by Category</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-3 overflow-x-auto">
+                  <div className="flex min-w-max gap-2 pr-2">
                     {categories.map((category) => {
                       const isActive = activeCategory === category;
                       return (
@@ -1599,7 +1567,7 @@ export default function ShopApp() {
                           key={category}
                           type="button"
                           onClick={() => setActiveCategory(category)}
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                          className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                             isActive
                               ? "border-cyan-600 bg-cyan-600 text-white"
                               : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
