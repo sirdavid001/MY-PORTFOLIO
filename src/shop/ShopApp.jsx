@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
 import { BrandPill } from "./brandIdentity";
@@ -35,6 +35,179 @@ const defaultCheckout = {
 const PAYSTACK_POPUP_SRC = "https://js.paystack.co/v2/inline.js";
 const SUPPORTED_PAYSTACK_CURRENCIES = new Set(["NGN", "USD"]);
 const FALLBACK_NGN_PER_USD = 1600;
+const SHOP_POLICY_LINKS = [
+  { path: "/terms-and-conditions", label: "Terms & Conditions" },
+  { path: "/refund-policy", label: "Refund Policy" },
+  { path: "/privacy-policy", label: "Privacy Policy" },
+  { path: "/faqs", label: "FAQs" },
+  { path: "/shipping-policy", label: "Shipping Policy" },
+];
+const SHOP_POLICY_CONTENT = {
+  "/terms-and-conditions": {
+    title: "Terms and Conditions",
+    summary:
+      "These terms govern use of Sirdavid Gadgets storefront and all purchases completed through our website.",
+    sections: [
+      {
+        heading: "Orders and Product Availability",
+        paragraphs: [
+          "All orders are subject to stock confirmation and payment verification.",
+          "If a listed item becomes unavailable after checkout, we will contact you immediately with replacement or refund options.",
+        ],
+      },
+      {
+        heading: "Pricing and Payments",
+        paragraphs: [
+          "Prices are displayed in local currency and may vary based on location and exchange rates.",
+          "Payments are processed securely through supported payment channels before order fulfillment begins.",
+        ],
+      },
+      {
+        heading: "Use of Website",
+        paragraphs: [
+          "Users must provide accurate checkout details, including active phone and delivery address.",
+          "Fraudulent transactions, abuse, or misuse of the platform may result in order cancellation and account restriction.",
+        ],
+      },
+      {
+        heading: "Contact",
+        paragraphs: [
+          "For account, order, or legal questions, contact us at itssirdavid@gmail.com.",
+        ],
+      },
+    ],
+  },
+  "/refund-policy": {
+    title: "Refund Policy",
+    summary:
+      "We aim to provide reliable gadgets. If there is a valid issue, we offer fair refund or replacement support.",
+    sections: [
+      {
+        heading: "Eligible Refund Cases",
+        paragraphs: [
+          "Wrong item delivered, item not delivered, or product significantly different from description.",
+          "Verified hardware defects reported within 48 hours of delivery, where replacement is unavailable.",
+        ],
+      },
+      {
+        heading: "Non-Refundable Cases",
+        paragraphs: [
+          "Physical damage after delivery caused by misuse, drops, liquid contact, or unauthorized repairs.",
+          "Change-of-mind requests for items that match listing description and test results.",
+        ],
+      },
+      {
+        heading: "Refund Process",
+        paragraphs: [
+          "Send order reference, issue details, and evidence (photos/video) to support for review.",
+          "Approved refunds are processed to the original payment method within 3-10 business days.",
+        ],
+      },
+    ],
+  },
+  "/privacy-policy": {
+    title: "Privacy Policy",
+    summary:
+      "We collect only the information needed to process orders, support customers, and protect transactions.",
+    sections: [
+      {
+        heading: "Data We Collect",
+        paragraphs: [
+          "Name, email, phone number, delivery address, order details, and payment references.",
+          "Technical logs and anti-fraud metadata required for security and payment verification.",
+        ],
+      },
+      {
+        heading: "How We Use Data",
+        paragraphs: [
+          "To process and deliver orders, send payment/tracking notifications, and provide customer support.",
+          "To prevent fraud, monitor suspicious activity, and comply with legal obligations.",
+        ],
+      },
+      {
+        heading: "Data Sharing",
+        paragraphs: [
+          "We share required data only with trusted service providers such as payment, hosting, and delivery partners.",
+          "We do not sell personal data to third parties.",
+        ],
+      },
+      {
+        heading: "Data Rights",
+        paragraphs: [
+          "You may request correction or deletion of eligible personal data by contacting support.",
+        ],
+      },
+    ],
+  },
+  "/faqs": {
+    title: "Frequently Asked Questions",
+    summary: "Quick answers about orders, payments, delivery, and support.",
+    sections: [
+      {
+        heading: "How do I place an order?",
+        paragraphs: [
+          "Add products to cart, complete checkout details, and finalize payment through available channels.",
+        ],
+      },
+      {
+        heading: "How can I track my order?",
+        paragraphs: [
+          "Use the Track Order page with your order reference or tracking number from confirmation messages.",
+        ],
+      },
+      {
+        heading: "Do you sell both new and used gadgets?",
+        paragraphs: [
+          "Yes. Condition labels are shown on each product listing for transparency before purchase.",
+        ],
+      },
+      {
+        heading: "What if my payment was debited but status did not update?",
+        paragraphs: [
+          "Contact support with your payment reference immediately so we can verify and resolve quickly.",
+        ],
+      },
+      {
+        heading: "How do I contact support?",
+        paragraphs: [
+          "Email itssirdavid@gmail.com with your order reference and issue details.",
+        ],
+      },
+    ],
+  },
+  "/shipping-policy": {
+    title: "Shipping Policy",
+    summary: "We process confirmed orders quickly and provide status updates through tracking.",
+    sections: [
+      {
+        heading: "Processing Time",
+        paragraphs: [
+          "Orders begin processing after successful payment confirmation and validation.",
+          "Typical processing window is 1-2 business days excluding weekends and public holidays.",
+        ],
+      },
+      {
+        heading: "Delivery Timeline",
+        paragraphs: [
+          "Estimated local delivery is usually 2-7 business days depending on destination and logistics partner.",
+          "Remote locations may require additional delivery time.",
+        ],
+      },
+      {
+        heading: "Shipping Fees",
+        paragraphs: [
+          "Shipping fees are calculated at checkout using active store shipping settings and shown before payment.",
+        ],
+      },
+      {
+        heading: "Delivery Issues",
+        paragraphs: [
+          "If you experience delays or failed delivery attempts, contact support with your order reference for immediate help.",
+        ],
+      },
+    ],
+  },
+};
 function loadFromStorage(key, fallback) {
   try {
     const raw = window.localStorage.getItem(key);
@@ -174,6 +347,9 @@ export default function ShopApp() {
   const normalizedPathname = location.pathname.replace(/\/+$/, "") || "/";
   const isCartPage = normalizedPathname === "/cart";
   const isTrackingPage = normalizedPathname === "/track-order";
+  const policyPath = normalizedPathname === "/faq" ? "/faqs" : normalizedPathname;
+  const policyPage = SHOP_POLICY_CONTENT[policyPath] || null;
+  const isPolicyPage = Boolean(policyPage);
   const [activeCategory, setActiveCategory] = useState("All");
   const [conditionFilter, setConditionFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -734,7 +910,7 @@ export default function ShopApp() {
             <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 sm:inline-flex">
               {activePricing.countryName} ({activePricing.currency})
             </span>
-            {isCartPage || isTrackingPage ? (
+            {isCartPage || isTrackingPage || isPolicyPage ? (
               <button
                 type="button"
                 onClick={() => navigate("/")}
@@ -751,7 +927,7 @@ export default function ShopApp() {
                 Cart ({cartCount})
               </button>
             )}
-            {!isTrackingPage ? (
+            {!isTrackingPage && !isPolicyPage ? (
               <button
                 type="button"
                 onClick={() => navigate("/track-order")}
@@ -765,7 +941,45 @@ export default function ShopApp() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {isTrackingPage ? (
+        {isPolicyPage ? (
+          <section className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Policy</p>
+            <h1 className="mt-2 font-display text-3xl font-bold text-slate-900">{policyPage.title}</h1>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">{policyPage.summary}</p>
+            <div className="mt-6 space-y-5">
+              {policyPage.sections.map((section) => (
+                <section key={section.heading} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <h2 className="text-base font-semibold text-slate-900">{section.heading}</h2>
+                  <div className="mt-2 space-y-2">
+                    {section.paragraphs.map((paragraph) => (
+                      <p key={paragraph} className="text-sm leading-relaxed text-slate-700">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">More Information</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {SHOP_POLICY_LINKS.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      link.path === policyPath
+                        ? "border-cyan-600 bg-cyan-600 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : isTrackingPage ? (
           <section className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Order Tracking</p>
             <h1 className="mt-2 font-display text-3xl font-bold text-slate-900">Track your product</h1>
@@ -1217,6 +1431,22 @@ export default function ShopApp() {
           </div>
         )}
       </main>
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
+          <p className="text-xs text-slate-500">Sirdavid Gadgets • New and fairly used gadgets with secure checkout.</p>
+          <nav className="flex flex-wrap gap-2">
+            {SHOP_POLICY_LINKS.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
