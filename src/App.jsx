@@ -10,6 +10,7 @@ import AdminApp from "./shop/AdminApp";
 const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]);
 const SECURE_ADMIN_PATH = "/secure-admin-portal-xyz";
 const SHOP_PATHS = new Set([
+  "/shop",
   "/cart",
   "/track-order",
   "/terms-and-conditions",
@@ -38,6 +39,7 @@ export default function App() {
     return (
       <Routes>
         <Route path={`${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
+        <Route path="/shop" element={<ShopApp />} />
         <Route path="/" element={<ShopApp />} />
         <Route path="/cart" element={<ShopApp />} />
         <Route path="/track-order" element={<ShopApp />} />
