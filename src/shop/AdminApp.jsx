@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { phoneModelsByBrand, nonPhoneModelsByBrand } from "./constants";
 import { FiChevronDown, FiChevronUp, FiLogOut, FiRefreshCw } from "react-icons/fi";
 import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
@@ -42,231 +43,6 @@ const adminPages = [
   { id: "shipping", label: "Shipping", description: "Configure checkout shipping rules" },
 ];
 const allowedAdminPageIds = new Set(adminPages.map((page) => page.id));
-const phoneModelsByBrand = {
-  Apple: [
-    "iPhone SE (2nd Gen)",
-    "iPhone 12 mini",
-    "iPhone 12",
-    "iPhone 12 Pro",
-    "iPhone 12 Pro Max",
-    "iPhone 13 mini",
-    "iPhone 13",
-    "iPhone 13 Pro",
-    "iPhone 13 Pro Max",
-    "iPhone SE (3rd Gen)",
-    "iPhone 14",
-    "iPhone 14 Plus",
-    "iPhone 14 Pro",
-    "iPhone 14 Pro Max",
-    "iPhone 15",
-    "iPhone 15 Plus",
-    "iPhone 15 Pro",
-    "iPhone 15 Pro Max",
-    "iPhone 16",
-    "iPhone 16 Plus",
-    "iPhone 16 Pro",
-    "iPhone 16 Pro Max",
-    "iPhone 17",
-    "iPhone 17 Plus",
-    "iPhone 17 Pro",
-    "iPhone 17 Pro Max",
-  ],
-  Samsung: [
-    "Galaxy S20",
-    "Galaxy S20+",
-    "Galaxy S20 Ultra",
-    "Galaxy S20 FE",
-    "Galaxy S21",
-    "Galaxy S21+",
-    "Galaxy S21 Ultra",
-    "Galaxy S21 FE",
-    "Galaxy S22",
-    "Galaxy S22+",
-    "Galaxy S22 Ultra",
-    "Galaxy S23",
-    "Galaxy S23+",
-    "Galaxy S23 Ultra",
-    "Galaxy S23 FE",
-    "Galaxy S24",
-    "Galaxy S24+",
-    "Galaxy S24 Ultra",
-    "Galaxy S24 FE",
-    "Galaxy S25",
-    "Galaxy S25+",
-    "Galaxy S25 Ultra",
-    "Galaxy A52",
-    "Galaxy A53",
-    "Galaxy A54",
-    "Galaxy A55",
-    "Galaxy A56",
-    "Galaxy Z Fold2",
-    "Galaxy Z Fold3",
-    "Galaxy Z Fold4",
-    "Galaxy Z Fold5",
-    "Galaxy Z Fold6",
-    "Galaxy Z Flip3",
-    "Galaxy Z Flip4",
-    "Galaxy Z Flip5",
-    "Galaxy Z Flip6",
-  ],
-  Google: [
-    "Pixel 5",
-    "Pixel 5a",
-    "Pixel 6",
-    "Pixel 6 Pro",
-    "Pixel 6a",
-    "Pixel 7",
-    "Pixel 7 Pro",
-    "Pixel 7a",
-    "Pixel 8",
-    "Pixel 8 Pro",
-    "Pixel 8a",
-    "Pixel 9",
-    "Pixel 9 Pro",
-    "Pixel 9 Pro XL",
-    "Pixel 9a",
-    "Pixel 10",
-    "Pixel 10 Pro",
-  ],
-  Xiaomi: [
-    "Mi 10T Pro",
-    "Mi 11",
-    "11T",
-    "11T Pro",
-    "Xiaomi 12",
-    "Xiaomi 12 Pro",
-    "Xiaomi 12T",
-    "Xiaomi 12T Pro",
-    "Xiaomi 13",
-    "Xiaomi 13 Pro",
-    "Xiaomi 13T",
-    "Xiaomi 13T Pro",
-    "Xiaomi 14",
-    "Xiaomi 14 Pro",
-    "Xiaomi 14T",
-    "Xiaomi 14T Pro",
-    "Xiaomi 15",
-    "Xiaomi 15 Pro",
-    "Redmi Note 10",
-    "Redmi Note 11",
-    "Redmi Note 12",
-    "Redmi Note 13",
-    "Redmi Note 14",
-    "POCO X3 Pro",
-    "POCO F3",
-    "POCO F4",
-    "POCO F5",
-    "POCO F6",
-  ],
-  OnePlus: [
-    "OnePlus 8T",
-    "OnePlus 9",
-    "OnePlus 9 Pro",
-    "OnePlus 10 Pro",
-    "OnePlus 10T",
-    "OnePlus 11",
-    "OnePlus 12",
-    "OnePlus 13",
-    "OnePlus Nord N10",
-    "OnePlus Nord 2",
-    "OnePlus Nord 3",
-    "OnePlus Nord 4",
-  ],
-  Tecno: [
-    "Camon 17",
-    "Camon 18",
-    "Camon 19",
-    "Camon 20",
-    "Camon 30",
-    "Phantom X",
-    "Phantom V Fold",
-    "Spark 8",
-    "Spark 10 Pro",
-    "Spark 20",
-    "Pova 5",
-    "Pova 6",
-  ],
-  Infinix: [
-    "Note 10 Pro",
-    "Note 11",
-    "Note 12",
-    "Note 30 Pro",
-    "Note 40 Pro",
-    "Zero 8",
-    "Zero 20",
-    "Zero 30",
-    "Hot 12",
-    "Hot 20",
-    "Hot 40 Pro",
-  ],
-};
-
-const nonPhoneModelsByBrand = {
-  Apple: {
-    Laptops: ["MacBook Air M1", "MacBook Air M2", "MacBook Air M3", "MacBook Pro 14", "MacBook Pro 16"],
-    Tablets: ["iPad 10th Gen", "iPad Air (5th Gen)", "iPad Pro 11", "iPad Pro 13", "iPad mini (6th Gen)"],
-    Wearables: ["Apple Watch SE (2nd Gen)", "Apple Watch Series 8", "Apple Watch Series 9", "Apple Watch Ultra 2"],
-    Audio: ["AirPods (3rd Gen)", "AirPods Pro (2nd Gen)", "AirPods Max"],
-    Accessories: ["Apple Pencil (2nd Gen)", "Magic Keyboard"],
-  },
-  Samsung: {
-    Laptops: ["Galaxy Book2 Pro", "Galaxy Book3 Pro", "Galaxy Book4 Pro"],
-    Tablets: ["Galaxy Tab S8", "Galaxy Tab S9", "Galaxy Tab A9+"],
-    Wearables: ["Galaxy Watch 5", "Galaxy Watch 6", "Galaxy Watch 7"],
-    Audio: ["Galaxy Buds2", "Galaxy Buds2 Pro", "Galaxy Buds3 Pro"],
-    Accessories: ["S Pen Pro", "45W Super Fast Charger"],
-  },
-  Google: {
-    Tablets: ["Pixel Tablet"],
-    Wearables: ["Pixel Watch", "Pixel Watch 2", "Pixel Watch 3"],
-    Audio: ["Pixel Buds A-Series", "Pixel Buds Pro"],
-    "Smart Home": ["Nest Hub (2nd Gen)", "Nest Audio", "Nest Cam"],
-    Networking: ["Nest Wifi Pro"],
-  },
-  Xiaomi: {
-    Tablets: ["Xiaomi Pad 5", "Xiaomi Pad 6", "Xiaomi Pad 6 Pro"],
-    Wearables: ["Xiaomi Watch S3", "Redmi Watch 4", "Smart Band 8"],
-    Audio: ["Redmi Buds 4 Pro", "Xiaomi Buds 5"],
-    "Smart Home": ["Xiaomi Smart Camera C300", "Mi Smart Home Hub"],
-  },
-  OnePlus: {
-    Tablets: ["OnePlus Pad", "OnePlus Pad 2"],
-    Wearables: ["OnePlus Watch 2"],
-    Audio: ["OnePlus Buds Pro 2", "OnePlus Buds 3"],
-    Accessories: ["SUPERVOOC 100W Charger"],
-  },
-  Dell: {
-    Laptops: ["XPS 13", "XPS 15", "Inspiron 15", "Latitude 5420", "G15"],
-    Monitors: ["UltraSharp U2720Q", "P2422H"],
-    Accessories: ["WD19 Dock"],
-  },
-  Lenovo: {
-    Laptops: ["ThinkPad X1 Carbon", "ThinkPad T14", "IdeaPad 5", "Legion 5", "Yoga 7"],
-    Tablets: ["Tab P11"],
-    Gaming: ["Legion Go"],
-    Accessories: ["ThinkPad Universal USB-C Dock"],
-  },
-  HP: {
-    Laptops: ["Spectre x360 14", "Envy x360 13", "Pavilion 15", "OMEN 16", "ProBook 440"],
-    Monitors: ["M24f", "E24 G4"],
-    Accessories: ["HP USB-C Dock G5"],
-  },
-  Sony: {
-    Gaming: ["PlayStation 4 Pro", "PlayStation 5", "PlayStation 5 Digital Edition"],
-    Audio: ["WH-1000XM4", "WH-1000XM5", "WF-1000XM5", "Pulse 3D Headset"],
-    Cameras: ["Alpha A6400", "Alpha A7 III", "ZV-E10"],
-  },
-  Tecno: {
-    Tablets: ["MegaPad 10"],
-    Audio: ["Sonic 1 Earbuds"],
-    Accessories: ["Fast Charger 45W"],
-  },
-  Infinix: {
-    Tablets: ["XPAD"],
-    Audio: ["XE23 Earbuds"],
-    Accessories: ["Fast Charge Adapter 45W"],
-  },
-};
 
 function getDefaultStorageGbForCategory(category) {
   const normalized = String(category || "").trim().toLowerCase();
@@ -314,7 +90,6 @@ function buildCategoryEntries(brand) {
     }))
   );
 }
-
 const popularBrandCatalog = {
   Apple: [
     ...buildPhoneEntries(phoneModelsByBrand.Apple),
@@ -937,9 +712,9 @@ export default function AdminApp() {
           prev.map((order) =>
             Number(order.id) === Number(orderId)
               ? {
-                  ...order,
-                  ...(payload.status ? { status: payload.status } : {}),
-                }
+                ...order,
+                ...(payload.status ? { status: payload.status } : {}),
+              }
               : order
           )
         );
@@ -1393,77 +1168,76 @@ export default function AdminApp() {
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_10%_15%,rgba(6,182,212,0.14),transparent_36%),radial-gradient(circle_at_90%_10%,rgba(14,165,233,0.08),transparent_33%),linear-gradient(180deg,#f9fcff_0%,#f4f7fb_45%,#eef2f8_100%)] text-slate-900">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.03)_1px,transparent_1px)] bg-[size:42px_42px] opacity-40" />
       <div className="relative z-10">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className={`${panelClass} p-5 backdrop-blur`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold tracking-[0.1em] text-cyan-700">Operations</p>
-              <h1 className="font-display text-3xl font-bold text-slate-900">Store Command Center</h1>
-              <p className="text-sm text-slate-600">
-                {orders.length} orders, {products.length} products {adminEmail ? `• ${adminEmail}` : ""}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => loadAllAdminData()}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                <FiRefreshCw className="h-4 w-4" />
-                Refresh
-              </button>
-              <button
-                type="button"
-                onClick={logout}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-rose-50/60 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100/70"
-              >
-                <FiLogOut className="h-4 w-4" />
-                Logout
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 border-t border-slate-200/80 pt-4">
-            <div className="sm:hidden">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Control Menu</label>
-              <select
-                value={activePage}
-                onChange={(event) => goToAdminPage(event.target.value)}
-                className={inputClass}
-              >
-                {adminPages.map((page) => (
-                  <option key={page.id} value={page.id}>
-                    {page.label}
-                  </option>
-                ))}
-              </select>
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <header className={`${panelClass} p-5 backdrop-blur`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.1em] text-cyan-700">Operations</p>
+                <h1 className="font-display text-3xl font-bold text-slate-900">Store Command Center</h1>
+                <p className="text-sm text-slate-600">
+                  {orders.length} orders, {products.length} products {adminEmail ? `• ${adminEmail}` : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => loadAllAdminData()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  <FiRefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-rose-50/60 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100/70"
+                >
+                  <FiLogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
             </div>
 
-            <nav className="hidden gap-2 sm:grid sm:grid-cols-2 xl:grid-cols-4">
-              {adminPages.map((page) => {
-                const isActive = activePage === page.id;
-                return (
-                  <button
-                    key={page.id}
-                    type="button"
-                    onClick={() => goToAdminPage(page.id)}
-                    className={`rounded-2xl border px-4 py-3 text-left transition ${
-                      isActive
+            <div className="mt-4 border-t border-slate-200/80 pt-4">
+              <div className="sm:hidden">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Control Menu</label>
+                <select
+                  value={activePage}
+                  onChange={(event) => goToAdminPage(event.target.value)}
+                  className={inputClass}
+                >
+                  {adminPages.map((page) => (
+                    <option key={page.id} value={page.id}>
+                      {page.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <nav className="hidden gap-2 sm:grid sm:grid-cols-2 xl:grid-cols-4">
+                {adminPages.map((page) => {
+                  const isActive = activePage === page.id;
+                  return (
+                    <button
+                      key={page.id}
+                      type="button"
+                      onClick={() => goToAdminPage(page.id)}
+                      className={`rounded-2xl border px-4 py-3 text-left transition ${isActive
                         ? "border-slate-900 bg-slate-900 text-white shadow-sm"
                         : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold">{page.label}</p>
-                    <p className={`mt-1 text-xs ${isActive ? "text-slate-200" : "text-slate-500"}`}>{page.description}</p>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-          {authError && <p className="mt-3 text-sm text-rose-600">{authError}</p>}
-        </header>
+                        }`}
+                    >
+                      <p className="text-sm font-semibold">{page.label}</p>
+                      <p className={`mt-1 text-xs ${isActive ? "text-slate-200" : "text-slate-500"}`}>{page.description}</p>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+            {authError && <p className="mt-3 text-sm text-rose-600">{authError}</p>}
+          </header>
 
-        <main className="mt-6 space-y-6">
+          <main className="mt-6 space-y-6">
             {activePage === "orders" && (
               <section className={panelClass}>
                 <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
@@ -2124,9 +1898,8 @@ export default function AdminApp() {
                             <button
                               type="button"
                               onClick={() => setPrimaryProductImage(imageUrl)}
-                              className={`relative block w-full overflow-hidden rounded-lg border ${
-                                index === 0 ? "border-cyan-500" : "border-slate-200"
-                              }`}
+                              className={`relative block w-full overflow-hidden rounded-lg border ${index === 0 ? "border-cyan-500" : "border-slate-200"
+                                }`}
                             >
                               <img src={imageUrl} alt={`Preview ${index + 1}`} className="h-20 w-full object-cover" />
                             </button>
@@ -2316,11 +2089,10 @@ export default function AdminApp() {
                   <button
                     type="button"
                     onClick={() => setSelectedGadgetCategory("All")}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                      selectedGadgetCategory === "All"
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${selectedGadgetCategory === "All"
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
                   >
                     All ({products.length})
                   </button>
@@ -2332,11 +2104,10 @@ export default function AdminApp() {
                         key={category}
                         type="button"
                         onClick={() => setSelectedGadgetCategory(category)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                          isActive
-                            ? "border-cyan-600 bg-cyan-600 text-white"
-                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                        }`}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${isActive
+                          ? "border-cyan-600 bg-cyan-600 text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          }`}
                       >
                         {category} ({totalInCategory})
                       </button>
@@ -2441,8 +2212,8 @@ export default function AdminApp() {
                 )}
               </section>
             )}
-        </main>
-      </div>
+          </main>
+        </div>
       </div>
     </div>
   );

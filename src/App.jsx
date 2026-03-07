@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Projects from "./pages/Projects";
 import Contact from "./pages/Contact";
 import ShopApp from "./shop/ShopApp";
+import { CartProvider } from "./shop/CartContext";
 import AdminApp from "./shop/AdminApp";
 
 const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]);
@@ -39,21 +40,23 @@ export default function App() {
 
   if (isBusinessSubdomain || isShopPath) {
     return (
-      <Routes>
-        <Route path={`${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
-        <Route path={`/shop${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
-        <Route path="/shop" element={<ShopApp />} />
-        <Route path="/" element={<ShopApp />} />
-        <Route path="/cart" element={<ShopApp />} />
-        <Route path="/track-order" element={<ShopApp />} />
-        <Route path="/terms-and-conditions" element={<ShopApp />} />
-        <Route path="/refund-policy" element={<ShopApp />} />
-        <Route path="/privacy-policy" element={<ShopApp />} />
-        <Route path="/faqs" element={<ShopApp />} />
-        <Route path="/faq" element={<ShopApp />} />
-        <Route path="/shipping-policy" element={<ShopApp />} />
-        <Route path="*" element={<ShopApp />} />
-      </Routes>
+      <CartProvider>
+        <Routes>
+          <Route path={`${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
+          <Route path={`/shop${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
+          <Route path="/shop" element={<ShopApp />} />
+          <Route path="/" element={<ShopApp />} />
+          <Route path="/cart" element={<ShopApp />} />
+          <Route path="/track-order" element={<ShopApp />} />
+          <Route path="/terms-and-conditions" element={<ShopApp />} />
+          <Route path="/refund-policy" element={<ShopApp />} />
+          <Route path="/privacy-policy" element={<ShopApp />} />
+          <Route path="/faqs" element={<ShopApp />} />
+          <Route path="/faq" element={<ShopApp />} />
+          <Route path="/shipping-policy" element={<ShopApp />} />
+          <Route path="*" element={<ShopApp />} />
+        </Routes>
+      </CartProvider>
     );
   }
 

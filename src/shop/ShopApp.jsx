@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useCartContext } from "./CartContext";
 import {
   FiChevronRight,
   FiFilter,
@@ -259,7 +260,7 @@ const SHOP_POLICY_CONTENT = {
     ],
   },
 };
-function loadFromStorage(key, fallback) {
+export function loadFromStorage(key, fallback) {
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return fallback;
@@ -269,7 +270,7 @@ function loadFromStorage(key, fallback) {
   }
 }
 
-function toPrice(basePriceUsd, pricingContext) {
+export function toPrice(basePriceUsd, pricingContext) {
   return Number(basePriceUsd || 0) * pricingContext.exchangeRate * pricingContext.factor;
 }
 
@@ -455,7 +456,6 @@ export default function ShopApp() {
   const [conditionFilter, setConditionFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("featured");
-  const [cart, setCart] = useState({});
   const [checkout, setCheckout] = useState(defaultCheckout);
   const [checkoutErrors, setCheckoutErrors] = useState({});
   const [lastOrder, setLastOrder] = useState(null);
@@ -474,7 +474,6 @@ export default function ShopApp() {
   );
 
   useEffect(() => {
-    setCart(loadFromStorage("sirdavidshop:cart", {}));
     const savedCheckout = loadFromStorage("sirdavidshop:checkout", null);
     if (savedCheckout) {
       setCheckout({
@@ -484,10 +483,6 @@ export default function ShopApp() {
       });
     }
   }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem("sirdavidshop:cart", JSON.stringify(cart));
-  }, [cart]);
 
   useEffect(() => {
     window.localStorage.setItem("sirdavidshop:checkout", JSON.stringify(checkout));
@@ -716,6 +711,15 @@ export default function ShopApp() {
     };
   }, [pricingContext]);
 
+  const {
+    cartItems,
+    addToCart,
+    updateQuantity,
+    clearCart,
+    cartCount,
+    subtotal,
+  } = useCartContext();
+
   const categories = useMemo(() => {
     const dynamicCategories = catalogProducts.map((product) => String(product.category || "").trim()).filter(Boolean);
     const merged = Array.from(new Set([...categoryOptions, ...catalogCategories, ...dynamicCategories]));
@@ -780,32 +784,6 @@ export default function ShopApp() {
     return Array.from(groups.entries()).map(([category, items]) => ({ category, items }));
   }, [visibleProducts]);
 
-  const cartItems = useMemo(() => {
-    return Object.entries(cart)
-      .map(([productId, quantity]) => {
-        const product = catalogProducts.find((item) => item.id === productId);
-        if (!product || quantity <= 0) return null;
-        const unitPrice = toPrice(product.basePriceUsd, activePricing);
-        return {
-          ...product,
-          quantity,
-          unitPrice,
-          totalPrice: unitPrice * quantity,
-        };
-      })
-      .filter(Boolean);
-  }, [activePricing, cart, catalogProducts]);
-
-  const cartCount = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
-    [cartItems]
-  );
-
-  const subtotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.totalPrice, 0),
-    [cartItems]
-  );
-
   const shipping = useMemo(
     () => calculateShipping(subtotal, activePricing, shippingConfig),
     [subtotal, activePricing, shippingConfig]
@@ -869,34 +847,6 @@ export default function ShopApp() {
     });
     return undefined;
   }, [activePricing.currency, cartItems.length, checkout.email, resolvedPaystackPublicKey, total]);
-
-  function addToCart(productId) {
-    setCart((prev) => {
-      const current = prev[productId] || 0;
-      const product = catalogProducts.find((item) => item.id === productId);
-      const max = Math.max(0, Number(product?.stock || 0));
-      if (max === 0) return prev;
-      return { ...prev, [productId]: Math.min(current + 1, max) };
-    });
-  }
-
-  function updateQuantity(productId, nextQuantity) {
-    const product = catalogProducts.find((item) => item.id === productId);
-    const max = Math.max(0, Number(product?.stock || 0));
-    const clamped = Math.max(0, Math.min(nextQuantity, max));
-    setCart((prev) => {
-      if (clamped === 0) {
-        const copy = { ...prev };
-        delete copy[productId];
-        return copy;
-      }
-      return { ...prev, [productId]: clamped };
-    });
-  }
-
-  function clearCart() {
-    setCart({});
-  }
 
   function validateCheckout() {
     const errors = {};
@@ -1062,861 +1012,855 @@ export default function ShopApp() {
         </header>
 
         <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {isPolicyPage ? (
-          <section className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-            <aside className="static h-fit rounded-3xl border border-slate-200/80 bg-white/92 p-5 shadow-[0_22px_48px_rgba(15,23,42,0.1)] backdrop-blur lg:sticky lg:top-24">
-              <p className="text-xs font-semibold tracking-[0.08em] text-cyan-700">Policy Hub</p>
-              <h2 className="mt-2 text-lg font-semibold text-slate-900">Store Policies & Notices</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{activePolicyMeta.description}</p>
-              <nav className="mt-5 space-y-2">
-                {SHOP_POLICY_LINKS.map((link) => {
-                  const linkMeta = SHOP_POLICY_META[link.path] || { tag: "Policy" };
-                  const isActiveLink = link.path === policyPath;
-                  return (
-                    <Link
-                      key={link.path}
-                      to={link.path}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 transition ${
-                        isActiveLink
+          {isPolicyPage ? (
+            <section className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+              <aside className="static h-fit rounded-3xl border border-slate-200/80 bg-white/92 p-5 shadow-[0_22px_48px_rgba(15,23,42,0.1)] backdrop-blur lg:sticky lg:top-24">
+                <p className="text-xs font-semibold tracking-[0.08em] text-cyan-700">Policy Hub</p>
+                <h2 className="mt-2 text-lg font-semibold text-slate-900">Store Policies & Notices</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{activePolicyMeta.description}</p>
+                <nav className="mt-5 space-y-2">
+                  {SHOP_POLICY_LINKS.map((link) => {
+                    const linkMeta = SHOP_POLICY_META[link.path] || { tag: "Policy" };
+                    const isActiveLink = link.path === policyPath;
+                    return (
+                      <Link
+                        key={link.path}
+                        to={link.path}
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 transition ${isActiveLink
                           ? "border-cyan-500 bg-cyan-50 text-cyan-900"
                           : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span className="text-sm font-semibold">{link.label}</span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-                          isActiveLink ? "bg-cyan-600 text-white" : "bg-slate-100 text-slate-500"
-                        }`}
+                          }`}
                       >
-                        {linkMeta.tag}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </nav>
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-                <p className="text-xs font-semibold tracking-[0.08em] text-slate-600">Need help?</p>
-                <p className="mt-1 text-sm text-slate-700">For order or policy questions, contact support.</p>
-                <a
-                  href="mailto:support@sirdavid.site"
-                  className="mt-2 inline-flex rounded-lg bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(3,105,161,0.28)] hover:brightness-110"
-                >
-                  support@sirdavid.site
-                </a>
-                <p className="mt-2 text-[11px] text-slate-500">Response time: within 24 hours.</p>
-              </div>
-            </aside>
-
-            <article className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.1)]">
-              <div className="border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 sm:px-8">
-                <span className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
-                  {activePolicyMeta.tag}
-                </span>
-                <h1 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">{policyPage.title}</h1>
-                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-200 sm:text-base">{policyPage.summary}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
-                    Effective March 5, 2026
-                  </span>
-                  <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
-                    Applies to all storefront orders
-                  </span>
-                  <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
-                    Business: Sirdavid Gadgets
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-4 p-6 sm:p-8">
-                {policyPage.sections.map((section, index) => (
-                  <section key={section.heading} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 sm:p-6">
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-                        {index + 1}
-                      </span>
-                      <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{section.heading}</h2>
-                    </div>
-                    <div className="mt-3 space-y-3 pl-0.5">
-                      {section.paragraphs.map((paragraph) => (
-                        <p key={paragraph} className="text-sm leading-relaxed text-slate-700 sm:text-[15px]">
-                          {paragraph}
-                        </p>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </article>
-          </section>
-        ) : isTrackingPage ? (
-          <section className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <article className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.1)]">
-              <div className="border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 sm:px-8">
-                <p className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
-                  Order Tracking
-                </p>
-                <h1 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">Track your package</h1>
-                <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-200 sm:text-base">
-                  Enter your order reference or tracking number to view real-time fulfillment status.
-                </p>
-              </div>
-
-              <div className="space-y-5 p-6 sm:p-8">
-                <form onSubmit={handleTrackOrder} className="space-y-3">
-                  <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    Order Reference / Tracking Number
-                  </label>
-                  <input
-                    value={trackingReference}
-                    onChange={(event) => setTrackingReference(event.target.value)}
-                    className={inputClass}
-                    placeholder="Example: SD-12345678 or SDV-12345678-AB12CD"
-                  />
-                  <button
-                    type="submit"
-                    disabled={trackingState.state === "loading"}
-                    className="w-full rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(3,105,161,0.28)] transition hover:brightness-110 disabled:opacity-70"
-                  >
-                    {trackingState.state === "loading" ? "Checking..." : "Track Order"}
-                  </button>
-                </form>
-
-                {trackingState.state === "error" ? (
-                  <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                    {trackingState.message}
-                  </p>
-                ) : null}
-
-                <section className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status Flow</p>
-                  <div className="mt-3 space-y-3">
-                    {[
-                      { key: "paid", label: "Payment Confirmed" },
-                      { key: "processing", label: "Order Processing" },
-                      { key: "in_route", label: "In Route" },
-                      { key: "completed", label: "Delivered" },
-                    ].map((step, index) => {
-                      const stepOrder = index + 1;
-                      const isCompleted = trackingProgressIndex >= stepOrder && !isTrackingCancelled;
-                      return (
-                        <div key={step.key} className="flex items-center gap-3">
-                          <span
-                            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${
-                              isCompleted
-                                ? "border-cyan-600 bg-cyan-600 text-white"
-                                : "border-slate-300 bg-white text-slate-500"
+                        <span className="text-sm font-semibold">{link.label}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${isActiveLink ? "bg-cyan-600 text-white" : "bg-slate-100 text-slate-500"
                             }`}
-                          >
-                            {stepOrder}
-                          </span>
-                          <p className={`text-sm font-medium ${isCompleted ? "text-slate-900" : "text-slate-500"}`}>
-                            {step.label}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              </div>
-            </article>
-
-            <aside className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_20px_48px_rgba(15,23,42,0.1)] sm:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Current Status</p>
-              {trackingState.state === "success" && trackingOrder ? (
-                <section className="mt-3 space-y-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-900">Reference {trackingOrder.reference}</p>
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.13em] ${trackingStatusPillClass(
-                        trackingOrder.status
-                      )}`}
-                    >
-                      {trackingStatusLabel(trackingOrder.status)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-700">{trackingOrder.statusMessage}</p>
-
-                  <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
-                    <div className="flex items-center justify-between gap-3 text-slate-700">
-                      <span>Tracking number</span>
-                      <span className="font-semibold text-slate-900">
-                        {trackingOrder.trackingNumber || "Not assigned yet"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-slate-700">
-                      <span>Created</span>
-                      <span className="font-semibold text-slate-900">
-                        {trackingOrder.createdAt ? new Date(trackingOrder.createdAt).toLocaleString() : "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 text-slate-700">
-                      <span>Total</span>
-                      <span className="font-semibold text-slate-900">
-                        {formatMoney(trackingOrder.total || 0, trackingOrder.currency || activePricing.currency)}
-                      </span>
-                    </div>
-                  </div>
-                </section>
-              ) : (
-                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                  Enter your order reference to load delivery and payment status details.
-                </div>
-              )}
-            </aside>
-          </section>
-        ) : lastOrder ? (
-          <section className="mx-auto max-w-5xl space-y-6">
-            <article className="overflow-hidden rounded-3xl border border-emerald-200/80 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.1)]">
-              <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-cyan-700 px-6 py-7 text-white sm:px-8">
-                <p className="inline-flex rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
-                  {lastOrder.paymentStatus === "paid" ? "Payment Successful" : "Order Placed"}
-                </p>
-                <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
-                  {lastOrder.paymentStatus === "paid" ? "Payment Confirmed" : "Order Received"}
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-emerald-50 sm:text-base">
-                  Your order has been captured successfully and is now in our fulfillment queue.
-                </p>
-              </div>
-
-              <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Reference</p>
-                  <p className="mt-1 truncate text-sm font-semibold text-slate-900">{lastOrder.reference}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Amount Paid</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {formatMoney(lastOrder.total, lastOrder.currency)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Payment</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {lastOrder.paymentStatus === "paid" ? "Confirmed" : "Pending"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Order Time</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {lastOrder.createdAt ? new Date(lastOrder.createdAt).toLocaleString() : "N/A"}
-                  </p>
-                </div>
-              </div>
-            </article>
-
-            <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] sm:p-7">
-                <h2 className="font-display text-2xl font-semibold text-slate-900">What happens next</h2>
-                <ul className="mt-4 space-y-3 text-sm text-slate-700">
-                  <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    1. We confirm product availability and prepare dispatch.
-                  </li>
-                  <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    2. Tracking status updates as your order moves to processing and in-route.
-                  </li>
-                  <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    3. Delivery confirmation is reflected on the tracking page.
-                  </li>
-                </ul>
-                {sendStatus.state !== "idle" ? (
-                  <p
-                    className={`mt-4 rounded-xl border px-3 py-2 text-sm ${
-                      sendStatus.state === "error"
-                        ? "border-rose-200 bg-rose-50 text-rose-700"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    }`}
+                        >
+                          {linkMeta.tag}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                  <p className="text-xs font-semibold tracking-[0.08em] text-slate-600">Need help?</p>
+                  <p className="mt-1 text-sm text-slate-700">For order or policy questions, contact support.</p>
+                  <a
+                    href="mailto:support@sirdavid.site"
+                    className="mt-2 inline-flex rounded-lg bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(3,105,161,0.28)] hover:brightness-110"
                   >
-                    {sendStatus.message}
-                  </p>
-                ) : null}
-              </section>
-
-              <aside className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] sm:p-7">
-                <h2 className="font-display text-2xl font-semibold text-slate-900">Order Actions</h2>
-                <p className="mt-2 text-sm text-slate-600">Track this order now or continue shopping.</p>
-                <div className="mt-5 space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/track-order?reference=${encodeURIComponent(lastOrder.reference)}`)}
-                    className="w-full rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(3,105,161,0.28)] transition hover:brightness-110"
-                  >
-                    Track This Order
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLastOrder(null);
-                      setSendStatus({ state: "idle", message: "" });
-                      setPaymentStatus({ state: "idle", message: "" });
-                      navigate(storeHomePath);
-                    }}
-                    className="w-full rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    Continue Shopping
-                  </button>
+                    support@sirdavid.site
+                  </a>
+                  <p className="mt-2 text-[11px] text-slate-500">Response time: within 24 hours.</p>
                 </div>
               </aside>
-            </div>
-          </section>
-        ) : isCartPage ? (
-          <section className="mx-auto max-w-6xl space-y-6">
-            <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.1)]">
-              <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 text-white sm:px-8">
-                <p className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
-                  Checkout
-                </p>
-                <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">Complete your order</h1>
-                <p className="mt-2 max-w-2xl text-sm text-slate-200 sm:text-base">
-                  Review your cart, confirm delivery details, and place your order securely.
-                </p>
-              </div>
-              <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Items</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">{cartCount}</p>
+
+              <article className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.1)]">
+                <div className="border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 sm:px-8">
+                  <span className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                    {activePolicyMeta.tag}
+                  </span>
+                  <h1 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">{policyPage.title}</h1>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-200 sm:text-base">{policyPage.summary}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
+                      Effective March 5, 2026
+                    </span>
+                    <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
+                      Applies to all storefront orders
+                    </span>
+                    <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
+                      Business: Sirdavid Gadgets
+                    </span>
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Subtotal</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {formatMoney(subtotal, activePricing.currency)}
-                  </p>
+
+                <div className="space-y-4 p-6 sm:p-8">
+                  {policyPage.sections.map((section, index) => (
+                    <section key={section.heading} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 sm:p-6">
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                          {index + 1}
+                        </span>
+                        <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{section.heading}</h2>
+                      </div>
+                      <div className="mt-3 space-y-3 pl-0.5">
+                        {section.paragraphs.map((paragraph) => (
+                          <p key={paragraph} className="text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+                            {paragraph}
+                          </p>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Shipping</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {formatMoney(shipping, activePricing.currency)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.12em] text-cyan-700">Total</p>
-                  <p className="mt-1 text-lg font-semibold text-cyan-900">
-                    {formatMoney(total, activePricing.currency)}
-                  </p>
-                </div>
-              </div>
+              </article>
             </section>
-
-            {cartItems.length === 0 ? (
-              <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-10 text-center shadow-[0_16px_36px_rgba(15,23,42,0.08)]">
-                <h2 className="font-display text-3xl font-semibold text-slate-900">Your cart is empty</h2>
-                <p className="mt-2 text-sm text-slate-600">
-                  Add gadgets from the storefront, then return here to complete checkout.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate(storeHomePath)}
-                  className="mt-6 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(3,105,161,0.28)] transition hover:brightness-110"
-                >
-                  Continue Shopping
-                </button>
-              </section>
-            ) : (
-              <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-                <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] sm:p-7">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="font-display text-2xl font-semibold text-slate-900">Order Summary</h2>
-                    <button
-                      type="button"
-                      onClick={clearCart}
-                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
-                    >
-                      Clear Cart
-                    </button>
-                  </div>
-
-                  <div className="mt-5 space-y-3">
-                    {cartItems.map((item) => (
-                      <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                        <div className="flex gap-3">
-                          <img
-                            src={getProductGallery(item)[0] || PRODUCT_FALLBACK_IMAGE}
-                            alt={item.name}
-                            className="h-16 w-16 rounded-xl border border-slate-200 object-cover"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="truncate text-sm font-semibold text-slate-900">{item.name}</p>
-                              <p className="text-sm font-semibold text-slate-900">
-                                {formatMoney(item.totalPrice, activePricing.currency)}
-                              </p>
-                            </div>
-                            <BrandPill brand={item.brand} className="mt-1" />
-                            <p className="mt-1 text-xs text-slate-500">
-                              {formatMoney(item.unitPrice, activePricing.currency)} each
-                            </p>
-                            <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 text-slate-700"
-                              >
-                                -
-                              </button>
-                              <span className="w-7 text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 text-slate-700"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-
-                <aside className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] sm:p-7">
-                  <h2 className="font-display text-2xl font-semibold text-slate-900">Customer Details</h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Fill in delivery information and place your order.
+          ) : isTrackingPage ? (
+            <section className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+              <article className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.1)]">
+                <div className="border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 sm:px-8">
+                  <p className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                    Order Tracking
                   </p>
+                  <h1 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">Track your package</h1>
+                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-200 sm:text-base">
+                    Enter your order reference or tracking number to view real-time fulfillment status.
+                  </p>
+                </div>
 
-                  <form onSubmit={handlePlaceOrder} className="mt-5 space-y-3">
-                    {checkoutErrors.cart && (
-                      <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                        {checkoutErrors.cart}
-                      </p>
-                    )}
-
+                <div className="space-y-5 p-6 sm:p-8">
+                  <form onSubmit={handleTrackOrder} className="space-y-3">
+                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      Order Reference / Tracking Number
+                    </label>
                     <input
-                      name="fullName"
-                      value={checkout.fullName}
-                      onChange={handleCheckoutFieldChange}
-                      placeholder="Full name"
+                      value={trackingReference}
+                      onChange={(event) => setTrackingReference(event.target.value)}
                       className={inputClass}
+                      placeholder="Example: SD-12345678 or SDV-12345678-AB12CD"
                     />
-                    {checkoutErrors.fullName && <p className="text-xs text-rose-600">{checkoutErrors.fullName}</p>}
-
-                    <input
-                      name="email"
-                      value={checkout.email}
-                      onChange={handleCheckoutFieldChange}
-                      placeholder="Email"
-                      className={inputClass}
-                    />
-                    {checkoutErrors.email && <p className="text-xs text-rose-600">{checkoutErrors.email}</p>}
-
-                    <input
-                      name="phone"
-                      value={checkout.phone}
-                      onChange={handleCheckoutFieldChange}
-                      placeholder="Phone"
-                      className={inputClass}
-                    />
-                    {checkoutErrors.phone && <p className="text-xs text-rose-600">{checkoutErrors.phone}</p>}
-
-                    <input
-                      name="address"
-                      value={checkout.address}
-                      onChange={handleCheckoutFieldChange}
-                      placeholder="Address"
-                      className={inputClass}
-                    />
-                    {checkoutErrors.address && <p className="text-xs text-rose-600">{checkoutErrors.address}</p>}
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <input
-                          name="city"
-                          value={checkout.city}
-                          onChange={handleCheckoutFieldChange}
-                          placeholder="City"
-                          className={inputClass}
-                        />
-                        {checkoutErrors.city && <p className="text-xs text-rose-600">{checkoutErrors.city}</p>}
-                      </div>
-                      <div>
-                        <input
-                          name="country"
-                          value={checkout.country}
-                          onChange={handleCheckoutFieldChange}
-                          placeholder="Country"
-                          className={inputClass}
-                        />
-                        {checkoutErrors.country && <p className="text-xs text-rose-600">{checkoutErrors.country}</p>}
-                      </div>
-                    </div>
-
-                    <input
-                      name="callNumber"
-                      value={checkout.callNumber || ""}
-                      onChange={handleCheckoutFieldChange}
-                      placeholder="Call number (optional)"
-                      className={inputClass}
-                    />
-
-                    <textarea
-                      name="notes"
-                      value={checkout.notes}
-                      onChange={handleCheckoutFieldChange}
-                      placeholder="Order notes (optional)"
-                      rows={3}
-                      className={inputClass}
-                    />
-
                     <button
                       type="submit"
-                      disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
-                      className="w-full rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(3,105,161,0.28)] transition hover:brightness-110"
+                      disabled={trackingState.state === "loading"}
+                      className="w-full rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(3,105,161,0.28)] transition hover:brightness-110 disabled:opacity-70"
                     >
-                      {paymentStatus.state === "initializing" || paymentStatus.state === "verifying"
-                        ? "Processing..."
-                        : "Place Order"}
+                      {trackingState.state === "loading" ? "Checking..." : "Track Order"}
                     </button>
-                    {applePaySupported ? (
-                      <button
-                        type="button"
-                        onClick={handleApplePayOrder}
-                        disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
-                        className="w-full rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-70"
-                      >
-                        {paymentStatus.state === "initializing" || paymentStatus.state === "verifying"
-                          ? "Processing..."
-                          : "Pay with Apple Pay"}
-                      </button>
-                    ) : null}
                   </form>
-                </aside>
-              </div>
-            )}
-          </section>
-        ) : (
-          <div className="grid gap-7 lg:grid-cols-[1.72fr_0.88fr]">
-            <section className="space-y-5">
-              <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)] sm:p-6">
-                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-cyan-200/60 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-12 left-10 h-40 w-40 rounded-full bg-sky-200/70 blur-3xl" />
-                <div className="relative">
-                  <p className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-800">
-                    Sirdavid Storefront
-                  </p>
-                  <h1 className="mt-3 max-w-3xl font-display text-3xl font-bold leading-tight text-slate-900 sm:text-4xl">
-                    High-end gadgets with secure, fast checkout
-                  </h1>
-                  <p className="mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
-                    Shop verified devices, compare by category, and buy confidently with location-aware local pricing.
-                  </p>
 
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const firstSection = document.getElementById("catalog-section");
-                        if (firstSection) firstSection.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }}
-                      className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(3,105,161,0.3)] transition hover:brightness-110"
-                    >
-                      Browse Catalog
-                      <FiChevronRight className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/track-order")}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      <FiTruck className="h-4 w-4" />
-                      Track Existing Order
-                    </button>
-                  </div>
+                  {trackingState.state === "error" ? (
+                    <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                      {trackingState.message}
+                    </p>
+                  ) : null}
 
-                  <div className="mt-6 grid gap-2 sm:grid-cols-3">
-                    {STORE_TRUST_ITEMS.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <div
-                          key={item.label}
-                          className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]"
-                        >
-                          <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <p className="mt-2 text-sm font-semibold text-slate-900">{item.label}</p>
-                          <p className="text-xs text-slate-500">{item.note}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </section>
-
-              <section className="sticky top-20 z-20 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.08)] backdrop-blur sm:p-4">
-                <div className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  <FiFilter className="h-3.5 w-3.5" />
-                  Catalog Controls
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="relative">
-                    <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Search products..."
-                      className={`${inputClass} pl-9`}
-                    />
-                  </div>
-                  <select
-                    value={activeCategory}
-                    onChange={(event) => setActiveCategory(event.target.value)}
-                    className={inputClass}
-                  >
-                    {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={conditionFilter}
-                    onChange={(event) => setConditionFilter(event.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="All">All Conditions</option>
-                    <option value="New">New</option>
-                    <option value="Used">Used</option>
-                  </select>
-                  <select
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value)}
-                    className={inputClass}
-                  >
-                    {sortOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </section>
-
-              <section id="catalog-section" className="space-y-8">
-                {groupedVisibleProducts.map((group) => (
-                  <section key={group.category} className="space-y-4">
-                    <div className="flex flex-wrap items-end justify-between gap-2">
-                      <div>
-                        <h2 className="font-display text-2xl font-semibold text-slate-900">{group.category}</h2>
-                        <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Curated selection</p>
-                      </div>
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500">
-                        {categoryItemCounts[group.category] ?? group.items.length} items
-                      </span>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {group.items.map((product) => {
-                        const gallery = getProductGallery(product);
-                        const maxIndex = Math.max(0, gallery.length - 1);
-                        const selectedIndex = Math.min(
-                          Number(selectedImageIndexByProduct[product.id] || 0),
-                          maxIndex
-                        );
-                        const selectedImage = gallery[selectedIndex] || PRODUCT_FALLBACK_IMAGE;
-                        const specs = getProductSpecs(product);
-
+                  <section className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status Flow</p>
+                    <div className="mt-3 space-y-3">
+                      {[
+                        { key: "paid", label: "Payment Confirmed" },
+                        { key: "processing", label: "Order Processing" },
+                        { key: "in_route", label: "In Route" },
+                        { key: "completed", label: "Delivered" },
+                      ].map((step, index) => {
+                        const stepOrder = index + 1;
+                        const isCompleted = trackingProgressIndex >= stepOrder && !isTrackingCancelled;
                         return (
-                          <article
-                            key={product.id}
-                            className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_20px_46px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_60px_rgba(15,23,42,0.12)]"
-                          >
-                            <div className="relative overflow-hidden">
-                              <img
-                                src={selectedImage}
-                                alt={product.name}
-                                className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
-                              />
-                              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900/45 to-transparent" />
-                              <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-                                <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-700">
-                                  {product.category}
-                                </span>
-                                <span className="rounded-full bg-cyan-300/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-900">
-                                  {product.condition}
-                                </span>
-                              </div>
-                            </div>
-
-                            {gallery.length > 1 ? (
-                              <div className="flex gap-2 overflow-x-auto border-b border-slate-100 px-3 py-2">
-                                {gallery.map((imageUrl, index) => (
-                                  <button
-                                    key={`${product.id}-image-${index}`}
-                                    type="button"
-                                    onClick={() =>
-                                      setSelectedImageIndexByProduct((prev) => ({
-                                        ...prev,
-                                        [product.id]: index,
-                                      }))
-                                    }
-                                    className={`h-12 w-12 flex-none overflow-hidden rounded-lg border ${
-                                      index === selectedIndex ? "border-cyan-500" : "border-slate-200"
-                                    }`}
-                                  >
-                                    <img src={imageUrl} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
-                                  </button>
-                                ))}
-                              </div>
-                            ) : null}
-
-                            <div className="p-5">
-                              <h3 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h3>
-                              <BrandPill brand={product.brand} className="mt-2" />
-                              {specs.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-1.5">
-                                  {specs.map((spec) => (
-                                    <span
-                                      key={`${product.id}-${spec}`}
-                                      className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-600"
-                                    >
-                                      {spec}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : null}
-                              <p className="mt-3 min-h-[44px] text-sm leading-relaxed text-slate-600">{product.details}</p>
-
-                              <div className="mt-4 flex items-end justify-between">
-                                <p className="text-2xl font-bold text-slate-900">
-                                  {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
-                                </p>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => addToCart(product.id)}
-                                disabled={Number(product.stock) <= 0}
-                                className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${
-                                  Number(product.stock) > 0
-                                    ? "bg-[linear-gradient(135deg,#0f172a,#0369a1)] shadow-[0_12px_28px_rgba(3,105,161,0.3)] hover:brightness-110"
-                                    : "cursor-not-allowed bg-slate-400"
+                          <div key={step.key} className="flex items-center gap-3">
+                            <span
+                              className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${isCompleted
+                                ? "border-cyan-600 bg-cyan-600 text-white"
+                                : "border-slate-300 bg-white text-slate-500"
                                 }`}
-                              >
-                                <FiShoppingBag className="h-4 w-4" />
-                                {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
-                              </button>
-                            </div>
-                          </article>
+                            >
+                              {stepOrder}
+                            </span>
+                            <p className={`text-sm font-medium ${isCompleted ? "text-slate-900" : "text-slate-500"}`}>
+                              {step.label}
+                            </p>
+                          </div>
                         );
                       })}
                     </div>
                   </section>
-                ))}
+                </div>
+              </article>
 
-                {visibleProducts.length === 0 ? (
-                  <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
-                    No gadgets match your current filters. Try changing category or search keywords.
+              <aside className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_20px_48px_rgba(15,23,42,0.1)] sm:p-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Current Status</p>
+                {trackingState.state === "success" && trackingOrder ? (
+                  <section className="mt-3 space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-slate-900">Reference {trackingOrder.reference}</p>
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.13em] ${trackingStatusPillClass(
+                          trackingOrder.status
+                        )}`}
+                      >
+                        {trackingStatusLabel(trackingOrder.status)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-700">{trackingOrder.statusMessage}</p>
+
+                    <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                      <div className="flex items-center justify-between gap-3 text-slate-700">
+                        <span>Tracking number</span>
+                        <span className="font-semibold text-slate-900">
+                          {trackingOrder.trackingNumber || "Not assigned yet"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-slate-700">
+                        <span>Created</span>
+                        <span className="font-semibold text-slate-900">
+                          {trackingOrder.createdAt ? new Date(trackingOrder.createdAt).toLocaleString() : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-slate-700">
+                        <span>Total</span>
+                        <span className="font-semibold text-slate-900">
+                          {formatMoney(trackingOrder.total || 0, trackingOrder.currency || activePricing.currency)}
+                        </span>
+                      </div>
+                    </div>
+                  </section>
+                ) : (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    Enter your order reference to load delivery and payment status details.
                   </div>
-                ) : null}
-              </section>
+                )}
+              </aside>
             </section>
+          ) : lastOrder ? (
+            <section className="mx-auto max-w-5xl space-y-6">
+              <article className="overflow-hidden rounded-3xl border border-emerald-200/80 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.1)]">
+                <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-cyan-700 px-6 py-7 text-white sm:px-8">
+                  <p className="inline-flex rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                    {lastOrder.paymentStatus === "paid" ? "Payment Successful" : "Order Placed"}
+                  </p>
+                  <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
+                    {lastOrder.paymentStatus === "paid" ? "Payment Confirmed" : "Order Received"}
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-emerald-50 sm:text-base">
+                    Your order has been captured successfully and is now in our fulfillment queue.
+                  </p>
+                </div>
 
-            <aside className="h-fit rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_22px_48px_rgba(15,23,42,0.1)] lg:sticky lg:top-24">
-              <div className="rounded-2xl bg-[linear-gradient(135deg,#0f172a,#075985)] p-4 text-white">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">Cart Summary</p>
-                <p className="mt-1 font-display text-2xl font-semibold">{formatMoney(total, activePricing.currency)}</p>
-                <p className="text-xs text-cyan-100">Subtotal + shipping included</p>
+                <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Reference</p>
+                    <p className="mt-1 truncate text-sm font-semibold text-slate-900">{lastOrder.reference}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Amount Paid</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {formatMoney(lastOrder.total, lastOrder.currency)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Payment</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {lastOrder.paymentStatus === "paid" ? "Confirmed" : "Pending"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Order Time</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {lastOrder.createdAt ? new Date(lastOrder.createdAt).toLocaleString() : "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </article>
+
+              <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+                <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] sm:p-7">
+                  <h2 className="font-display text-2xl font-semibold text-slate-900">What happens next</h2>
+                  <ul className="mt-4 space-y-3 text-sm text-slate-700">
+                    <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      1. We confirm product availability and prepare dispatch.
+                    </li>
+                    <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      2. Tracking status updates as your order moves to processing and in-route.
+                    </li>
+                    <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      3. Delivery confirmation is reflected on the tracking page.
+                    </li>
+                  </ul>
+                  {sendStatus.state !== "idle" ? (
+                    <p
+                      className={`mt-4 rounded-xl border px-3 py-2 text-sm ${sendStatus.state === "error"
+                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        }`}
+                    >
+                      {sendStatus.message}
+                    </p>
+                  ) : null}
+                </section>
+
+                <aside className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] sm:p-7">
+                  <h2 className="font-display text-2xl font-semibold text-slate-900">Order Actions</h2>
+                  <p className="mt-2 text-sm text-slate-600">Track this order now or continue shopping.</p>
+                  <div className="mt-5 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/track-order?reference=${encodeURIComponent(lastOrder.reference)}`)}
+                      className="w-full rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(3,105,161,0.28)] transition hover:brightness-110"
+                    >
+                      Track This Order
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLastOrder(null);
+                        setSendStatus({ state: "idle", message: "" });
+                        setPaymentStatus({ state: "idle", message: "" });
+                        navigate(storeHomePath);
+                      }}
+                      className="w-full rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                    >
+                      Continue Shopping
+                    </button>
+                  </div>
+                </aside>
               </div>
+            </section>
+          ) : isCartPage ? (
+            <section className="mx-auto max-w-6xl space-y-6">
+              <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.1)]">
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 px-6 py-7 text-white sm:px-8">
+                  <p className="inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                    Checkout
+                  </p>
+                  <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">Complete your order</h1>
+                  <p className="mt-2 max-w-2xl text-sm text-slate-200 sm:text-base">
+                    Review your cart, confirm delivery details, and place your order securely.
+                  </p>
+                </div>
+                <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Items</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-900">{cartCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Subtotal</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-900">
+                      {formatMoney(subtotal, activePricing.currency)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Shipping</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-900">
+                      {formatMoney(shipping, activePricing.currency)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-cyan-700">Total</p>
+                    <p className="mt-1 text-lg font-semibold text-cyan-900">
+                      {formatMoney(total, activePricing.currency)}
+                    </p>
+                  </div>
+                </div>
+              </section>
 
-              <div className="mt-4 flex items-center justify-between">
-                <h2 className="font-display text-2xl font-semibold text-slate-900">Your Cart</h2>
+              {cartItems.length === 0 ? (
+                <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-10 text-center shadow-[0_16px_36px_rgba(15,23,42,0.08)]">
+                  <h2 className="font-display text-3xl font-semibold text-slate-900">Your cart is empty</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Add gadgets from the storefront, then return here to complete checkout.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(storeHomePath)}
+                    className="mt-6 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(3,105,161,0.28)] transition hover:brightness-110"
+                  >
+                    Continue Shopping
+                  </button>
+                </section>
+              ) : (
+                <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                  <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] sm:p-7">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="font-display text-2xl font-semibold text-slate-900">Order Summary</h2>
+                      <button
+                        type="button"
+                        onClick={clearCart}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                      >
+                        Clear Cart
+                      </button>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                      {cartItems.map((item) => (
+                        <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                          <div className="flex gap-3">
+                            <img
+                              src={getProductGallery(item)[0] || PRODUCT_FALLBACK_IMAGE}
+                              alt={item.name}
+                              className="h-16 w-16 rounded-xl border border-slate-200 object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-3">
+                                <p className="truncate text-sm font-semibold text-slate-900">{item.name}</p>
+                                <p className="text-sm font-semibold text-slate-900">
+                                  {formatMoney(item.totalPrice, activePricing.currency)}
+                                </p>
+                              </div>
+                              <BrandPill brand={item.brand} className="mt-1" />
+                              <p className="mt-1 text-xs text-slate-500">
+                                {formatMoney(item.unitPrice, activePricing.currency)} each
+                              </p>
+                              <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+                                <button
+                                  type="button"
+                                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 text-slate-700"
+                                >
+                                  -
+                                </button>
+                                <span className="w-7 text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 text-slate-700"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+
+                  <aside className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] sm:p-7">
+                    <h2 className="font-display text-2xl font-semibold text-slate-900">Customer Details</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Fill in delivery information and place your order.
+                    </p>
+
+                    <form onSubmit={handlePlaceOrder} className="mt-5 space-y-3">
+                      {checkoutErrors.cart && (
+                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                          {checkoutErrors.cart}
+                        </p>
+                      )}
+
+                      <input
+                        name="fullName"
+                        value={checkout.fullName}
+                        onChange={handleCheckoutFieldChange}
+                        placeholder="Full name"
+                        className={inputClass}
+                      />
+                      {checkoutErrors.fullName && <p className="text-xs text-rose-600">{checkoutErrors.fullName}</p>}
+
+                      <input
+                        name="email"
+                        value={checkout.email}
+                        onChange={handleCheckoutFieldChange}
+                        placeholder="Email"
+                        className={inputClass}
+                      />
+                      {checkoutErrors.email && <p className="text-xs text-rose-600">{checkoutErrors.email}</p>}
+
+                      <input
+                        name="phone"
+                        value={checkout.phone}
+                        onChange={handleCheckoutFieldChange}
+                        placeholder="Phone"
+                        className={inputClass}
+                      />
+                      {checkoutErrors.phone && <p className="text-xs text-rose-600">{checkoutErrors.phone}</p>}
+
+                      <input
+                        name="address"
+                        value={checkout.address}
+                        onChange={handleCheckoutFieldChange}
+                        placeholder="Address"
+                        className={inputClass}
+                      />
+                      {checkoutErrors.address && <p className="text-xs text-rose-600">{checkoutErrors.address}</p>}
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <input
+                            name="city"
+                            value={checkout.city}
+                            onChange={handleCheckoutFieldChange}
+                            placeholder="City"
+                            className={inputClass}
+                          />
+                          {checkoutErrors.city && <p className="text-xs text-rose-600">{checkoutErrors.city}</p>}
+                        </div>
+                        <div>
+                          <input
+                            name="country"
+                            value={checkout.country}
+                            onChange={handleCheckoutFieldChange}
+                            placeholder="Country"
+                            className={inputClass}
+                          />
+                          {checkoutErrors.country && <p className="text-xs text-rose-600">{checkoutErrors.country}</p>}
+                        </div>
+                      </div>
+
+                      <input
+                        name="callNumber"
+                        value={checkout.callNumber || ""}
+                        onChange={handleCheckoutFieldChange}
+                        placeholder="Call number (optional)"
+                        className={inputClass}
+                      />
+
+                      <textarea
+                        name="notes"
+                        value={checkout.notes}
+                        onChange={handleCheckoutFieldChange}
+                        placeholder="Order notes (optional)"
+                        rows={3}
+                        className={inputClass}
+                      />
+
+                      <button
+                        type="submit"
+                        disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
+                        className="w-full rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(3,105,161,0.28)] transition hover:brightness-110"
+                      >
+                        {paymentStatus.state === "initializing" || paymentStatus.state === "verifying"
+                          ? "Processing..."
+                          : "Place Order"}
+                      </button>
+                      {applePaySupported ? (
+                        <button
+                          type="button"
+                          onClick={handleApplePayOrder}
+                          disabled={paymentStatus.state === "initializing" || paymentStatus.state === "verifying"}
+                          className="w-full rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-70"
+                        >
+                          {paymentStatus.state === "initializing" || paymentStatus.state === "verifying"
+                            ? "Processing..."
+                            : "Pay with Apple Pay"}
+                        </button>
+                      ) : null}
+                    </form>
+                  </aside>
+                </div>
+              )}
+            </section>
+          ) : (
+            <div className="grid gap-7 lg:grid-cols-[1.72fr_0.88fr]">
+              <section className="space-y-5">
+                <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)] sm:p-6">
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-cyan-200/60 blur-3xl" />
+                  <div className="pointer-events-none absolute -bottom-12 left-10 h-40 w-40 rounded-full bg-sky-200/70 blur-3xl" />
+                  <div className="relative">
+                    <p className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-800">
+                      Sirdavid Storefront
+                    </p>
+                    <h1 className="mt-3 max-w-3xl font-display text-3xl font-bold leading-tight text-slate-900 sm:text-4xl">
+                      High-end gadgets with secure, fast checkout
+                    </h1>
+                    <p className="mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
+                      Shop verified devices, compare by category, and buy confidently with location-aware local pricing.
+                    </p>
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const firstSection = document.getElementById("catalog-section");
+                          if (firstSection) firstSection.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                        className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(3,105,161,0.3)] transition hover:brightness-110"
+                      >
+                        Browse Catalog
+                        <FiChevronRight className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/track-order")}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <FiTruck className="h-4 w-4" />
+                        Track Existing Order
+                      </button>
+                    </div>
+
+                    <div className="mt-6 grid gap-2 sm:grid-cols-3">
+                      {STORE_TRUST_ITEMS.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <div
+                            key={item.label}
+                            className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]"
+                          >
+                            <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <p className="mt-2 text-sm font-semibold text-slate-900">{item.label}</p>
+                            <p className="text-xs text-slate-500">{item.note}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+
+                <section className="sticky top-20 z-20 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.08)] backdrop-blur sm:p-4">
+                  <div className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    <FiFilter className="h-3.5 w-3.5" />
+                    Catalog Controls
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="relative">
+                      <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search products..."
+                        className={`${inputClass} pl-9`}
+                      />
+                    </div>
+                    <select
+                      value={activeCategory}
+                      onChange={(event) => setActiveCategory(event.target.value)}
+                      className={inputClass}
+                    >
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={conditionFilter}
+                      onChange={(event) => setConditionFilter(event.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="All">All Conditions</option>
+                      <option value="New">New</option>
+                      <option value="Used">Used</option>
+                    </select>
+                    <select
+                      value={sortBy}
+                      onChange={(event) => setSortBy(event.target.value)}
+                      className={inputClass}
+                    >
+                      {sortOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </section>
+
+                <section id="catalog-section" className="space-y-8">
+                  {groupedVisibleProducts.map((group) => (
+                    <section key={group.category} className="space-y-4">
+                      <div className="flex flex-wrap items-end justify-between gap-2">
+                        <div>
+                          <h2 className="font-display text-2xl font-semibold text-slate-900">{group.category}</h2>
+                          <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Curated selection</p>
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500">
+                          {categoryItemCounts[group.category] ?? group.items.length} items
+                        </span>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {group.items.map((product) => {
+                          const gallery = getProductGallery(product);
+                          const maxIndex = Math.max(0, gallery.length - 1);
+                          const selectedIndex = Math.min(
+                            Number(selectedImageIndexByProduct[product.id] || 0),
+                            maxIndex
+                          );
+                          const selectedImage = gallery[selectedIndex] || PRODUCT_FALLBACK_IMAGE;
+                          const specs = getProductSpecs(product);
+
+                          return (
+                            <article
+                              key={product.id}
+                              className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_20px_46px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_60px_rgba(15,23,42,0.12)]"
+                            >
+                              <div className="relative overflow-hidden">
+                                <img
+                                  src={selectedImage}
+                                  alt={product.name}
+                                  className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
+                                />
+                                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900/45 to-transparent" />
+                                <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                                  <span className="rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-700">
+                                    {product.category}
+                                  </span>
+                                  <span className="rounded-full bg-cyan-300/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-900">
+                                    {product.condition}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {gallery.length > 1 ? (
+                                <div className="flex gap-2 overflow-x-auto border-b border-slate-100 px-3 py-2">
+                                  {gallery.map((imageUrl, index) => (
+                                    <button
+                                      key={`${product.id}-image-${index}`}
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedImageIndexByProduct((prev) => ({
+                                          ...prev,
+                                          [product.id]: index,
+                                        }))
+                                      }
+                                      className={`h-12 w-12 flex-none overflow-hidden rounded-lg border ${index === selectedIndex ? "border-cyan-500" : "border-slate-200"
+                                        }`}
+                                    >
+                                      <img src={imageUrl} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : null}
+
+                              <div className="p-5">
+                                <h3 className="font-display text-2xl font-semibold text-slate-900">{product.name}</h3>
+                                <BrandPill brand={product.brand} className="mt-2" />
+                                {specs.length > 0 ? (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {specs.map((spec) => (
+                                      <span
+                                        key={`${product.id}-${spec}`}
+                                        className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-600"
+                                      >
+                                        {spec}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <p className="mt-3 min-h-[44px] text-sm leading-relaxed text-slate-600">{product.details}</p>
+
+                                <div className="mt-4 flex items-end justify-between">
+                                  <p className="text-2xl font-bold text-slate-900">
+                                    {formatMoney(toPrice(product.basePriceUsd, activePricing), activePricing.currency)}
+                                  </p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => addToCart(product.id)}
+                                  disabled={Number(product.stock) <= 0}
+                                  className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${Number(product.stock) > 0
+                                    ? "bg-[linear-gradient(135deg,#0f172a,#0369a1)] shadow-[0_12px_28px_rgba(3,105,161,0.3)] hover:brightness-110"
+                                    : "cursor-not-allowed bg-slate-400"
+                                    }`}
+                                >
+                                  <FiShoppingBag className="h-4 w-4" />
+                                  {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+
+                  {visibleProducts.length === 0 ? (
+                    <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
+                      No gadgets match your current filters. Try changing category or search keywords.
+                    </div>
+                  ) : null}
+                </section>
+              </section>
+
+              <aside className="h-fit rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_22px_48px_rgba(15,23,42,0.1)] lg:sticky lg:top-24">
+                <div className="rounded-2xl bg-[linear-gradient(135deg,#0f172a,#075985)] p-4 text-white">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200">Cart Summary</p>
+                  <p className="mt-1 font-display text-2xl font-semibold">{formatMoney(total, activePricing.currency)}</p>
+                  <p className="text-xs text-cyan-100">Subtotal + shipping included</p>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <h2 className="font-display text-2xl font-semibold text-slate-900">Your Cart</h2>
+                  {cartItems.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+
+                {cartItems.length === 0 ? (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    No items yet. Add products to start checkout.
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                        <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                        <BrandPill brand={item.brand} className="mt-1" />
+                        <p className="mt-1 text-xs text-slate-500">{formatMoney(item.unitPrice, activePricing.currency)} each</p>
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-1.5 py-1">
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-slate-300 text-slate-700"
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-slate-300 text-slate-700"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {formatMoney(item.totalPrice, activePricing.currency)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Subtotal</span>
+                    <span>{formatMoney(subtotal, activePricing.currency)}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-slate-600">
+                    <span>Shipping</span>
+                    <span>{formatMoney(shipping, activePricing.currency)}</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-base font-bold text-slate-900">
+                    <span>Total</span>
+                    <span>{formatMoney(total, activePricing.currency)}</span>
+                  </div>
+                </div>
+
                 {cartItems.length > 0 ? (
                   <button
                     type="button"
-                    onClick={clearCart}
-                    className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                    onClick={() => navigate("/cart")}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(3,105,161,0.3)] transition hover:brightness-110"
                   >
-                    Clear
+                    Go To Cart & Checkout
+                    <FiChevronRight className="h-4 w-4" />
                   </button>
                 ) : null}
-              </div>
-
-              {cartItems.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                  No items yet. Add products to start checkout.
-                </div>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                      <p className="text-sm font-semibold text-slate-900">{item.name}</p>
-                      <BrandPill brand={item.brand} className="mt-1" />
-                      <p className="mt-1 text-xs text-slate-500">{formatMoney(item.unitPrice, activePricing.currency)} each</p>
-                      <div className="mt-3 flex items-center justify-between">
-                        <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-1.5 py-1">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-slate-300 text-slate-700"
-                          >
-                            -
-                          </button>
-                          <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-slate-300 text-slate-700"
-                          >
-                            +
-                          </button>
-                        </div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {formatMoney(item.totalPrice, activePricing.currency)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>Subtotal</span>
-                  <span>{formatMoney(subtotal, activePricing.currency)}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-slate-600">
-                  <span>Shipping</span>
-                  <span>{formatMoney(shipping, activePricing.currency)}</span>
-                </div>
-                <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-base font-bold text-slate-900">
-                  <span>Total</span>
-                  <span>{formatMoney(total, activePricing.currency)}</span>
-                </div>
-              </div>
-
-              {cartItems.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => navigate("/cart")}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(3,105,161,0.3)] transition hover:brightness-110"
+              </aside>
+            </div>
+          )}
+        </main>
+        <footer className="border-t border-slate-200/80 bg-white/85 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
+            <p className="text-xs text-slate-500">
+              Sirdavid Gadgets • Premium new and fairly used gadgets with secure checkout and responsive support.
+            </p>
+            <nav className="flex flex-wrap gap-2">
+              {SHOP_POLICY_LINKS.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                 >
-                  Go To Cart & Checkout
-                  <FiChevronRight className="h-4 w-4" />
-                </button>
-              ) : null}
-            </aside>
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
           </div>
-        )}
-      </main>
-      <footer className="border-t border-slate-200/80 bg-white/85 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:px-8">
-          <p className="text-xs text-slate-500">
-            Sirdavid Gadgets • Premium new and fairly used gadgets with secure checkout and responsive support.
-          </p>
-          <nav className="flex flex-wrap gap-2">
-            {SHOP_POLICY_LINKS.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </footer>
+        </footer>
       </div>
     </div>
   );
