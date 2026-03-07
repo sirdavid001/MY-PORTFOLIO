@@ -1,5 +1,9 @@
 import { applyRateLimit } from "../../../server/_lib/rate-limit.js";
 import { getClientIp } from "../../../server/_lib/security.js";
+import {
+  resolveApplePaySupportedCurrencies,
+  resolvePaystackSupportedCurrencies,
+} from "../../../shared/paystack.js";
 
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -38,5 +42,12 @@ export default async function handler(req, res) {
     return json(res, 404, { ok: false, error: "PAYSTACK public key is not configured." }, methods);
   }
 
-  return json(res, 200, { ok: true, key }, methods);
+  const supportedCurrencies = resolvePaystackSupportedCurrencies(
+    process.env.PAYSTACK_SUPPORTED_CURRENCIES || process.env.VITE_PAYSTACK_SUPPORTED_CURRENCIES
+  );
+  const applePayCurrencies = resolveApplePaySupportedCurrencies(
+    process.env.PAYSTACK_APPLE_PAY_CURRENCIES || process.env.VITE_PAYSTACK_APPLE_PAY_CURRENCIES
+  );
+
+  return json(res, 200, { ok: true, key, supportedCurrencies, applePayCurrencies }, methods);
 }

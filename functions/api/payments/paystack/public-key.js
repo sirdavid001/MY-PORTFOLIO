@@ -1,3 +1,8 @@
+import {
+  resolveApplePaySupportedCurrencies,
+  resolvePaystackSupportedCurrencies,
+} from "../../../../shared/paystack.js";
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -46,5 +51,13 @@ export async function onRequestGet(context) {
   if (!key) {
     return json({ ok: false, error: "PAYSTACK public key is not configured." }, 404);
   }
-  return json({ ok: true, key });
+
+  const supportedCurrencies = resolvePaystackSupportedCurrencies(
+    env.PAYSTACK_SUPPORTED_CURRENCIES || env.VITE_PAYSTACK_SUPPORTED_CURRENCIES
+  );
+  const applePayCurrencies = resolveApplePaySupportedCurrencies(
+    env.PAYSTACK_APPLE_PAY_CURRENCIES || env.VITE_PAYSTACK_APPLE_PAY_CURRENCIES
+  );
+
+  return json({ ok: true, key, supportedCurrencies, applePayCurrencies });
 }

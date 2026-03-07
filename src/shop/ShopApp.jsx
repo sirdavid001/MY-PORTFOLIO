@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCartContext } from "./CartContext";
 import {
+  formatCurrencyList,
+  resolveApplePaySupportedCurrencies,
+  resolvePaystackSupportedCurrencies,
+} from "../../shared/paystack.js";
+import {
   FiChevronRight,
   FiFilter,
   FiRefreshCcw,
@@ -13,6 +18,7 @@ import {
 import usePricingContext from "../hooks/usePricingContext";
 import { formatMoney } from "../lib/pricing";
 import { BrandPill } from "./brandIdentity";
+import { buildStorePricingContext, loadFromStorage, toPrice } from "./shop-helpers";
 import {
   categoryOptions,
   defaultShippingConfig,
@@ -62,7 +68,6 @@ const defaultCheckout = {
   notes: "",
 };
 const PAYSTACK_POPUP_SRC = "https://js.paystack.co/v2/inline.js";
-const SUPPORTED_PAYSTACK_CURRENCIES = new Set(["NGN", "USD"]);
 const FALLBACK_NGN_PER_USD = 1600;
 const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]);
 const SHOP_POLICY_LINKS = [
@@ -260,19 +265,6 @@ const SHOP_POLICY_CONTENT = {
     ],
   },
 };
-export function loadFromStorage(key, fallback) {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
-
-export function toPrice(basePriceUsd, pricingContext) {
-  return Number(basePriceUsd || 0) * pricingContext.exchangeRate * pricingContext.factor;
-}
 
 function calculateShipping(subtotal, pricingContext, shippingConfig) {
   if (subtotal <= 0) return 0;
@@ -472,6 +464,12 @@ export default function ShopApp() {
   const [resolvedPaystackPublicKey, setResolvedPaystackPublicKey] = useState(
     () => import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ""
   );
+  const [supportedPaystackCurrencies, setSupportedPaystackCurrencies] = useState(() =>
+    resolvePaystackSupportedCurrencies(import.meta.env.VITE_PAYSTACK_SUPPORTED_CURRENCIES)
+  );
+  const [supportedApplePayCurrencies, setSupportedApplePayCurrencies] = useState(() =>
+    resolveApplePaySupportedCurrencies(import.meta.env.VITE_PAYSTACK_APPLE_PAY_CURRENCIES)
+  );
 
   useEffect(() => {
     const savedCheckout = loadFromStorage("sirdavidshop:checkout", null);
@@ -539,8 +537,6 @@ export default function ShopApp() {
   }, [isTrackingPage, location.search]);
 
   useEffect(() => {
-    if (resolvedPaystackPublicKey) return undefined;
-
     let cancelled = false;
 
     async function fetchPaystackPublicKey() {
@@ -549,11 +545,19 @@ export default function ShopApp() {
         if (!response.ok) return;
 
         const data = await response.json();
-        if (!cancelled && data?.ok && typeof data.key === "string" && data.key.trim()) {
+        if (cancelled || !data?.ok) return;
+
+        if (typeof data.key === "string" && data.key.trim()) {
           setResolvedPaystackPublicKey(data.key.trim());
         }
+        if (data.supportedCurrencies) {
+          setSupportedPaystackCurrencies(resolvePaystackSupportedCurrencies(data.supportedCurrencies));
+        }
+        if (data.applePayCurrencies) {
+          setSupportedApplePayCurrencies(resolveApplePaySupportedCurrencies(data.applePayCurrencies));
+        }
       } catch {
-        // Keep UI behavior unchanged; checkout will show missing-key message when needed.
+        // Keep local fallback config when the server endpoint is unavailable.
       }
     }
 
@@ -561,7 +565,7 @@ export default function ShopApp() {
     return () => {
       cancelled = true;
     };
-  }, [resolvedPaystackPublicKey]);
+  }, []);
 
   async function sendOrderNotification(order) {
     setSendStatus({ state: "sending", message: "Sending your confirmation..." });
@@ -692,24 +696,28 @@ export default function ShopApp() {
     }
   }
 
-  const activePricing = useMemo(() => {
-    const ngnRateFromRates = Number(pricingContext?.rates?.NGN || 0);
-    const ngnRateFromExchange = pricingContext?.currency === "NGN" ? Number(pricingContext.exchangeRate || 0) : 0;
-    const ngnPerUsd =
-      Number.isFinite(ngnRateFromRates) && ngnRateFromRates > 0
-        ? ngnRateFromRates
-        : Number.isFinite(ngnRateFromExchange) && ngnRateFromExchange > 0
-          ? ngnRateFromExchange
-          : FALLBACK_NGN_PER_USD;
-
-    return {
-      countryCode: pricingContext.countryCode,
-      countryName: pricingContext.countryName,
-      currency: "NGN",
-      exchangeRate: ngnPerUsd,
-      factor: pricingContext.factor,
-    };
-  }, [pricingContext]);
+  const activePricing = useMemo(
+    () => buildStorePricingContext(pricingContext, FALLBACK_NGN_PER_USD),
+    [pricingContext]
+  );
+  const supportedPaystackCurrencySet = useMemo(
+    () => new Set(resolvePaystackSupportedCurrencies(supportedPaystackCurrencies)),
+    [supportedPaystackCurrencies]
+  );
+  const supportedApplePayCurrencySet = useMemo(
+    () => new Set(resolveApplePaySupportedCurrencies(supportedApplePayCurrencies)),
+    [supportedApplePayCurrencies]
+  );
+  const checkoutCurrencySupported = supportedPaystackCurrencySet.has(activePricing.currency);
+  const applePayCurrencySupported = supportedApplePayCurrencySet.has(activePricing.currency);
+  const supportedCurrencyList = useMemo(
+    () => formatCurrencyList(supportedPaystackCurrencies),
+    [supportedPaystackCurrencies]
+  );
+  const applePayCurrencyList = useMemo(
+    () => formatCurrencyList(supportedApplePayCurrencies),
+    [supportedApplePayCurrencies]
+  );
 
   const {
     cartItems,
@@ -819,10 +827,10 @@ export default function ShopApp() {
       return undefined;
     }
 
-    if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
+    if (!checkoutCurrencySupported) {
       setPaymentStatus({
         state: "error",
-        message: "Checkout currently supports NGN or USD only.",
+        message: `Checkout currently supports ${supportedCurrencyList} only.`,
       });
       return undefined;
     }
@@ -846,7 +854,15 @@ export default function ShopApp() {
       message: "Checkout is ready.",
     });
     return undefined;
-  }, [activePricing.currency, cartItems.length, checkout.email, resolvedPaystackPublicKey, total]);
+  }, [
+    activePricing.currency,
+    cartItems.length,
+    checkout.email,
+    checkoutCurrencySupported,
+    resolvedPaystackPublicKey,
+    supportedCurrencyList,
+    total,
+  ]);
 
   function validateCheckout() {
     const errors = {};
@@ -874,14 +890,25 @@ export default function ShopApp() {
       },
     };
 
-    if (!SUPPORTED_PAYSTACK_CURRENCIES.has(activePricing.currency)) {
-      setPaymentStatus({ state: "idle", message: "" });
+    if (!checkoutCurrencySupported) {
+      setPaymentStatus({
+        state: "error",
+        message: `Checkout currently supports ${supportedCurrencyList} only.`,
+      });
+      return;
+    }
+
+    if (transferOnly && !applePayCurrencySupported) {
+      setPaymentStatus({
+        state: "error",
+        message: `Apple Pay is currently available for ${applePayCurrencyList} only.`,
+      });
       return;
     }
 
     const paystackPublicKey = resolvedPaystackPublicKey;
     if (!paystackPublicKey) {
-      setPaymentStatus({ state: "idle", message: "" });
+      setPaymentStatus({ state: "error", message: "Missing Paystack public key." });
       return;
     }
 
@@ -1513,7 +1540,7 @@ export default function ShopApp() {
                           ? "Processing..."
                           : "Place Order"}
                       </button>
-                      {applePaySupported ? (
+                      {applePaySupported && applePayCurrencySupported ? (
                         <button
                           type="button"
                           onClick={handleApplePayOrder}
@@ -1524,6 +1551,19 @@ export default function ShopApp() {
                             ? "Processing..."
                             : "Pay with Apple Pay"}
                         </button>
+                      ) : null}
+                      {paymentStatus.message ? (
+                        <p
+                          className={`rounded-xl border px-3 py-2 text-sm ${
+                            paymentStatus.state === "error"
+                              ? "border-rose-200 bg-rose-50 text-rose-700"
+                              : paymentStatus.state === "ready"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-slate-200 bg-slate-50 text-slate-600"
+                          }`}
+                        >
+                          {paymentStatus.message}
+                        </p>
                       ) : null}
                     </form>
                   </aside>
@@ -1730,7 +1770,7 @@ export default function ShopApp() {
 
                                 <button
                                   type="button"
-                                  onClick={() => addToCart(product.id)}
+                                  onClick={() => addToCart(product)}
                                   disabled={Number(product.stock) <= 0}
                                   className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${Number(product.stock) > 0
                                     ? "bg-[linear-gradient(135deg,#0f172a,#0369a1)] shadow-[0_12px_28px_rgba(3,105,161,0.3)] hover:brightness-110"

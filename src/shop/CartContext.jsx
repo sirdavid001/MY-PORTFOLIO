@@ -1,52 +1,65 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { loadFromStorage, toPrice } from './ShopApp'; // Will need to refine these imports
-import usePricingContext from '../hooks/usePricingContext';
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import usePricingContext from "../hooks/usePricingContext";
+import {
+  buildStorePricingContext,
+  CART_STORAGE_KEY,
+  loadFromStorage,
+  normalizeStoredCartItems,
+  toPrice,
+} from "./shop-helpers";
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
     const pricingContext = usePricingContext();
+    const activePricing = useMemo(() => buildStorePricingContext(pricingContext), [pricingContext]);
 
     const [cartItems, setCartItems] = useState(() => {
-        return loadFromStorage("sd_store_cart", []);
+        return normalizeStoredCartItems(loadFromStorage(CART_STORAGE_KEY, []));
     });
 
     useEffect(() => {
-        localStorage.setItem("sd_store_cart", JSON.stringify(cartItems));
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
     }, [cartItems]);
 
     const addToCart = (product) => {
-        if (!product || Number(product.stock) <= 0) return;
+        const productId = String(product?.id || "").trim();
+        const productName = String(product?.name || "").trim();
+        const stock = Math.max(0, Number(product?.stock || 0));
+        const basePriceUsd = Math.max(0, Number(product?.basePriceUsd || 0));
+
+        if (!productId || !productName || stock <= 0 || !Number.isFinite(basePriceUsd)) return;
 
         setCartItems((prev) => {
-            const existing = prev.find((item) => item.id === product.id);
+            const existing = prev.find((item) => item.id === productId);
             if (existing) {
                 return prev.map((item) =>
-                    item.id === product.id
-                        ? { ...item, quantity: Math.min(item.quantity + 1, Number(product.stock)) }
+                    item.id === productId
+                        ? { ...item, quantity: Math.min(item.quantity + 1, stock), maxStock: stock }
                         : item
                 );
             }
             return [
                 ...prev,
                 {
-                    id: product.id,
-                    name: product.name,
-                    brand: product.brand,
-                    basePriceUsd: product.basePriceUsd,
+                    id: productId,
+                    name: productName,
+                    brand: String(product?.brand || "").trim(),
+                    basePriceUsd,
                     quantity: 1,
-                    maxStock: Number(product.stock),
+                    maxStock: stock,
                 },
             ];
         });
     };
 
-    const updateQuantity = (productId, delta) => {
+    const updateQuantity = (productId, nextQuantity) => {
         setCartItems((prev) => {
             return prev
                 .map((item) => {
                     if (item.id === productId) {
-                        const next = Math.max(0, Math.min(delta, item.maxStock));
+                        const maxStock = Math.max(1, Number(item.maxStock || item.quantity || 1));
+                        const next = Math.max(0, Math.min(Number(nextQuantity || 0), maxStock));
                         if (next === 0) return null;
                         return { ...item, quantity: next };
                     }
@@ -60,14 +73,14 @@ export function CartProvider({ children }) {
 
     const enrichedCartItems = useMemo(() => {
         return cartItems.map((item) => {
-            const unitPrice = toPrice(item.basePriceUsd, pricingContext);
+            const unitPrice = toPrice(item.basePriceUsd, activePricing);
             return {
                 ...item,
                 unitPrice,
                 totalPrice: unitPrice * item.quantity,
             };
         });
-    }, [cartItems, pricingContext]);
+    }, [activePricing, cartItems]);
 
     const cartCount = useMemo(() => {
         return enrichedCartItems.reduce((acc, item) => acc + item.quantity, 0);

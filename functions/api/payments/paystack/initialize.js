@@ -1,3 +1,9 @@
+import {
+  formatCurrencyList,
+  isPaystackCurrencySupported,
+  resolvePaystackSupportedCurrencies,
+} from "../../../../shared/paystack.js";
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -30,7 +36,7 @@ function isValidEmail(email) {
   return /^\\S+@\\S+\\.\\S+$/.test(String(email || ""));
 }
 
-function validateInitializePayload(order) {
+function validateInitializePayload(order, supportedCurrencies) {
   if (!order || typeof order !== "object") return "Invalid payment payload.";
   if (!order.reference || typeof order.reference !== "string") return "Order reference is required.";
   if (!order.checkout || typeof order.checkout !== "object") return "Checkout details are required.";
@@ -38,7 +44,9 @@ function validateInitializePayload(order) {
   if (!Number.isFinite(Number(order.total)) || Number(order.total) <= 0) return "Invalid order total.";
 
   const currency = String(order.currency || "NGN").toUpperCase();
-  if (!["NGN", "USD"].includes(currency)) return "Unsupported currency. Only NGN and USD are supported.";
+  if (!isPaystackCurrencySupported(currency, supportedCurrencies)) {
+    return `Unsupported currency. Supported currencies: ${formatCurrencyList(supportedCurrencies)}.`;
+  }
   return null;
 }
 
@@ -63,9 +71,13 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "PAYSTACK_SECRET_KEY is not configured." }, 500);
     }
 
+    const supportedCurrencies = resolvePaystackSupportedCurrencies(
+      env.PAYSTACK_SUPPORTED_CURRENCIES || env.VITE_PAYSTACK_SUPPORTED_CURRENCIES
+    );
+
     const payload = await request.json();
     const order = payload?.order;
-    const validationError = validateInitializePayload(order);
+    const validationError = validateInitializePayload(order, supportedCurrencies);
     if (validationError) {
       return json({ ok: false, error: validationError }, 400);
     }

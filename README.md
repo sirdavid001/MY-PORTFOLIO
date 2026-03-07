@@ -53,6 +53,10 @@ Add these Vercel environment variables:
 - `PAYSTACK_SECRET_KEY` = Paystack secret key used by server-side initialize/verify endpoints
 - `PAYSTACK_PUBLIC_KEY` = Paystack public key served from `/api/payments/paystack/public-key`
 - `VITE_PAYSTACK_PUBLIC_KEY` = optional frontend fallback for local/dev environments
+- `PAYSTACK_SUPPORTED_CURRENCIES` = optional comma-separated checkout currencies exposed to the frontend and server endpoints
+- `PAYSTACK_APPLE_PAY_CURRENCIES` = optional comma-separated Apple Pay currencies (defaults to `NGN,USD,GHS,KES`)
+
+Default Paystack checkout currencies in the app are `NGN,USD,GHS,KES,ZAR,XOF`. Override them with `PAYSTACK_SUPPORTED_CURRENCIES` if your Paystack account is limited to a smaller set.
 
 ## Apple Pay notes (Paystack)
 - Enable Apple Pay in Paystack Dashboard -> Settings/Preferences.
