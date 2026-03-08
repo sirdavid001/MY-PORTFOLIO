@@ -727,7 +727,6 @@ export default function ShopApp() {
     cartCount,
     subtotal,
   } = useCartContext();
-  const cartItemsById = useMemo(() => new Map(cartItems.map((item) => [item.id, item])), [cartItems]);
 
   const categories = useMemo(() => {
     const dynamicCategories = catalogProducts.map((product) => String(product.category || "").trim()).filter(Boolean);
@@ -1702,11 +1701,6 @@ export default function ShopApp() {
                           );
                           const selectedImage = gallery[selectedIndex] || PRODUCT_FALLBACK_IMAGE;
                           const specs = getProductSpecs(product);
-                          const cartItem = cartItemsById.get(product.id);
-                          const productQuantity = Number(cartItem?.quantity || 0);
-                          const maxStock = Math.max(0, Number(product.stock || cartItem?.maxStock || 0));
-                          const canDecreaseProductQuantity = productQuantity > 0;
-                          const canIncreaseProductQuantity = productQuantity < maxStock;
 
                           return (
                             <article
@@ -1774,63 +1768,18 @@ export default function ShopApp() {
                                   </p>
                                 </div>
 
-                                {productQuantity > 0 ? (
-                                  <div className="mt-4 rounded-2xl border border-cyan-100 bg-cyan-50/80 p-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                      <div>
-                                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700">
-                                          In Cart
-                                        </p>
-                                        <p className="text-sm font-semibold text-slate-900">
-                                          {productQuantity} {productQuantity === 1 ? "item" : "items"} selected
-                                        </p>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => navigate("/cart")}
-                                        className="rounded-lg border border-cyan-200 bg-white px-3 py-2 text-xs font-semibold text-cyan-800 transition hover:border-cyan-300 hover:bg-cyan-100"
-                                      >
-                                        Go to Cart
-                                      </button>
-                                    </div>
-                                    <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-white px-2 py-1.5">
-                                      <button
-                                        type="button"
-                                        aria-label={`Decrease ${product.name} quantity`}
-                                        onClick={() => updateQuantity(product.id, productQuantity - 1)}
-                                        disabled={!canDecreaseProductQuantity}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-base font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                      >
-                                        -
-                                      </button>
-                                      <span className="min-w-8 text-center text-sm font-semibold text-slate-900">
-                                        {productQuantity}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        aria-label={`Increase ${product.name} quantity`}
-                                        onClick={() => updateQuantity(product.id, productQuantity + 1)}
-                                        disabled={!canIncreaseProductQuantity}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-base font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                      >
-                                        +
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => addToCart(product)}
-                                    disabled={Number(product.stock) <= 0}
-                                    className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${Number(product.stock) > 0
-                                      ? "bg-[linear-gradient(135deg,#0f172a,#0369a1)] shadow-[0_12px_28px_rgba(3,105,161,0.3)] hover:brightness-110"
-                                      : "cursor-not-allowed bg-slate-400"
-                                      }`}
-                                  >
-                                    <FiShoppingBag className="h-4 w-4" />
-                                    {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => addToCart(product)}
+                                  disabled={Number(product.stock) <= 0}
+                                  className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition ${Number(product.stock) > 0
+                                    ? "bg-[linear-gradient(135deg,#0f172a,#0369a1)] shadow-[0_12px_28px_rgba(3,105,161,0.3)] hover:brightness-110"
+                                    : "cursor-not-allowed bg-slate-400"
+                                    }`}
+                                >
+                                  <FiShoppingBag className="h-4 w-4" />
+                                  {Number(product.stock) > 0 ? "Add to Cart" : "Out of Stock"}
+                                </button>
                               </div>
                             </article>
                           );
