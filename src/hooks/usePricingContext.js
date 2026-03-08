@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrencyForCountry, getLocationFactor } from "../lib/pricing";
+import { normalizeCountryCode, normalizeCurrencyCode, normalizeLocationPayload, resolveCountryName } from "../../shared/location.js";
 
 const PRICING_CONTEXT_STORAGE_KEY = "sd_pricing_context";
 
@@ -17,16 +18,6 @@ function toFiniteNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function normalizeCountryCode(value) {
-  const normalized = String(value || "").trim().toUpperCase();
-  return /^[A-Z]{2}$/.test(normalized) ? normalized : "";
-}
-
-function normalizeCurrencyCode(value) {
-  const normalized = String(value || "").trim().toUpperCase();
-  return /^[A-Z]{3}$/.test(normalized) ? normalized : "";
-}
-
 function normalizeRates(rawRates) {
   if (!rawRates || typeof rawRates !== "object") return {};
 
@@ -35,22 +26,6 @@ function normalizeRates(rawRates) {
       .map(([currency, value]) => [normalizeCurrencyCode(currency), toFiniteNumber(value, 0)])
       .filter(([currency, value]) => currency && value > 0)
   );
-}
-
-function resolveCountryName(countryCode) {
-  const normalizedCountryCode = normalizeCountryCode(countryCode);
-  if (!normalizedCountryCode) return defaultContext.countryName;
-
-  try {
-    if (typeof Intl?.DisplayNames === "function") {
-      const displayNames = new Intl.DisplayNames([navigator.language || "en"], { type: "region" });
-      return displayNames.of(normalizedCountryCode) || normalizedCountryCode;
-    }
-  } catch {
-    // Fall back to the country code when localized names are unavailable.
-  }
-
-  return normalizedCountryCode;
 }
 
 function resolveExchangeRate(currency, rates, fallbackExchangeRate = 1) {
@@ -155,17 +130,36 @@ export default function usePricingContext() {
     }
 
     async function detectLocation() {
+      // Same-origin server endpoint sees platform geo headers and avoids client-side IP lookup failures.
+      try {
+        const response = await fetch("/api/location");
+        if (response.ok) {
+          const data = await response.json();
+          const normalized = normalizeLocationPayload(data, navigator.language || "en");
+          if (data?.ok && normalized) {
+            return normalized;
+          }
+        }
+      } catch {
+        // Fall through to client-side providers.
+      }
+
       // Primary source
       try {
         const response = await fetch("https://ipapi.co/json/");
         if (response.ok) {
           const data = await response.json();
-          if (data?.country_code) {
-            return {
-              countryCode: String(data.country_code).toUpperCase(),
-              countryName: data.country_name || String(data.country_code).toUpperCase(),
-              currency: String(data.currency || "").toUpperCase() || null,
-            };
+          const normalized = normalizeLocationPayload(
+            {
+              countryCode: data?.country_code,
+              countryName: data?.country_name,
+              currency: data?.currency,
+              source: "ipapi",
+            },
+            navigator.language || "en"
+          );
+          if (normalized) {
+            return normalized;
           }
         }
       } catch {
@@ -177,12 +171,17 @@ export default function usePricingContext() {
         const response = await fetch("https://ipwho.is/");
         if (response.ok) {
           const data = await response.json();
-          if (data?.success && data?.country_code) {
-            return {
-              countryCode: String(data.country_code).toUpperCase(),
-              countryName: data.country || String(data.country_code).toUpperCase(),
-              currency: String(data?.currency?.code || "").toUpperCase() || null,
-            };
+          const normalized = normalizeLocationPayload(
+            {
+              countryCode: data?.country_code,
+              countryName: data?.country,
+              currency: data?.currency?.code,
+              source: "ipwho",
+            },
+            navigator.language || "en"
+          );
+          if (data?.success && normalized) {
+            return normalized;
           }
         }
       } catch {

@@ -14,6 +14,18 @@ function jsonResponse(data, { ok = true, status = ok ? 200 : 500 } = {}) {
 function mockFetch(input) {
   const url = typeof input === "string" ? input : input?.url;
 
+  if (url === "/api/location") {
+    return Promise.resolve(
+      jsonResponse({
+        ok: true,
+        countryCode: "US",
+        countryName: "United States",
+        currency: "USD",
+        source: "test-server-location",
+      })
+    );
+  }
+
   if (url === "https://ipapi.co/json/") {
     return Promise.resolve(
       jsonResponse({

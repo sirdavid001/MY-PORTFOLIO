@@ -17,6 +17,8 @@ function createFetchMock({
   countryCode = "US",
   countryName = "United States",
   currency = "USD",
+  apiLocationOk = true,
+  browserLocationOk = true,
   exchangeRatesOk = true,
   publicKey = "",
   supportedCurrencies = ["NGN", "USD", "GHS", "KES", "ZAR", "XOF"],
@@ -29,7 +31,27 @@ function createFetchMock({
   return vi.fn((input) => {
     const url = typeof input === "string" ? input : input?.url;
 
+    if (url === "/api/location") {
+      if (!apiLocationOk) {
+        return Promise.resolve(jsonResponse({ ok: false }, { ok: false, status: 404 }));
+      }
+
+      return Promise.resolve(
+        jsonResponse({
+          ok: true,
+          countryCode,
+          countryName,
+          currency,
+          source: "test-server-location",
+        })
+      );
+    }
+
     if (url === "https://ipapi.co/json/") {
+      if (!browserLocationOk) {
+        return Promise.resolve(jsonResponse({}, { ok: false, status: 503 }));
+      }
+
       return Promise.resolve(
         jsonResponse({
           country_code: countryCode,
@@ -225,6 +247,7 @@ describe("Shop button actions", () => {
       countryCode: "US",
       countryName: "United States",
       currency: "USD",
+      browserLocationOk: false,
       rates: { USD: 1, NGN: 1600 },
     });
 
