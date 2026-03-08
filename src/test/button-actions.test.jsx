@@ -175,7 +175,7 @@ describe("Shop button actions", () => {
     window.localStorage.clear();
   });
 
-  it("adds items to cart, opens checkout, and clears the cart", async () => {
+  it("shows inline storefront cart controls after adding an item", async () => {
     renderAppAt("/shop");
 
     expect(await screen.findByText(/high-end gadgets with secure, fast checkout/i)).toBeInTheDocument();
@@ -186,7 +186,21 @@ describe("Shop button actions", () => {
       expect(screen.getByRole("button", { name: /cart \(1\)/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /go to cart & checkout/i }));
+    expect(screen.getByRole("button", { name: /^go to cart$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /increase .+ quantity/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /cart \(2\)/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /decrease .+ quantity/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /cart \(1\)/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^go to cart$/i }));
 
     expect(await screen.findByRole("heading", { name: /complete your order/i })).toBeInTheDocument();
 
