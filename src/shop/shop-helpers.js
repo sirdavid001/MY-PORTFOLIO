@@ -25,7 +25,7 @@ export function buildStorePricingContext(pricingContext, fallbackNgnPerUsd = 160
   const currency = String(pricingContext?.currency || "NGN").toUpperCase();
   const rateFromContext = toFiniteNumber(pricingContext?.exchangeRate, 0);
   const rateFromTable = toFiniteNumber(pricingContext?.rates?.[currency], 0);
-  const fallbackRate = currency === "USD" ? 1 : fallbackNgnPerUsd;
+  const fallbackRate = currency === "USD" ? 1 : currency === "NGN" ? fallbackNgnPerUsd : 1;
   const exchangeRate =
     rateFromContext > 0
       ? rateFromContext

@@ -17,6 +17,7 @@ function createFetchMock({
   countryCode = "US",
   countryName = "United States",
   currency = "USD",
+  exchangeRatesOk = true,
   publicKey = "",
   supportedCurrencies = ["NGN", "USD", "GHS", "KES", "ZAR", "XOF"],
   applePayCurrencies = ["NGN", "USD", "GHS", "KES"],
@@ -43,6 +44,10 @@ function createFetchMock({
     }
 
     if (url === "https://open.er-api.com/v6/latest/USD") {
+      if (!exchangeRatesOk) {
+        return Promise.resolve(jsonResponse({ result: "error" }, { ok: false, status: 503 }));
+      }
+
       return Promise.resolve(
         jsonResponse({
           rates,
@@ -186,7 +191,9 @@ describe("Shop button actions", () => {
       expect(screen.getByRole("button", { name: /cart \(1\)/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /go to cart & checkout/i }));
+    expect(screen.getByRole("button", { name: /^go to cart$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^go to cart$/i }));
 
     expect(await screen.findByRole("heading", { name: /complete your order/i })).toBeInTheDocument();
 
@@ -219,6 +226,17 @@ describe("Shop button actions", () => {
       countryName: "United States",
       currency: "USD",
       rates: { USD: 1, NGN: 1600 },
+    });
+
+    expect(await screen.findByText(formatMoney(520, "USD"))).toBeInTheDocument();
+  });
+
+  it("keeps the detected currency when the exchange-rate lookup fails", async () => {
+    renderAppAt("/shop", {
+      countryCode: "US",
+      countryName: "United States",
+      currency: "USD",
+      exchangeRatesOk: false,
     });
 
     expect(await screen.findByText(formatMoney(520, "USD"))).toBeInTheDocument();

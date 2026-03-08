@@ -1005,33 +1005,45 @@ export default function ShopApp() {
                 <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-700">Premium Storefront</p>
               </div>
             </div>
-            <div className="inline-flex items-center gap-2 sm:gap-3">
-              {isCartPage || isTrackingPage || isPolicyPage ? (
-                <button
-                  type="button"
-                  onClick={() => navigate(storeHomePath)}
-                  className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-                >
-                  Back To Store
-                </button>
-              ) : (
+            <div className="flex flex-col items-end gap-2">
+              <div className="inline-flex items-center gap-2 sm:gap-3">
+                {isCartPage || isTrackingPage || isPolicyPage ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(storeHomePath)}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    Back To Store
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/cart")}
+                    className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-2 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(3,105,161,0.33)] transition hover:brightness-110"
+                  >
+                    <FiShoppingBag className="h-4 w-4" />
+                    Cart ({cartCount})
+                  </button>
+                )}
+                {!isTrackingPage && !isPolicyPage ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/track-order")}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <FiTruck className="h-4 w-4" />
+                    Track
+                  </button>
+                ) : null}
+              </div>
+              {!isCartPage && !isTrackingPage && !isPolicyPage && cartCount > 0 ? (
                 <button
                   type="button"
                   onClick={() => navigate("/cart")}
-                  className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0f172a,#0369a1)] px-4 py-2 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(3,105,161,0.33)] transition hover:brightness-110"
+                  className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-800 transition hover:border-cyan-300 hover:bg-cyan-100"
                 >
-                  <FiShoppingBag className="h-4 w-4" />
-                  Cart ({cartCount})
-                </button>
-              )}
-              {!isTrackingPage && !isPolicyPage ? (
-                <button
-                  type="button"
-                  onClick={() => navigate("/track-order")}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  <FiTruck className="h-4 w-4" />
-                  Track
+                  Go To Cart
+                  <FiChevronRight className="h-3.5 w-3.5" />
                 </button>
               ) : null}
             </div>
