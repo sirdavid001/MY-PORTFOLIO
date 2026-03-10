@@ -1,3 +1,5 @@
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -37,7 +39,13 @@ export default function App() {
     SHOP_PATHS.has(normalizedPathname);
 
   if (isBusinessSubdomain || isShopPath) {
-    return <ShopApp />;
+    return (
+      <>
+        <ShopApp />
+        <Analytics />
+        <SpeedInsights />
+      </>
+    );
   }
 
   return (
@@ -56,6 +64,8 @@ export default function App() {
           <Footer />
         </div>
         <Toaster position="top-right" richColors />
+        <Analytics />
+        <SpeedInsights />
       </>
     </BrowserRouter>
   );
