@@ -1,4 +1,5 @@
 import { buildCvPdf } from "../../shared/cv-pdf.js";
+import { buildCvWordDocument } from "../../shared/cv-word.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -55,10 +56,14 @@ export async function onRequestGet(context) {
 
   const format = normalizeFormat(new URL(request.url).searchParams.get("format"));
   if (format === "word") {
-    return new Response(null, {
-      status: 302,
+    const document = buildCvWordDocument();
+    return new Response(document, {
+      status: 200,
       headers: {
-        Location: "/chineduDavidNwadialoCv.doc",
+        "content-type": "application/msword; charset=utf-8",
+        "content-disposition": 'attachment; filename="chineduDavidNwadialoCv.doc"',
+        "access-control-allow-origin": "*",
+        "cache-control": "public, max-age=3600",
       },
     });
   }

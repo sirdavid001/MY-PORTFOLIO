@@ -457,7 +457,7 @@ export default function CartPage() {
                   <div key={item.product.id} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
                       <ImageWithFallback
-                        src={item.product.images?.[0] || ''}
+                        src={item.product.images?.[0] || undefined}
                         alt={item.product.name}
                         query={`${item.product.brand} gadget`}
                         className="w-full h-full object-cover"
@@ -552,7 +552,7 @@ export default function CartPage() {
                           aria-label={`View ${item.product.name}`}
                         >
                           <ImageWithFallback
-                            src={item.product.images?.[0] || ''}
+                            src={item.product.images?.[0] || undefined}
                             alt={item.product.name}
                             query={`${item.product.name} ${item.product.brand} gadget`}
                             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"

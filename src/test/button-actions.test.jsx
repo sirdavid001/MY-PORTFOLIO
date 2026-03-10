@@ -1,201 +1,36 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import App from "../App";
-import { formatMoney } from "../lib/pricing";
+import { renderAppAt, selectOption, setupPaystackMock } from "./app-test-utils";
 
-function jsonResponse(data, { ok = true, status = ok ? 200 : 500 } = {}) {
-  return {
-    ok,
-    status,
-    json: async () => data,
-  };
-}
-
-function createFetchMock({
-  authedAdmin = false,
-  countryCode = "US",
-  countryName = "United States",
-  currency = "USD",
-  apiLocationOk = true,
-  browserLocationOk = true,
-  exchangeRatesOk = true,
-  publicKey = "",
-  supportedCurrencies = ["NGN", "USD", "GHS", "KES", "ZAR", "XOF"],
-  applePayCurrencies = ["NGN", "USD", "GHS", "KES"],
-  rates = {
-    USD: 1,
-    NGN: 1600,
-  },
-} = {}) {
-  return vi.fn((input) => {
-    const url = typeof input === "string" ? input : input?.url;
-
-    if (url === "/api/location") {
-      if (!apiLocationOk) {
-        return Promise.resolve(jsonResponse({ ok: false }, { ok: false, status: 404 }));
-      }
-
-      return Promise.resolve(
-        jsonResponse({
-          ok: true,
-          countryCode,
-          countryName,
-          currency,
-          source: "test-server-location",
-        })
-      );
-    }
-
-    if (url === "https://ipapi.co/json/") {
-      if (!browserLocationOk) {
-        return Promise.resolve(jsonResponse({}, { ok: false, status: 503 }));
-      }
-
-      return Promise.resolve(
-        jsonResponse({
-          country_code: countryCode,
-          country_name: countryName,
-          currency,
-        })
-      );
-    }
-
-    if (url === "https://ipwho.is/") {
-      return Promise.resolve(jsonResponse({ success: false }, { ok: false, status: 503 }));
-    }
-
-    if (url === "https://open.er-api.com/v6/latest/USD") {
-      if (!exchangeRatesOk) {
-        return Promise.resolve(jsonResponse({ result: "error" }, { ok: false, status: 503 }));
-      }
-
-      return Promise.resolve(
-        jsonResponse({
-          rates,
-        })
-      );
-    }
-
-    if (url === "/api/shop/config") {
-      return Promise.resolve(jsonResponse({ ok: false }));
-    }
-
-    if (url === "/api/payments/paystack/public-key") {
-      if (!publicKey) {
-        return Promise.resolve(jsonResponse({ ok: false }, { ok: false, status: 404 }));
-      }
-
-      return Promise.resolve(
-        jsonResponse({
-          ok: true,
-          key: publicKey,
-          supportedCurrencies,
-          applePayCurrencies,
-        })
-      );
-    }
-
-    if (url === "/api/admin/session") {
-      if (!authedAdmin) {
-        return Promise.resolve(jsonResponse({ ok: false }, { ok: false, status: 401 }));
-      }
-
-      return Promise.resolve(
-        jsonResponse({
-          ok: true,
-          user: {
-            email: "admin@sirdavid.site",
-          },
-        })
-      );
-    }
-
-    if (url === "/api/admin/orders") {
-      return Promise.resolve(
-        jsonResponse({
-          ok: true,
-          orders: [
-            {
-              id: 1,
-              reference: "SD-12345678",
-              customer_name: "Jane Doe",
-              customer_email: "jane@example.com",
-              customer_phone: "+1234567890",
-              address: "10 Main Street",
-              city: "Lagos",
-              country: "Nigeria",
-              payment_method: "Paystack",
-              currency: "NGN",
-              subtotal: 100000,
-              shipping: 15000,
-              total: 115000,
-              items: [
-                {
-                  id: "iphone-15",
-                  name: "Apple iPhone 15",
-                  quantity: 1,
-                  unitPrice: 100000,
-                },
-              ],
-              status: "new",
-              created_at: "2026-03-01T10:00:00.000Z",
-            },
-          ],
-        })
-      );
-    }
-
-    if (url === "/api/admin/products") {
-      return Promise.resolve(
-        jsonResponse({
-          ok: true,
-          products: [
-            {
-              id: "iphone-15",
-              name: "Apple iPhone 15",
-              brand: "Apple",
-              category: "Phones",
-              condition: "New",
-              basePriceUsd: 650,
-              stock: 4,
-              details: "Factory unlocked and fully tested.",
-              images: ["https://example.com/iphone-15.jpg"],
-              isActive: true,
-            },
-          ],
-        })
-      );
-    }
-
-    if (url === "/api/admin/shipping") {
-      return Promise.resolve(
-        jsonResponse({
-          ok: true,
-          shipping: {
-            mode: "flat",
-            flatUsd: 15,
-            percentRate: 0.03,
-            minUsd: 15,
-          },
-        })
-      );
-    }
-
-    throw new Error(`Unhandled fetch in button test: ${url}`);
+describe("Portfolio button actions", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
   });
-}
 
-function renderAppAt(pathname, options = {}) {
-  window.history.pushState({}, "", pathname);
-  vi.stubGlobal("fetch", createFetchMock(options));
+  it("downloads and emails the CV from the home page", async () => {
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
 
-  return render(
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  );
-}
+    renderAppAt("/");
+
+    fireEvent.click(await screen.findByRole("button", { name: /download cv \(pdf\)/i }));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/cv-download?format=pdf");
+    });
+    expect(anchorClickSpy).toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/email address to receive cv/i), {
+      target: { value: "builder@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /email my pdf cv/i }));
+
+    expect(await screen.findByText(/your pdf cv has been sent to builder@example.com/i)).toBeInTheDocument();
+
+    anchorClickSpy.mockRestore();
+  });
+});
 
 describe("Shop button actions", () => {
   beforeEach(() => {
@@ -205,19 +40,14 @@ describe("Shop button actions", () => {
   it("adds items to cart, opens checkout, and clears the cart", async () => {
     renderAppAt("/shop");
 
-    expect(await screen.findByText(/high-end gadgets with secure, fast checkout/i)).toBeInTheDocument();
+    expect(await screen.findByText(/apple iphone xr/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: /add to cart/i })[0]);
+    fireEvent.click((await screen.findAllByRole("button", { name: /^add$/i }))[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /cart/i })[0]);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /cart \(1\)/i })).toBeInTheDocument();
-    });
+    fireEvent.click(await screen.findByRole("button", { name: /^checkout$/i }));
 
-    expect(screen.getByRole("button", { name: /^go to cart$/i })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /^go to cart$/i }));
-
-    expect(await screen.findByRole("heading", { name: /complete your order/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /cart & checkout/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /clear cart/i }));
 
@@ -226,20 +56,25 @@ describe("Shop button actions", () => {
     });
   });
 
-  it("runs the hero action buttons", async () => {
-    const scrollSpy = vi.fn();
-    window.HTMLElement.prototype.scrollIntoView = scrollSpy;
-
+  it("navigates to the tracking page and back to the shop from the empty-state actions", async () => {
     renderAppAt("/shop");
 
-    expect(await screen.findByText(/high-end gadgets with secure, fast checkout/i)).toBeInTheDocument();
+    expect(await screen.findByText(/apple iphone xr/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /browse catalog/i }));
-    expect(scrollSpy).toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: /^track order$/i })[0]);
 
-    fireEvent.click(screen.getByRole("button", { name: /track existing order/i }));
+    expect(await screen.findByRole("heading", { name: /track your order/i })).toBeInTheDocument();
 
-    expect(await screen.findByRole("heading", { name: /track your package/i })).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/ord-1234567890/i), {
+      target: { value: "UNKNOWN-REF" },
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: /track order/i }).at(-1));
+
+    expect(await screen.findByRole("heading", { name: /order not found/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /browse products/i }));
+
+    expect(await screen.findByText(/apple iphone xr/i)).toBeInTheDocument();
   });
 
   it("shows local storefront currency from the detected location", async () => {
@@ -248,10 +83,10 @@ describe("Shop button actions", () => {
       countryName: "United States",
       currency: "USD",
       browserLocationOk: false,
-      rates: { USD: 1, NGN: 1600 },
+      exchangeRates: { USD: 1, NGN: 1600 },
     });
 
-    expect(await screen.findByText(formatMoney(520, "USD"))).toBeInTheDocument();
+    expect(await screen.findByText("$175.00")).toBeInTheDocument();
   });
 
   it("keeps the detected currency when the exchange-rate lookup fails", async () => {
@@ -262,26 +97,57 @@ describe("Shop button actions", () => {
       exchangeRatesOk: false,
     });
 
-    expect(await screen.findByText(formatMoney(520, "USD"))).toBeInTheDocument();
+    expect(await screen.findByText("$175.00")).toBeInTheDocument();
   });
 
-  it("allows checkout readiness for configured non-USD paystack currencies", async () => {
+  it("runs checkout with a configured supported currency", async () => {
+    const checkoutSpy = setupPaystackMock();
+
     renderAppAt("/shop", {
       countryCode: "GH",
       countryName: "Ghana",
       currency: "GHS",
       publicKey: "pk_test_123",
-      supportedCurrencies: ["NGN", "USD", "GHS", "KES", "ZAR", "XOF"],
-      rates: { USD: 1, GHS: 15.5, NGN: 1600 },
+      exchangeRates: { USD: 1, GHS: 15.5, NGN: 1600 },
     });
 
-    fireEvent.click(await screen.findAllByRole("button", { name: /add to cart/i }).then((buttons) => buttons[0]));
-    fireEvent.click(await screen.findByRole("button", { name: /go to cart & checkout/i }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /^add$/i }))[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /cart/i })[0]);
+    fireEvent.click(await screen.findByRole("button", { name: /^checkout$/i }));
 
-    const emailInput = await screen.findByPlaceholderText(/email/i);
-    fireEvent.change(emailInput, { target: { value: "buyer@example.com" } });
+    fireEvent.change(screen.getByPlaceholderText(/chukwuemeka obi/i), {
+      target: { value: "Buyer Example" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), {
+      target: { value: "buyer@example.com" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/12 admiralty way/i), {
+      target: { value: "12 Admiralty Way" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/e.g. lagos/i), {
+      target: { value: "Accra" },
+    });
 
-    expect(await screen.findByText(/checkout is ready/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/payment system not configured/i)).not.toBeInTheDocument();
+    });
+
+    const payButton = screen
+      .getAllByRole("button", { name: /pay/i })
+      .find((button) => !button.hasAttribute("disabled"));
+
+    fireEvent.click(payButton);
+
+    await waitFor(() => {
+      expect(
+        fetch.mock.calls.some(
+          ([url, init]) =>
+            String(url).includes("/api/send-order") &&
+            String(init?.method || "").toUpperCase() === "POST"
+        )
+      ).toBe(true);
+    });
+    expect(checkoutSpy).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -290,18 +156,107 @@ describe("Admin button actions", () => {
     window.localStorage.clear();
   });
 
-  it("navigates admin sections and opens edit mode from gadget actions", async () => {
-    renderAppAt("/secure-admin-portal-xyz/orders", { authedAdmin: true });
+  it("signs in to admin, switches tabs, and logs out", async () => {
+    renderAppAt("/secure-admin-portal-xyz");
 
-    expect(await screen.findByRole("heading", { name: /^orders$/i })).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText(/email address/i), {
+      target: { value: "admin@sirdavid.site" },
+    });
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
+      target: { value: "super-secret-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /sign in to dashboard/i }));
 
-    fireEvent.click(screen.getByRole("button", { name: /shipping configure checkout shipping rules/i }));
-    expect(await screen.findByRole("heading", { name: /shipping settings/i })).toBeInTheDocument();
+    expect(await screen.findByText(/payment-confirmed orders only/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /gadgets list manage all listed products/i }));
-    expect(await screen.findByRole("heading", { name: /gadget list/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /products/i }));
+    expect(await screen.findByText(/products management/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
-    expect(await screen.findByRole("heading", { name: /edit gadget/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /shipping/i }));
+    expect(await screen.findByText(/shipping mode/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /logout/i }));
+    expect(await screen.findByRole("button", { name: /sign in to dashboard/i })).toBeInTheDocument();
+  });
+
+  it("adds, edits, and deletes products from admin product management", async () => {
+    renderAppAt("/secure-admin-portal-xyz", { authedAdmin: true });
+
+    fireEvent.click(await screen.findByRole("button", { name: /products/i }));
+    expect(await screen.findByText(/products management/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue("1600"), {
+      target: { value: "1700" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save rate/i }));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/settings/exchange-rate"),
+        expect.objectContaining({ method: "PUT" })
+      );
+    });
+    expect(screen.getByText(/active: ₦1,700 \/ \$1/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /add product/i }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+    const dialog = screen.getByRole("dialog");
+    const [categorySelect, brandSelect] = within(dialog).getAllByRole("combobox");
+
+    await selectOption(categorySelect, "Phones");
+    await selectOption(brandSelect, "Apple");
+
+    fireEvent.change(within(dialog).getByLabelText(/product name/i), {
+      target: { value: "QA Test Phone" },
+    });
+    fireEvent.change(within(dialog).getByLabelText(/price \(ngn\)/i), {
+      target: { value: "320000" },
+    });
+    fireEvent.change(within(dialog).getByPlaceholderText(/paste an image url/i), {
+      target: { value: "https://example.com/qa-test-phone.jpg" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: /add url/i }));
+    fireEvent.click(within(dialog).getByRole("button", { name: /create product/i }));
+
+    expect(await screen.findByText(/qa test phone/i)).toBeInTheDocument();
+
+    const createdRow = screen.getByText(/qa test phone/i).closest("tr");
+    const [editButton] = within(createdRow).getAllByRole("button");
+    fireEvent.click(editButton);
+
+    const editDialog = await screen.findByRole("dialog");
+    const nameInput = within(editDialog).getByLabelText(/product name/i);
+    fireEvent.change(nameInput, { target: { value: "QA Test Phone Updated" } });
+    fireEvent.click(within(editDialog).getByRole("button", { name: /save changes/i }));
+
+    expect(await screen.findByText(/qa test phone updated/i)).toBeInTheDocument();
+
+    const updatedRow = screen.getByText(/qa test phone updated/i).closest("tr");
+    const [, deleteButton] = within(updatedRow).getAllByRole("button");
+    fireEvent.click(deleteButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/qa test phone updated/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it("updates shipping settings from the shipping tab", async () => {
+    renderAppAt("/secure-admin-portal-xyz", { authedAdmin: true });
+
+    fireEvent.click(await screen.findByRole("button", { name: /shipping/i }));
+    expect(await screen.findByText(/shipping mode/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/flat rate \(usd\)/i), {
+      target: { value: "25" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save shipping settings/i }));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/shipping"),
+        expect.objectContaining({ method: "PUT" })
+      );
+    });
   });
 });

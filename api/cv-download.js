@@ -1,11 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { buildCvPdf } from "../shared/cv-pdf.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { buildCvWordDocument } from "../shared/cv-word.js";
 
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -39,13 +33,14 @@ export default function handler(req, res) {
   const format = readFormat(requestUrl.searchParams.get("format"));
 
   if (format === "word") {
-    const docPath = path.join(__dirname, "../public/chineduDavidNwadialoCv.doc");
-    const docContent = fs.readFileSync(docPath);
+    const docContent = buildCvWordDocument();
+    const docBuffer = Buffer.from(docContent, "utf8");
     setCacheHeaders(res);
     res.status(200);
-    res.setHeader("Content-Type", "application/msword");
+    res.setHeader("Content-Type", "application/msword; charset=utf-8");
     res.setHeader("Content-Disposition", "attachment; filename=\"chineduDavidNwadialoCv.doc\"");
-    return res.send(docContent);
+    res.setHeader("Content-Length", docBuffer.length);
+    return res.end(docBuffer);
   }
 
   const pdf = buildCvPdf();
