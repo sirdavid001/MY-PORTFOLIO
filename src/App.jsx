@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -37,31 +37,26 @@ export default function App() {
     SHOP_PATHS.has(normalizedPathname);
 
   if (isBusinessSubdomain || isShopPath) {
-    return (
-      <>
-        <Routes>
-          <Route path="*" element={<ShopApp />} />
-        </Routes>
-        <Toaster position="top-right" richColors />
-      </>
-    );
+    return <ShopApp />;
   }
 
   return (
-    <>
-      <div className="min-h-screen bg-[#f3f4f6] text-slate-900">
-        <Navbar />
-        <main className="mx-auto w-full max-w-6xl px-4 pb-0 pt-24 sm:px-6 lg:px-8">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="*" element={<Home />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-      <Toaster position="top-right" richColors />
-    </>
+    <BrowserRouter>
+      <>
+        <div className="min-h-screen bg-[#f3f4f6] text-slate-900">
+          <Navbar />
+          <main className="mx-auto w-full max-w-6xl px-4 pb-0 pt-24 sm:px-6 lg:px-8">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="*" element={<Home />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+        <Toaster position="top-right" richColors />
+      </>
+    </BrowserRouter>
   );
 }

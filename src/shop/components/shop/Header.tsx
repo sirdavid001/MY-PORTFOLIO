@@ -32,8 +32,6 @@ export default function Header({
   const navItems = [
     { path: '/shop', label: 'Shop' },
     { path: '/track-order', label: 'Track Order' },
-    { path: '/shipping-policy', label: 'Shipping' },
-    { path: '/terms-and-conditions', label: 'Support' },
   ];
 
   const isActive = (path: string) => location.pathname === path;

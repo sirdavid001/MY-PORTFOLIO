@@ -24,6 +24,7 @@ export const router = createBrowserRouter([
       { path: "privacy-policy", Component: PolicyPage },
       { path: "faqs", Component: PolicyPage },
       { path: "shipping-policy", Component: PolicyPage },
+      { path: "legal", Component: PolicyPage },
       { path: "secure-admin-portal-xyz", Component: AdminPortal },
       { path: "admin-setup-first-time", Component: AdminSignup },
       { path: "*", Component: NotFound },

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import ProductCard from './ProductCard';
 import CartSidebar from './CartSidebar';
 import Header from './Header';
@@ -291,10 +291,7 @@ export default function ShopPage() {
           <div className="text-center py-16">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No products available yet</h3>
-            <p className="text-gray-600 mb-6">The store is being set up. Please check back soon!</p>
-            <p className="text-sm text-gray-500">
-              Admin? <a href="/secure-admin-portal-xyz" className="text-blue-600 hover:underline">Login here</a> to add products.
-            </p>
+            <p className="text-gray-600">The store is being set up. Please check back soon!</p>
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-16">
@@ -321,6 +318,9 @@ export default function ShopPage() {
         <SheetContent className="w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>Shopping Cart</SheetTitle>
+            <SheetDescription className="sr-only">
+              Review your cart items and proceed to checkout.
+            </SheetDescription>
           </SheetHeader>
           <CartSidebar
             pricingContext={pricingContext}

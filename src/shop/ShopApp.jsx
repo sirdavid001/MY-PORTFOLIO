@@ -1,7 +1,6 @@
 import { useEffect } from "react";
-import { useRoutes } from "react-router-dom";
-import { shopRoutes } from "./shopRoutes";
 import sourceRepoCss from "./source-repo.css?raw";
+import SourceApp from "./SourceApp";
 
 export default function ShopApp() {
   useEffect(() => {
@@ -20,5 +19,5 @@ export default function ShopApp() {
     };
   }, []);
 
-  return useRoutes(shopRoutes);
+  return <SourceApp />;
 }

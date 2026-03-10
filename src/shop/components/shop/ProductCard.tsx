@@ -20,7 +20,6 @@ export default function ProductCard({ product, pricingContext, onAddToCart }: Pr
     : product.priceUSD;
   
   const currency = pricingContext?.currency || 'USD';
-  const inStock = product.stock > 0;
 
   return (
     <Card className="group hover:shadow-lg transition-shadow duration-200">
@@ -35,11 +34,6 @@ export default function ProductCard({ product, pricingContext, onAddToCart }: Pr
             query={`${product.name} ${product.brand} gadget`}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
           />
-          {!inStock && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <Badge variant="destructive" className="text-lg">Out of Stock</Badge>
-            </div>
-          )}
           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button size="icon" variant="secondary" className="rounded-full">
               <Eye className="w-4 h-4" />
@@ -85,9 +79,6 @@ export default function ProductCard({ product, pricingContext, onAddToCart }: Pr
           <p className="text-2xl font-bold text-gray-900">
             {formatCurrency(price, currency)}
           </p>
-          <p className="text-xs text-gray-500">
-            {inStock ? `${product.stock} in stock` : 'Out of stock'}
-          </p>
         </div>
         
         <Button
@@ -95,7 +86,6 @@ export default function ProductCard({ product, pricingContext, onAddToCart }: Pr
             e.stopPropagation();
             onAddToCart(product);
           }}
-          disabled={!inStock}
           size="sm"
         >
           <ShoppingCart className="w-4 h-4 mr-2" />

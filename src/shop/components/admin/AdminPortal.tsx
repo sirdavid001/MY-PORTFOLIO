@@ -1,59 +1,40 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Shield, LogOut, Package, Layers, Truck, Activity, ChevronRight, Lock, Mail, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Shield, LogOut } from 'lucide-react';
 import AdminOrders from './AdminOrders';
 import AdminProducts from './AdminProducts';
 import AdminShipping from './AdminShipping';
 import { api } from '../../lib/api';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 
+type Tab = 'orders' | 'products' | 'shipping';
+
 export default function AdminPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const [loginHint, setLoginHint] = useState<string | null>(null);
+  const [loginErrorMsg, setLoginErrorMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkSession();
-  }, []);
+  useEffect(() => { checkSession(); }, []);
 
   async function checkSession() {
     try {
       const token = localStorage.getItem('adminToken');
-      if (!token) {
-        console.log('No token found in localStorage');
-        setIsAuthenticated(false);
-        setLoading(false);
-        return;
-      }
-      
-      console.log('Checking session with token...');
-      const response = await api.adminSession();
-      console.log('Session check response:', response);
+      if (!token) { setLoading(false); return; }
+      await api.adminSession();
       setIsAuthenticated(true);
-      setAuthToken(token);
-    } catch (error: any) {
-      console.error('Session check failed:', error);
-      
-      // Parse error message for helpful feedback
-      if (error.message.includes('401')) {
-        toast.error('Session expired. Please login again.');
-      } else if (error.message.includes('403')) {
-        toast.error('Not authorized as admin. Please create an admin account at /admin-setup-first-time');
-      } else {
-        toast.error('Session check failed: ' + error.message);
-      }
-      
-      setIsAuthenticated(false);
-      setAuthToken(null);
+    } catch (err: any) {
       localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminTokenTimestamp');
+      setIsAuthenticated(false);
+      if (err.message?.includes('401')) toast.error('Session expired. Please log in again.');
     } finally {
       setLoading(false);
     }
@@ -61,195 +42,326 @@ export default function AdminPortal() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast.error('Please enter email and password');
-      return;
-    }
-
-    setLoading(true);
+    if (!email || !password) { toast.error('Enter email and password'); return; }
+    setLoginLoading(true);
+    setLoginHint(null);
+    setLoginErrorMsg(null);
     try {
       const result = await api.adminLogin(email, password);
-      console.log('Login result:', result);
-      
       if (result.success && result.token) {
         localStorage.setItem('adminToken', result.token);
-        localStorage.setItem('adminTokenTimestamp', Date.now().toString());
-        setAuthToken(result.token);
         setIsAuthenticated(true);
-        toast.success('Login successful');
+        toast.success('Welcome back!');
       } else {
         toast.error('Login failed');
       }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Invalid credentials');
+    } catch (err: any) {
+      // The server now sends a hint field — surface it in the UI
+      const msg = err.message || 'Invalid credentials';
+      setLoginErrorMsg(msg);
+      // Try to parse hint from the raw error text
+      if (msg.includes('No admin account') || msg.includes('no_account')) {
+        setLoginHint('no_account');
+      } else if (msg.includes('not fully set up') || msg.includes('incomplete_setup')) {
+        setLoginHint('incomplete_setup');
+      } else if (msg.includes('Incorrect password') || msg.includes('wrong_password')) {
+        setLoginHint('wrong_password');
+      } else {
+        setLoginHint('unknown');
+      }
+      toast.error(msg);
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
     }
   }
 
   async function handleLogout() {
-    try {
-      await api.adminLogout();
-      localStorage.removeItem('adminToken');
-      setIsAuthenticated(false);
-      setAuthToken(null);
-      toast.success('Logged out successfully');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    try { await api.adminLogout(); } catch {}
+    localStorage.removeItem('adminToken');
+    setIsAuthenticated(false);
+    toast.success('Logged out');
   }
 
   async function handleDebug() {
     try {
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-bda4aae5/api/admin/debug`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-          'X-Admin-Token': localStorage.getItem('adminToken') || '',
-        },
-      });
-      const data = await response.json();
-      console.log('🔍 Debug Info:', data);
-
-      if (data.isAdmin) {
-        toast.success('✓ Admin authentication is working correctly!');
-      } else if (data.error) {
-        toast.error(`Debug: ${data.message || data.error}`);
-      } else {
-        toast.warning('Debug: User authenticated but NOT admin');
-      }
-    } catch (error: any) {
-      console.error('Debug error:', error);
-      toast.error('Debug check failed');
-    }
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-bda4aae5/api/admin/debug`,
+        {
+          headers: {
+            Authorization: `Bearer ${publicAnonKey}`,
+            'X-Admin-Token': localStorage.getItem('adminToken') || '',
+          },
+        }
+      );
+      const data = await res.json();
+      console.log('🔍 Debug:', data);
+      data.isAdmin
+        ? toast.success('✓ Auth working correctly')
+        : toast.error(`Debug: ${data.message || data.error}`);
+    } catch { toast.error('Debug request failed'); }
   }
 
-  // Handle 401/403 from child components
   function handleAuthError() {
-    console.log('Auth error detected, logging out');
     localStorage.removeItem('adminToken');
     setIsAuthenticated(false);
-    setAuthToken(null);
     toast.error('Session expired. Please log in again.');
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+  // ── Loading ──
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600" />
+        <p className="text-gray-500 text-sm">Loading admin portal…</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-              <Shield className="h-6 w-6 text-blue-600" />
+  // ── Login ──
+  if (!isAuthenticated) return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header matching shop */}
+      <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
+                <Shield className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold leading-none text-gray-900">SirDavid</span>
+                <span className="text-xs text-gray-500">Gadgets</span>
+              </div>
             </div>
-            <CardTitle className="text-2xl">Admin Portal</CardTitle>
-            <CardDescription>
-              SirDavid Gadgets Management System
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@sirdavidgadgets.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? 'Logging in...' : 'Login'}
-              </Button>
+          </div>
+        </div>
+      </header>
 
-              {/* First Time Setup Link */}
-              <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 border border-blue-200">
-                <p className="font-semibold mb-1">🔐 First Time Here?</p>
-                <p className="mb-2 text-xs">No admin account exists yet. Create one to get started.</p>
-                <a 
-                  href="/admin-setup-first-time"
-                  className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-xs hover:underline"
-                >
-                  → Create First Admin Account
-                </a>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex items-center justify-center min-h-[calc(100vh-4rem)]">
+        <div className="w-full max-w-lg">
+          <Card className="shadow-lg border">
+            <CardHeader className="text-center pb-6 space-y-2">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mx-auto mb-2">
+                <Shield className="w-6 h-6 text-blue-600" />
               </div>
-            </form>
-          </CardContent>
-        </Card>
+              <CardTitle className="text-2xl font-bold">Admin Portal</CardTitle>
+              <CardDescription className="text-base">
+                Sign in to access the management dashboard
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-8 pb-8">
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="admin@settlex.site"
+                      className="pl-10 h-11"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      disabled={loginLoading}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="pl-10 h-11"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      disabled={loginLoading}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={loginLoading}
+                  className="w-full h-11"
+                >
+                  {loginLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+                      Signing In...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-4 h-4 mr-2" />
+                      Sign In to Dashboard
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              {/* Dynamic hint after a failed login */}
+              {loginHint && loginErrorMsg && (
+                <div className={`mt-5 rounded-lg border p-4 text-sm flex items-start gap-3 ${
+                  loginHint === 'wrong_password'
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  <AlertTriangle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                    loginHint === 'wrong_password' ? 'text-amber-600' : 'text-red-600'
+                  }`} />
+                  <div>
+                    <p className={`font-semibold mb-1 ${
+                      loginHint === 'wrong_password' ? 'text-amber-900' : 'text-red-900'
+                    }`}>
+                      {loginHint === 'no_account' && 'No Account Found'}
+                      {loginHint === 'wrong_password' && 'Incorrect Password'}
+                      {loginHint === 'incomplete_setup' && 'Setup Incomplete'}
+                      {loginHint === 'unknown' && 'Login Failed'}
+                    </p>
+                    <p className={`text-xs mb-2 ${
+                      loginHint === 'wrong_password' ? 'text-amber-800' : 'text-red-800'
+                    }`}>
+                      {loginErrorMsg}
+                    </p>
+                    <a
+                      href="/admin-setup-first-time"
+                      className={`inline-flex items-center gap-1 text-xs font-semibold hover:underline ${
+                        loginHint === 'wrong_password' ? 'text-amber-700' : 'text-red-700'
+                      }`}
+                    >
+                      {loginHint === 'wrong_password' ? 'Reset Password →' : 'Go to Setup Page →'}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+                  <div className="flex items-start gap-3">
+                    <Lock className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-blue-900 font-semibold mb-1">First Time Setup</p>
+                      <p className="text-blue-700 text-xs mb-3">
+                        Create your admin account or reset your password if you're locked out.
+                      </p>
+                      <a
+                        href="/admin-setup-first-time"
+                        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-xs font-medium hover:underline"
+                      >
+                        Go to Setup Page
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Security Notice */}
+          <p className="text-center text-xs text-gray-500 mt-6">
+            Protected by secure authentication · All actions are logged
+          </p>
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
+
+  // ── Dashboard ──
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: 'orders',   label: 'Orders',   icon: <Package className="w-4 h-4" /> },
+    { id: 'products', label: 'Products', icon: <Layers className="w-4 h-4" /> },
+    { id: 'shipping', label: 'Shipping', icon: <Truck className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <Shield className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Admin Portal</h1>
+      {/* Header - Matching Shop Design */}
+      <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            {/* Logo - Matching Shop */}
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600">
+                <Shield className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold leading-none text-gray-900">SirDavid</span>
+                <span className="text-xs text-gray-500">Admin Portal</span>
+              </div>
             </div>
+
+            {/* Navigation Tabs - Matching Shop Style */}
+            <nav className="hidden md:flex items-center gap-1">
+              {tabs.map(tab => (
+                <Button
+                  key={tab.id}
+                  variant={activeTab === tab.id ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={activeTab === tab.id ? '' : 'text-gray-600 hover:text-gray-900'}
+                >
+                  {tab.icon}
+                  <span className="ml-1.5">{tab.label}</span>
+                </Button>
+              ))}
+            </nav>
+
+            {/* Mobile Tabs */}
+            <nav className="flex md:hidden items-center gap-1">
+              {tabs.map(tab => (
+                <Button
+                  key={tab.id}
+                  variant={activeTab === tab.id ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={activeTab === tab.id ? 'px-2' : 'text-gray-600 hover:text-gray-900 px-2'}
+                >
+                  {tab.icon}
+                </Button>
+              ))}
+            </nav>
+
+            {/* Actions */}
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={handleDebug}>
-                🔍 Debug Auth
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDebug}
+                className="text-gray-600 hover:text-gray-900 hidden sm:flex"
+              >
+                <Activity className="w-4 h-4 mr-1.5" />
+                Debug
               </Button>
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-gray-600 hover:text-red-600"
+              >
+                <LogOut className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Logout</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="shipping">Shipping</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="orders">
-            <AdminOrders isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />
-          </TabsContent>
-
-          <TabsContent value="products">
-            <AdminProducts isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />
-          </TabsContent>
-
-          <TabsContent value="shipping">
-            <AdminShipping isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />
-          </TabsContent>
-        </Tabs>
+      {/* Content */}
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'orders'   && <AdminOrders   isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />}
+        {activeTab === 'products' && <AdminProducts isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />}
+        {activeTab === 'shipping' && <AdminShipping isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />}
       </main>
     </div>
   );

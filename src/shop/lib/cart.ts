@@ -2,14 +2,19 @@ export interface Product {
   id: string;
   name: string;
   brand: string;
+  model?: string;
   category: string;
   condition: string;
   priceUSD: number;
-  stock: number;
   details: string;
   images: string[];
   specs?: string[];
   isActive: boolean;
+  // Extended gadget fields
+  storageGb?: number | string;
+  batteryHealth?: number | string;
+  networkLock?: string;
+  networkCarrier?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -54,12 +59,11 @@ export function addToCart(product: Product, quantity: number = 1): Cart {
   const existingIndex = cart.items.findIndex(item => item.product.id === product.id);
   
   if (existingIndex >= 0) {
-    const newQuantity = cart.items[existingIndex].quantity + quantity;
-    cart.items[existingIndex].quantity = Math.min(newQuantity, product.stock);
+    cart.items[existingIndex].quantity = cart.items[existingIndex].quantity + quantity;
   } else {
     cart.items.push({
       product,
-      quantity: Math.min(quantity, product.stock),
+      quantity,
     });
   }
   
@@ -75,7 +79,7 @@ export function updateCartItemQuantity(productId: string, quantity: number): Car
     if (quantity <= 0) {
       cart.items.splice(index, 1);
     } else {
-      cart.items[index].quantity = Math.min(quantity, cart.items[index].product.stock);
+      cart.items[index].quantity = quantity;
     }
   }
   
@@ -141,12 +145,16 @@ export function calculateShipping(
   if (shippingSettings.freeThreshold > 0 && subtotal >= shippingSettings.freeThreshold) {
     return 0;
   }
-  
+
   if (shippingSettings.mode === 'flat') {
     return shippingSettings.flatAmount;
   } else if (shippingSettings.mode === 'percent') {
     return (subtotal * shippingSettings.percentAmount) / 100;
+  } else if (shippingSettings.mode === 'hybrid') {
+    // Higher of the minimum flat fee OR the percentage-based fee
+    const percentFee = (subtotal * shippingSettings.percentAmount) / 100;
+    return Math.max(shippingSettings.flatAmount, percentFee);
   }
-  
+
   return 0;
 }

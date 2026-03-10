@@ -98,6 +98,13 @@ export const api = {
     body: JSON.stringify(settings),
   }, true),
 
+  // Exchange Rate
+  getExchangeRate: () => apiRequest('/api/settings/exchange-rate'),
+  updateExchangeRate: (ngnPerUsd: number) => apiRequest('/api/admin/settings/exchange-rate', {
+    method: 'PUT',
+    body: JSON.stringify({ ngnPerUsd }),
+  }, true),
+
   // Image Upload — also uses anon key in Authorization + X-Admin-Token
   uploadImage: async (file: File) => {
     const token = localStorage.getItem('adminToken');

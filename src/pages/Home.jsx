@@ -60,6 +60,35 @@ export default function Home() {
   const [requestEmail, setRequestEmail] = useState("");
   const [requestStatus, setRequestStatus] = useState("");
   const [isRequestingCv, setIsRequestingCv] = useState(false);
+  const [isDownloadingCv, setIsDownloadingCv] = useState(false);
+
+  async function handleDownloadCv() {
+    setRequestStatus("");
+    setIsDownloadingCv(true);
+
+    try {
+      const response = await fetch(selectedCvFormat.href);
+      if (!response.ok) {
+        throw new Error("Could not download CV right now.");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = selectedCvFormat.download;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      setRequestStatus(
+        error?.message || "Could not download your CV at this time. Please try again in a moment."
+      );
+    } finally {
+      setIsDownloadingCv(false);
+    }
+  }
 
   async function handleRequestCv(event) {
     event.preventDefault();
@@ -199,13 +228,14 @@ export default function Home() {
               Download or Request My CV
             </h2>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <a
-                href={selectedCvFormat.href}
-                download={selectedCvFormat.download}
+              <button
+                type="button"
+                onClick={handleDownloadCv}
+                disabled={isDownloadingCv}
                 className="rounded-xl border border-blue-600 px-5 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50 sm:px-6 sm:text-base"
               >
-                Download CV ({selectedCvFormat.label})
-              </a>
+                {isDownloadingCv ? "Downloading..." : `Download CV (${selectedCvFormat.label})`}
+              </button>
               <div className="flex items-center gap-3">
                 <label htmlFor="cv-format" className="text-sm font-semibold text-slate-800">
                   Choose format:
