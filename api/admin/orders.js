@@ -7,7 +7,7 @@ const ALLOWED_STATUS = new Set(["new", "paid", "processing", "in_route", "comple
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", methods);
-  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
+  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization, x-admin-token");
 }
 
 function json(res, status, data, methods) {
@@ -68,6 +68,21 @@ function resolveTrackingNumber(order) {
   return generateTrackingNumber(order?.reference);
 }
 
+function mapOrderRow(order) {
+  const trackingNumber = resolveTrackingNumber(order);
+  return {
+    ...order,
+    customerName: order?.customer_name || "",
+    customerEmail: order?.customer_email || "",
+    customerPhone: order?.customer_phone || "",
+    paymentMethod: order?.payment_method || "",
+    createdAt: order?.created_at || "",
+    trackingNumber,
+    tracking_number: trackingNumber,
+    status: normalizeStatusInput(order?.status) || "new",
+  };
+}
+
 function normalizeSupabaseError(rawText, action) {
   const text = String(rawText || "").trim();
   if (!text) return `${action} failed.`;
@@ -115,7 +130,7 @@ async function readJsonBody(req) {
 }
 
 export default async function handler(req, res) {
-  const methods = "GET, PATCH, OPTIONS";
+  const methods = "GET, PUT, PATCH, OPTIONS";
   const clientIp = getClientIp(req);
 
   if (req.method === "OPTIONS") {
@@ -177,16 +192,12 @@ export default async function handler(req, res) {
         }
       }
 
-      const orders = (await response.json().catch(() => [])).map((order) => ({
-        ...order,
-        status: normalizeStatusInput(order?.status) || "new",
-        tracking_number: resolveTrackingNumber(order),
-      }));
+      const orders = (await response.json().catch(() => [])).map(mapOrderRow);
       return json(res, 200, { ok: true, orders }, methods);
     }
 
-    if (req.method === "PATCH") {
-      const id = Number(firstValue(req.query?.id));
+    if (req.method === "PUT" || req.method === "PATCH") {
+      const id = String(firstValue(req.query?.id) || "").trim();
       if (!id) {
         return json(res, 400, { ok: false, error: "Invalid order id." }, methods);
       }
@@ -211,7 +222,7 @@ export default async function handler(req, res) {
       if (hasStatus) updatePayload.status = status;
       if (hasTrackingField) updatePayload.tracking_number = trackingNumber;
 
-      const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
+      const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/orders?id=eq.${encodeURIComponent(id)}`, {
         method: "PATCH",
         headers: {
           apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -246,12 +257,8 @@ export default async function handler(req, res) {
         200,
         {
           ok: true,
-          order: updated
-            ? {
-                ...updated,
-                tracking_number: resolveTrackingNumber(updated),
-              }
-            : null,
+          success: true,
+          order: updated ? mapOrderRow(updated) : null,
         },
         methods
       );

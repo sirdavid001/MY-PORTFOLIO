@@ -32,7 +32,15 @@ function extractBearerToken(authorizationHeader) {
   return raw.slice(7).trim();
 }
 
+function firstHeaderValue(value) {
+  if (Array.isArray(value)) return String(value[0] || "").trim();
+  return String(value || "").trim();
+}
+
 function getAccessTokenFromRequest(req) {
+  const headerToken = firstHeaderValue(req.headers["x-admin-token"]);
+  if (headerToken) return headerToken;
+
   const cookies = parseCookies(req.headers.cookie);
   const cookieToken = decodeURIComponent(cookies.sd_admin_token || "").trim();
   if (cookieToken) return cookieToken;

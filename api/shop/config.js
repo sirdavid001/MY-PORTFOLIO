@@ -53,6 +53,8 @@ function mapProductRow(row) {
     details: row?.details,
     isActive: row?.is_active,
     sortOrder: row?.sort_order,
+    createdAt: row?.created_at,
+    updatedAt: row?.updated_at,
   });
 }
 
@@ -77,7 +79,7 @@ function mapShippingRow(row) {
 async function loadSupabaseConfig() {
   const [productsResponse, shippingResponse] = await Promise.all([
     supabaseRest(
-      "shop_products?select=id,name,brand,condition,category,storage_gb,battery_health,network_lock,network_carrier,base_price_usd,stock,image,details,is_active,sort_order&is_active=eq.true"
+      "shop_products?select=id,name,brand,condition,category,storage_gb,battery_health,network_lock,network_carrier,base_price_usd,stock,image,details,is_active,sort_order,created_at,updated_at&is_active=eq.true"
     ),
     supabaseRest("shop_settings?select=id,shipping_mode,flat_usd,percent_rate,min_usd&order=id.asc&limit=1"),
   ]);

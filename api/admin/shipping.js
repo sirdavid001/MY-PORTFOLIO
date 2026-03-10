@@ -11,7 +11,7 @@ const MISSING_TABLE_HINT =
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", METHODS);
-  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
+  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization, x-admin-token");
 }
 
 function json(res, status, data) {
@@ -108,12 +108,12 @@ export default async function handler(req, res) {
         return json(res, loaded.status || 502, { ok: false, error: loaded.error });
       }
 
-      return json(res, 200, { ok: true, shipping: loaded.shipping });
+      return json(res, 200, { ok: true, settings: loaded.shipping, shipping: loaded.shipping });
     }
 
     if (req.method === "PUT") {
       const payload = await readJsonBody(req);
-      const shipping = normalizeShippingConfig(payload?.shipping || payload || {});
+      const shipping = normalizeShippingConfig(payload?.shipping || payload?.settings || payload || {});
 
       const patchResponse = await supabaseRest("shop_settings?id=eq.1", {
         method: "PATCH",
@@ -125,7 +125,7 @@ export default async function handler(req, res) {
           shipping_mode: shipping.mode,
           flat_usd: shipping.flatUsd,
           percent_rate: shipping.percentRate,
-          min_usd: shipping.minUsd,
+          min_usd: shipping.freeThreshold,
           updated_at: new Date().toISOString(),
         }),
       });
@@ -143,7 +143,7 @@ export default async function handler(req, res) {
             shipping_mode: shipping.mode,
             flat_usd: shipping.flatUsd,
             percent_rate: shipping.percentRate,
-            min_usd: shipping.minUsd,
+            min_usd: shipping.freeThreshold,
             updated_at: new Date().toISOString(),
           }),
         });
@@ -155,10 +155,12 @@ export default async function handler(req, res) {
           });
         }
 
-        return json(res, 200, { ok: true, shipping: mapRowToShipping(fallbackInsert.data?.[0]) });
+        const mapped = mapRowToShipping(fallbackInsert.data?.[0]);
+        return json(res, 200, { ok: true, success: true, settings: mapped, shipping: mapped });
       }
 
-      return json(res, 200, { ok: true, shipping: mapRowToShipping(patchedRow) });
+      const mapped = mapRowToShipping(patchedRow);
+      return json(res, 200, { ok: true, success: true, settings: mapped, shipping: mapped });
     }
 
     return json(res, 405, { ok: false, error: "Method not allowed." });

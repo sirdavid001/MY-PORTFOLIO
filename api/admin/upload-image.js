@@ -16,12 +16,21 @@ const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", METHODS);
-  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
+  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization, x-admin-token");
 }
 
 function json(res, status, data) {
   setCors(res);
   res.status(status).json(data);
+}
+
+async function readRawBody(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+
+  return Buffer.concat(chunks);
 }
 
 async function readJsonBody(req) {
@@ -35,12 +44,7 @@ async function readJsonBody(req) {
     }
   }
 
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-  }
-
-  const raw = Buffer.concat(chunks).toString("utf8");
+  const raw = (await readRawBody(req)).toString("utf8");
   if (!raw) return {};
 
   try {
@@ -117,6 +121,72 @@ function decodeImagePayload(payload) {
     mimeType,
     buffer,
   };
+}
+
+function parseMultipartPayload(req, rawBody) {
+  const contentType = String(req.headers["content-type"] || "");
+  const boundaryMatch = /boundary=([^;]+)/i.exec(contentType);
+  if (!boundaryMatch) {
+    return { error: "Missing multipart boundary." };
+  }
+
+  const boundary = boundaryMatch[1].trim().replace(/^["']|["']$/g, "");
+  const boundaryBuffer = Buffer.from(`--${boundary}`);
+  const segments = [];
+  let startIndex = 0;
+
+  while (startIndex < rawBody.length) {
+    const boundaryIndex = rawBody.indexOf(boundaryBuffer, startIndex);
+    if (boundaryIndex < 0) break;
+    const nextBoundaryIndex = rawBody.indexOf(boundaryBuffer, boundaryIndex + boundaryBuffer.length);
+    if (nextBoundaryIndex < 0) break;
+    segments.push(rawBody.slice(boundaryIndex + boundaryBuffer.length, nextBoundaryIndex));
+    startIndex = nextBoundaryIndex;
+  }
+
+  for (const segment of segments) {
+    if (!segment.length) continue;
+    const cleaned = segment.subarray(segment[0] === 13 && segment[1] === 10 ? 2 : 0);
+    const headerEnd = cleaned.indexOf(Buffer.from("\r\n\r\n"));
+    if (headerEnd < 0) continue;
+
+    const headerText = cleaned.subarray(0, headerEnd).toString("utf8");
+    const bodyStart = headerEnd + 4;
+    let bodyEnd = cleaned.length;
+    if (cleaned[bodyEnd - 2] === 13 && cleaned[bodyEnd - 1] === 10) {
+      bodyEnd -= 2;
+    }
+    if (cleaned[bodyEnd - 2] === 45 && cleaned[bodyEnd - 1] === 45) {
+      bodyEnd -= 2;
+    }
+
+    const contentDisposition = /content-disposition:\s*form-data;\s*name="([^"]+)"(?:;\s*filename="([^"]*)")?/i.exec(headerText);
+    if (!contentDisposition) continue;
+
+    const fieldName = contentDisposition[1];
+    const fileName = contentDisposition[2];
+    if (fieldName !== "file" || !fileName) continue;
+
+    const mimeTypeMatch = /content-type:\s*([^\r\n]+)/i.exec(headerText);
+    const mimeType = String(mimeTypeMatch?.[1] || "").trim().toLowerCase();
+    const buffer = cleaned.subarray(bodyStart, bodyEnd);
+
+    if (!mimeType || !ALLOWED_IMAGE_TYPES.has(mimeType)) {
+      return { error: "Only JPG, PNG, WEBP, GIF, or AVIF image uploads are allowed." };
+    }
+
+    if (!buffer.length) {
+      return { error: "Invalid image data." };
+    }
+
+    return {
+      mimeType,
+      buffer,
+      fileName,
+    };
+  }
+
+  return { error: "No file provided." };
 }
 
 function toStoragePath(fileName, mimeType) {
@@ -234,8 +304,20 @@ export default async function handler(req, res) {
       });
     }
 
-    const payload = await readJsonBody(req);
-    const parsed = decodeImagePayload(payload);
+    let parsed;
+    let sourceFileName = "";
+    const contentType = String(req.headers["content-type"] || "").toLowerCase();
+
+    if (contentType.includes("multipart/form-data")) {
+      const rawBody = await readRawBody(req);
+      parsed = parseMultipartPayload(req, rawBody);
+      sourceFileName = parsed.fileName || "";
+    } else {
+      const payload = await readJsonBody(req);
+      parsed = decodeImagePayload(payload);
+      sourceFileName = String(payload?.fileName || "").trim();
+    }
+
     if (parsed.error) {
       return json(res, 400, { ok: false, error: parsed.error });
     }
@@ -248,7 +330,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const storagePath = toStoragePath(payload?.fileName, parsed.mimeType);
+    const storagePath = toStoragePath(sourceFileName, parsed.mimeType);
     const encodedPath = encodeStoragePath(storagePath);
     const uploadResponse = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${encodedPath}`, {
       method: "POST",

@@ -228,16 +228,74 @@ function normalizeNetworkLock(value) {
   return normalized === "locked" ? "Locked" : "Unlocked";
 }
 
+function normalizePercentRate(raw) {
+  const directPercentAmount = raw?.percentAmount;
+  if (directPercentAmount != null && directPercentAmount !== "") {
+    const percentAmount = Math.max(0, toNumber(directPercentAmount, DEFAULT_SHIPPING_CONFIG.percentRate * 100));
+    return {
+      percentRate: percentAmount / 100,
+      percentAmount,
+    };
+  }
+
+  const numericRate = Math.max(0, toNumber(raw?.percentRate, DEFAULT_SHIPPING_CONFIG.percentRate));
+  if (numericRate > 1) {
+    return {
+      percentRate: numericRate / 100,
+      percentAmount: numericRate,
+    };
+  }
+
+  return {
+    percentRate: numericRate,
+    percentAmount: numericRate * 100,
+  };
+}
+
+function normalizeSpecs(rawSpecs) {
+  if (Array.isArray(rawSpecs)) {
+    return rawSpecs.map((value) => String(value || "").trim()).filter(Boolean);
+  }
+
+  if (typeof rawSpecs === "string") {
+    const trimmed = rawSpecs.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((value) => String(value || "").trim()).filter(Boolean);
+        }
+      } catch {
+        // Fall back to comma-separated parsing below.
+      }
+    }
+
+    return trimmed
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 export function normalizeShippingConfig(raw) {
   const mode = SHIPPING_MODES.has(String(raw?.mode || "").toLowerCase())
     ? String(raw.mode).toLowerCase()
     : DEFAULT_SHIPPING_CONFIG.mode;
+  const flatUsd = Math.max(0, toNumber(raw?.flatUsd ?? raw?.flatAmount, DEFAULT_SHIPPING_CONFIG.flatUsd));
+  const freeThreshold = Math.max(0, toNumber(raw?.minUsd ?? raw?.freeThreshold, DEFAULT_SHIPPING_CONFIG.minUsd));
+  const { percentRate, percentAmount } = normalizePercentRate(raw);
 
   return {
     mode,
-    flatUsd: Math.max(0, toNumber(raw?.flatUsd, DEFAULT_SHIPPING_CONFIG.flatUsd)),
-    percentRate: Math.max(0, toNumber(raw?.percentRate, DEFAULT_SHIPPING_CONFIG.percentRate)),
-    minUsd: Math.max(0, toNumber(raw?.minUsd, DEFAULT_SHIPPING_CONFIG.minUsd)),
+    flatUsd,
+    percentRate,
+    minUsd: freeThreshold,
+    flatAmount: flatUsd,
+    percentAmount,
+    freeThreshold,
   };
 }
 
@@ -247,6 +305,11 @@ export function normalizeProduct(raw) {
   const networkLock = normalizeNetworkLock(raw?.networkLock ?? raw?.network_lock);
   const networkCarrier =
     networkLock === "Locked" ? String(raw?.networkCarrier ?? raw?.network_carrier ?? "").trim() : "";
+  const priceUSD = Math.max(0, toNumber(raw?.priceUSD ?? raw?.basePriceUsd ?? raw?.base_price_usd, 0));
+  const createdAt = String(raw?.createdAt ?? raw?.created_at ?? "").trim();
+  const updatedAt = String(raw?.updatedAt ?? raw?.updated_at ?? "").trim();
+  const model = String(raw?.model || "").trim();
+  const specs = normalizeSpecs(raw?.specs);
 
   return {
     id,
@@ -258,12 +321,17 @@ export function normalizeProduct(raw) {
     batteryHealth: toNullableInteger(raw?.batteryHealth ?? raw?.battery_health, { min: 0, max: 100 }),
     networkLock,
     networkCarrier,
-    basePriceUsd: Math.max(0, toNumber(raw?.basePriceUsd, 0)),
+    model,
+    basePriceUsd: priceUSD,
+    priceUSD,
     stock: Math.max(0, toInteger(raw?.stock, 0)),
     image: images[0] || "",
     images,
+    specs,
     details: String(raw?.details || "").trim(),
     isActive: normalizeBoolean(raw?.isActive, true),
     sortOrder: Math.max(0, toInteger(raw?.sortOrder, 0)),
+    createdAt,
+    updatedAt,
   };
 }

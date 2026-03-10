@@ -111,7 +111,9 @@ export default async function handler(req, res) {
       res,
       200,
       {
+        success: true,
         ok: true,
+        token: data.access_token,
         user: {
           id: data.user.id,
           email: data.user.email,

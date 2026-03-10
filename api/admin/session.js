@@ -5,7 +5,7 @@ import { getClientIp, isIpAllowed } from "../../server/_lib/security.js";
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", methods);
-  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
+  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization, x-admin-token");
 }
 
 function json(res, status, data, methods) {
@@ -53,12 +53,14 @@ export default async function handler(req, res) {
       res,
       200,
       {
+        success: true,
         ok: true,
         user: {
           id: auth.user.id,
           email: auth.user.email,
           role: "admin",
         },
+        isAdmin: true,
       },
       methods
     );

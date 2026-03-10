@@ -4,7 +4,7 @@ import { getClientIp, isIpAllowed } from "../../server/_lib/security.js";
 import { normalizeProduct } from "../../shared/shop-defaults.js";
 import { normalizeSupabaseError, supabaseRest } from "../../server/_lib/supabase-rest.js";
 
-const METHODS = "GET, POST, PATCH, DELETE, OPTIONS";
+const METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 const MISSING_TABLE_HINT =
   "Supabase table public.shop_products is missing. Run supabase/catalog.sql in Supabase SQL Editor.";
 const MISSING_COLUMNS_HINT =
@@ -14,7 +14,7 @@ const NETWORK_LOCK_VALUES = new Set(["Unlocked", "Locked"]);
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", METHODS);
-  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
+  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization, x-admin-token");
 }
 
 function json(res, status, data) {
@@ -151,6 +151,8 @@ function mapRowToProduct(row) {
     details: row?.details,
     isActive: row?.is_active,
     sortOrder: row?.sort_order,
+    createdAt: row?.created_at,
+    updatedAt: row?.updated_at,
   });
 }
 
@@ -231,8 +233,13 @@ function normalizePayload(payload, { partial = false } = {}) {
     }
   }
 
-  if (!partial || Object.prototype.hasOwnProperty.call(payload, "basePriceUsd")) {
-    const basePriceUsd = toNumber(payload?.basePriceUsd, NaN);
+  const hasBasePriceUsd =
+    Object.prototype.hasOwnProperty.call(payload, "basePriceUsd") ||
+    Object.prototype.hasOwnProperty.call(payload, "priceUSD");
+  if (!partial || hasBasePriceUsd) {
+    const rawBasePriceUsd =
+      Object.prototype.hasOwnProperty.call(payload, "priceUSD") ? payload?.priceUSD : payload?.basePriceUsd;
+    const basePriceUsd = toNumber(rawBasePriceUsd, NaN);
     if (!Number.isFinite(basePriceUsd) || basePriceUsd < 0) {
       return { error: "Base price must be zero or higher." };
     }
@@ -276,7 +283,7 @@ function sortProducts(rows) {
 
 async function loadProducts() {
   const response = await supabaseRest(
-    "shop_products?select=id,name,brand,condition,category,storage_gb,battery_health,network_lock,network_carrier,base_price_usd,stock,image,details,is_active,sort_order,created_at"
+    "shop_products?select=id,name,brand,condition,category,storage_gb,battery_health,network_lock,network_carrier,base_price_usd,stock,image,details,is_active,sort_order,created_at,updated_at"
   );
 
   if (!response.ok) {
@@ -397,7 +404,7 @@ export default async function handler(req, res) {
       return json(res, 201, { ok: true, product });
     }
 
-    if (req.method === "PATCH") {
+    if (req.method === "PUT" || req.method === "PATCH") {
       const id = String(firstValue(req.query?.id) || "").trim();
       if (!id) {
         return json(res, 400, { ok: false, error: "Product id is required." });
