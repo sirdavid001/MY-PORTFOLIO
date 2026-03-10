@@ -5,8 +5,6 @@ import Home from "./pages/Home";
 import Projects from "./pages/Projects";
 import Contact from "./pages/Contact";
 import ShopApp from "./shop/ShopApp";
-import AdminApp from "./shop/AdminApp";
-import AdminSignup from "./shop/components/admin/AdminSignup";
 import { Toaster } from "sonner";
 
 const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]);
@@ -20,7 +18,6 @@ const SHOP_PATHS = new Set([
   "/refund-policy",
   "/privacy-policy",
   "/faqs",
-  "/faq",
   "/shipping-policy",
   "/admin-setup-first-time",
   SECURE_ADMIN_PATH,
@@ -37,17 +34,12 @@ export default function App() {
   const isBusinessSubdomain = hostLabels.some((label) => BUSINESS_SUBDOMAINS.has(label));
   const isShopPath =
     normalizedPathname.startsWith("/product/") ||
-    normalizedPathname.startsWith(SECURE_ADMIN_PATH) ||
-    normalizedPathname.startsWith(`/shop${SECURE_ADMIN_PATH}`) ||
     SHOP_PATHS.has(normalizedPathname);
 
   if (isBusinessSubdomain || isShopPath) {
     return (
       <>
         <Routes>
-          <Route path={`${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
-          <Route path={`/shop${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
-          <Route path="/admin-setup-first-time" element={<AdminSignup />} />
           <Route path="*" element={<ShopApp />} />
         </Routes>
         <Toaster position="top-right" richColors />
