@@ -1,4 +1,4 @@
-import { requireAdminUser } from "../../server/_lib/admin-auth.js";
+import { clearAdminCookie, requireAdminUser } from "../../server/_lib/admin-auth.js";
 import { applyRateLimit } from "../../server/_lib/rate-limit.js";
 import { getClientIp, isIpAllowed } from "../../server/_lib/security.js";
 
@@ -14,7 +14,7 @@ function json(res, status, data, methods) {
 }
 
 export default async function handler(req, res) {
-  const methods = "GET, OPTIONS";
+  const methods = "GET, POST, OPTIONS";
   const clientIp = getClientIp(req);
 
   if (req.method === "OPTIONS") {
@@ -30,8 +30,13 @@ export default async function handler(req, res) {
     return json(res, 429, { ok: false, error: "Too many requests. Try again later." }, methods);
   }
 
-  if (req.method !== "GET") {
+  if (!["GET", "POST"].includes(req.method)) {
     return json(res, 405, { ok: false, error: "Method not allowed." }, methods);
+  }
+
+  if (req.method === "POST") {
+    res.setHeader("Set-Cookie", clearAdminCookie());
+    return json(res, 200, { ok: true }, methods);
   }
 
   if (!isIpAllowed(clientIp, process.env.ADMIN_ALLOWED_IPS)) {
