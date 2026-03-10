@@ -1,78 +1,92 @@
-{\rtf1\ansi\ansicpg1252\deff0
-{\fonttbl{\f0\fswiss Arial;}
-}
-{\colortbl;\red0\green0\blue0;\red23\green79\blue209;}
-\pard\qc\b\f0\fs36 Chinedu David Nwadialo\par
-\pard\qc\b0\fs28 Full Stack Developer\par
-\pard\qj\fs22 itssirdavid@gmail.com \endash\ +2347041342391 \endash\ Lagos, Nigeria\par
-\pard\qj\fs22 github.com/sirdavid001 \endash\ sirdavid.site\par
-\par
+<!doctype html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="ProgId" content="Word.Document" />
+    <meta name="Generator" content="OpenAI Codex" />
+    <title>Chinedu David Nwadialo - CV</title>
+  </head>
+  <body style="margin: 0; padding: 0; background: #f3f4f6; font-family: Arial, Helvetica, sans-serif; color: #1f2937;">
+    <div style="max-width: 960px; margin: 0 auto; background: #f3f4f6;">
+      <div style="background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%); color: #ffffff; padding: 28px 32px 26px;">
+        <div style="font-size: 30px; line-height: 1.2; font-weight: 700;">Chinedu David Nwadialo</div>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 18px; color: #ffffff;">
+          <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 18px;">
+              <div style="font-size: 15px; line-height: 1.9;">Lagos, Nigeria</div>
+              <div style="font-size: 15px; line-height: 1.9;">itssirdavid@gmail.com</div>
+              <div style="font-size: 15px; line-height: 1.9;">GitHub: github.com/sirdavid001</div>
+            </td>
+            <td style="width: 50%; vertical-align: top; padding-left: 18px;">
+              <div style="font-size: 15px; line-height: 1.9;">+2347041342391</div>
+              <div style="font-size: 15px; line-height: 1.9;">Portfolio: sirdavid.site</div>
+            </td>
+          </tr>
+        </table>
+      </div>
 
-\pard\b\fs28 Professional Summary\par
-\pard\b0\fs22 Full Stack Web Developer with a focus on building responsive, production-ready web applications.\par
-Experienced in creating clean, user-friendly interfaces while ensuring backend systems are reliable and efficient.\par
-Proficient in transforming product requirements into secure, maintainable, and deployment-ready web solutions.\par
-Particularly interested in role-based access control, database-driven content, payment systems, and admin dashboards.\par
-Passionate about growing into a senior web engineer with full ownership of web product development from conception to deployment, while maintaining high standards for performance, security, and reliability.\par
-\par
-\pard\b\fs28 Education\par
-\pard\b0\fs22 Bachelor of Science in Computer Science\par
-Dennis Osadebay University\par
-2021 - 2025\par
-\par
-Senior Secondary School Certificate\par
-Redeemers International High School Asaba\par
-2014 - 2019\par
-Asaba, Delta State, Nigeria\par
-\par
-West African Examinations Council (WAEC) – SSCE certificate\par
-National Examinations Council (NECO) – SSCE certificate\par
-Junior WAEC (BECE/JSS3 result)\par
-\par
-Primary School Leaving Certificate\par
-Jasmine Children School\par
-2010 - 2013\par
-Asaba, Delta State, Nigeria\par
-\par
-\pard\b\fs28 Projects\par
-\pard\b0\fs22 MY-PORTFOLIO\par
-Technologies: React, JavaScript, Vite, Tailwind CSS, Node.js, Supabase, Paystack, Resend\par
-Feb - Mar 2025\par
-sirdavid.site\par
-- Built a full-stack portfolio/shop web application with complete checkout and admin management flow.\par
-- Implemented secure payment integration with Paystack including webhook handling for transaction verification.\par
-- Integrated email notification system using Resend API for order confirmations and updates.\par
-- Developed admin dashboard with product and shipping management endpoints.\par
-- Implemented Supabase for order persistence and data management.\par
-- Configured deployment-ready setup with Vercel and environment-driven API integrations.\par
-\par
-online-exam-system\par
-Technologies: Python, Django, PostgreSQL, JavaScript, HTML/CSS, Gunicorn, WhiteNoise\par
-Aug 2025 - Feb 2026\par
-https://online-exam-system-dt8t.onrender.com\par
-- Developed a comprehensive role-based online examination platform for admins, teachers, and students.\par
-- Implemented course, question, and test management system with timed exams featuring shuffle and attempt limits.\par
-- Built automated scoring system with support for negative marking and detailed student results tracking.\par
-- Created admin workflows for user onboarding, approvals, announcements, and governance dashboards.\par
-- Integrated export functionality for generating reports in CSV and Excel formats.\par
-- Deployed production-ready application with PostgreSQL database and Gunicorn/WhiteNoise stack.\par
-\par
-uKnowMe\par
-Technologies: React, JavaScript, HTML/CSS\par
-2025 - 2026\par
-www.uknowme.sbs\par
-- Built an identity/profile-focused web application with clean, user-friendly interface.\par
-- Designed and implemented responsive UI/UX for optimal user experience across devices.\par
-- Demonstrated frontend development skills with focus on product presentation quality.\par
-- Deployed live application showcasing professional web development capabilities.\par
-\par
-\pard\b\fs28 Technical Skills\par
-\pard\b0\fs22 Programming Languages: JavaScript, TypeScript, Python, SQL, HTML, CSS\par
-Frontend Frameworks & Libraries: React, React Native (Expo), Next.js, Vite, Tailwind CSS\par
-Backend Frameworks & Tools: Django, Node.js, Fastify, Express, Gunicorn, WhiteNoise\par
-Databases & ORMs: PostgreSQL, SQLite, Supabase, Prisma ORM\par
-Development Tools: Git, GitHub, npm, Docker, Vercel, Render, CI/CD\par
-API & Integration: REST API, JWT/Session Auth, Webhooks, AWS SDK (S3), Zod, Ethers.js\par
-\par
-\pard\b\fs24 References available upon request\par
-}
+      <div style="padding: 28px 30px 36px;">
+        <div style="margin-top: 34px;">
+    <div style="font-size: 19px; font-weight: 700; color: #1f2937;">Professional Summary</div>
+    <div style="height: 3px; margin-top: 8px; background: #2563eb;"></div>
+    <div style="margin-top: 14px; color: #3f4d63; font-size: 15px; line-height: 1.6;">Recent Bachelor of Science graduate in Computer Science from Dennis Osadebay University with experience completing practical projects, organizing information, and solving problems using both technical and analytical skills. Strong attention to detail, communication, and teamwork abilities. Open to entry-level opportunities in administration, customer support, operations, technology, or other roles where reliability, organization, and problem-solving are valued.</div>
+  </div>
+
+        <div style="margin-top: 34px;">
+    <div style="font-size: 19px; font-weight: 700; color: #1f2937;">Key Skills</div>
+    <div style="height: 3px; margin-top: 8px; background: #2563eb;"></div>
+    <div style="margin-top: 14px; font-size: 16px; font-weight: 700; color: #1f2937;">Workplace Skills</div>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 8px;">
+            <tr>
+              <td style="width: 50%; vertical-align: top; padding-right: 18px;">
+                <ul style="margin: 0; padding: 0;"><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Communication and teamwork</li><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Problem solving and analytical thinking</li><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Data entry and record keeping</li></ul>
+              </td>
+              <td style="width: 50%; vertical-align: top; padding-left: 18px;">
+                <ul style="margin: 0; padding: 0;"><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Time management and organization</li><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Documentation and reporting</li><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Adaptability and willingness to learn</li></ul>
+              </td>
+            </tr>
+          </table>
+  </div>
+
+        <div style="margin-top: 34px;">
+    <div style="font-size: 19px; font-weight: 700; color: #1f2937;">Education</div>
+    <div style="height: 3px; margin-top: 8px; background: #2563eb;"></div>
+    <div style="margin-top: 18px;">
+        <div style="font-size: 16px; font-weight: 700; color: #1f2937;">Bachelor of Science (BSc), Computer Science</div>
+        <div style="margin-top: 4px; color: #4b5563; font-size: 14px; line-height: 1.45;">Dennis Osadebay University | 2021 - 2025</div>
+      </div><div style="margin-top: 18px;">
+        <div style="font-size: 16px; font-weight: 700; color: #1f2937;">Senior Secondary School Certificate (SSCE)</div>
+        <div style="margin-top: 4px; color: #4b5563; font-size: 14px; line-height: 1.45;">Redeemers International High School, Asaba</div><div style="margin-top: 4px; color: #4b5563; font-size: 14px; line-height: 1.45;">WAEC and NECO Certificates</div>
+      </div><div style="margin-top: 18px;">
+        <div style="font-size: 16px; font-weight: 700; color: #1f2937;">Primary School Leaving Certificate</div>
+        <div style="margin-top: 4px; color: #4b5563; font-size: 14px; line-height: 1.45;">Jasmine Children School, Asaba</div>
+      </div>
+  </div>
+        <div style="margin-top: 34px;">
+    <div style="font-size: 19px; font-weight: 700; color: #1f2937;">Selected Projects</div>
+    <div style="height: 3px; margin-top: 8px; background: #2563eb;"></div>
+    <div style="margin-top: 18px;">
+        <div style="font-size: 16px; font-weight: 700; color: #1f2937;">Online Examination System</div>
+        <div style="margin-top: 6px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Developed a web-based platform that allows administrators and teachers to manage exams, track student results, and generate reports. The system includes timed tests, automated scoring, and result export features.</div>
+      </div><div style="margin-top: 18px;">
+        <div style="font-size: 16px; font-weight: 700; color: #1f2937;">Personal Portfolio Website</div>
+        <div style="margin-top: 6px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Created and deployed a personal website showcasing projects and technical work while managing hosting, updates, and site performance.</div>
+      </div><div style="margin-top: 18px;">
+        <div style="font-size: 16px; font-weight: 700; color: #1f2937;">Profile Web Application (uKnowMe)</div>
+        <div style="margin-top: 6px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Built a user-focused web application with responsive design, emphasizing clear presentation of profile information and user experience.</div>
+      </div>
+  </div>
+        <div style="margin-top: 34px;">
+    <div style="font-size: 19px; font-weight: 700; color: #1f2937;">Technical Skills</div>
+    <div style="height: 3px; margin-top: 8px; background: #2563eb;"></div>
+    <div style="margin-top: 14px; color: #3f4d63; font-size: 15px; line-height: 1.6;">JavaScript | Python | SQL | HTML &amp; CSS | React | Next.js | Basic database management | Git &amp; version control</div>
+  </div>
+        <div style="margin-top: 34px;">
+    <div style="font-size: 19px; font-weight: 700; color: #1f2937;">Additional Information</div>
+    <div style="height: 3px; margin-top: 8px; background: #2563eb;"></div>
+    <ul style="margin: 14px 0 0; padding: 0;"><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Comfortable working with computers, office software, and online tools</li><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Able to learn new systems quickly</li><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Available for full-time, part-time, or entry-level roles</li><li style="margin: 0 0 8px 18px; color: #3f4d63; font-size: 15px; line-height: 1.55;">Willing to work in both technical and non-technical positions</li></ul>
+  </div>
+      </div>
+    </div>
+  </body>
+</html>

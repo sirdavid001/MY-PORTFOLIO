@@ -1,83 +1,26 @@
-import { CV_RESUME_LINES } from "./cv-content.js";
+import { CV_PROFILE } from "./cv-profile.js";
 
 const PAGE = {
   width: 612,
   height: 792,
-  marginLeft: 50,
-  marginRight: 50,
-  marginTop: 56,
-  marginBottom: 50,
+  marginX: 32,
+  marginTop: 34,
+  marginBottom: 36,
 };
 
-const STYLE = {
-  title: {
-    font: "F2",
-    size: 30,
-    before: 4,
-    after: 6,
-    leading: 36,
-    color: [0.06, 0.11, 0.22],
-    upper: false,
-  },
-  subtitle: {
-    font: "F2",
-    size: 14,
-    before: 1,
-    after: 9,
-    leading: 16,
-    color: [0.18, 0.22, 0.26],
-  },
-  meta: {
-    font: "F1",
-    size: 9.8,
-    before: 0,
-    after: 5,
-    leading: 12.5,
-    color: [0.33, 0.41, 0.48],
-  },
-  section: {
-    font: "F2",
-    size: 12.2,
-    before: 14,
-    after: 6,
-    leading: 16,
-    color: [0.05, 0.13, 0.30],
-    upper: true,
-    addRule: true,
-  },
-  subheading: {
-    font: "F2",
-    size: 11.8,
-    before: 9,
-    after: 3.5,
-    leading: 14.5,
-    color: [0.15, 0.19, 0.24],
-  },
-  body: {
-    font: "F1",
-    size: 10.4,
-    before: 0,
-    after: 1.5,
-    leading: 14.5,
-    color: [0.21, 0.24, 0.28],
-  },
-  bullet: {
-    font: "F1",
-    size: 10.4,
-    before: 0,
-    after: 1.5,
-    leading: 14.5,
-    color: [0.21, 0.24, 0.28],
-    bullet: "-",
-  },
-  spacer: {
-    font: "F1",
-    size: 6,
-    before: 0,
-    after: 7,
-    leading: 6,
-    color: [0.21, 0.24, 0.28],
-  },
+const HEADER = {
+  height: 110,
+  paddingX: 28,
+  topInset: 24,
+};
+
+const COLORS = {
+  blue: [0.145, 0.388, 0.922],
+  blueDark: [0.118, 0.251, 0.686],
+  dark: [0.125, 0.161, 0.216],
+  body: [0.247, 0.302, 0.388],
+  white: [1, 1, 1],
+  page: [0.957, 0.957, 0.961],
 };
 
 function toAsciiSafe(value) {
@@ -100,212 +43,359 @@ function bytesLength(value) {
   return new TextEncoder().encode(String(value || "")).length;
 }
 
-function estimateLineLength(size) {
-  const availableWidth = PAGE.width - PAGE.marginLeft - PAGE.marginRight;
-  const averageCharWidth = Number(size || 11) * 0.56;
-  return Math.max(32, Math.floor(availableWidth / averageCharWidth));
+function estimateChars(width, size) {
+  const averageCharWidth = Number(size || 12) * 0.52;
+  return Math.max(12, Math.floor(width / averageCharWidth));
 }
 
-function wrapLine(text, maxChars, options = {}) {
+function wrapText(text, width, size, options = {}) {
   const safeText = toAsciiSafe(text || "").replace(/\s+/g, " ").trim();
   const firstPrefix = toAsciiSafe(options.firstPrefix || "");
   const continuationPrefix = toAsciiSafe(options.continuationPrefix || "");
-
+  const maxChars = estimateChars(width, size);
   const words = safeText ? safeText.split(" ") : [""];
+
   if (words.length === 1 && !words[0]) {
     return [""];
   }
 
-  const wrapped = [];
-  const threshold = Math.max(10, Math.floor(maxChars));
-
-  const firstWord = words.shift();
-  let current = `${firstPrefix}${firstWord}`;
+  let current = `${firstPrefix}${words.shift()}`;
+  const lines = [];
 
   for (const word of words) {
-    if (`${current} ${word}`.length <= threshold) {
+    if (`${current} ${word}`.length <= maxChars) {
       current = `${current} ${word}`;
       continue;
     }
 
-    wrapped.push(current);
+    lines.push(current);
     current = `${continuationPrefix}${word}`;
   }
 
-  wrapped.push(current);
-  return wrapped;
+  lines.push(current);
+  return lines;
 }
 
-function normalizeLine(line) {
-  const style = STYLE[line.style] || STYLE.body;
-  const isSpacer = line.style === "spacer";
-  const isBullet = line.style === "bullet";
-
-  if (isSpacer) {
-    return [
-      {
-        kind: "spacer",
-        text: "",
-        style: line.style,
-        ...style,
-      },
-    ];
-  }
-
-  const rawText = line.text || "";
-  const safeText = style.upper ? toAsciiSafe(rawText).toUpperCase() : toAsciiSafe(rawText);
-  const chunks = isBullet
-    ? wrapLine(safeText, estimateLineLength(style.size), {
-        firstPrefix: `${style.bullet} `,
-        continuationPrefix: "  ",
-      })
-    : wrapLine(safeText, estimateLineLength(style.size));
-
-  return chunks.map((chunk) => ({
-    kind: "text",
-    style: line.style,
-    text: chunk,
-    font: style.font,
-    size: style.size,
-    before: style.before,
-    after: style.after,
-    leading: style.leading,
-    color: style.color,
-    addRule: style.addRule,
-  }));
-}
-
-function buildPages() {
-  const startY = PAGE.height - PAGE.marginTop;
-  const minY = PAGE.marginBottom;
-  const allLines = [];
-
-  for (const line of CV_RESUME_LINES) {
-    allLines.push(...normalizeLine(line));
-  }
-
+function createBuilder() {
   const pages = [];
-  let currentPage = [];
-  let y = startY;
+  let currentPage = null;
+  let cursorY = PAGE.height - HEADER.height - 16;
 
-  const pushPage = () => {
-    if (currentPage.length > 0) {
-      pages.push(currentPage);
-      currentPage = [];
-    }
-    y = startY;
-  };
-
-  for (const line of allLines) {
-    if (line.kind === "spacer") {
-      y -= line.after || 0;
-      if (y < minY) {
-        pushPage();
-      }
-      continue;
-    }
-
-    if (line.style !== "spacer") {
-      if (y - line.before - line.leading < minY) {
-        pushPage();
-      }
-
-      y -= line.before;
-      if (y - line.leading < minY) {
-        pushPage();
-      }
-
-      currentPage.push({ ...line, x: PAGE.marginLeft.toFixed(2), y });
-      y -= line.leading;
-      y -= line.after || 0;
-
-      if (line.addRule) {
-        const ruleY = y - 3;
-        if (ruleY < minY) {
-          pushPage();
-          currentPage.push({
-            kind: "rule",
-            x1: PAGE.marginLeft,
-            x2: PAGE.width - PAGE.marginRight,
-            y: y - 1,
-          });
-          y -= 7;
-        } else {
-          currentPage.push({
-            kind: "rule",
-            x1: PAGE.marginLeft,
-            x2: PAGE.width - PAGE.marginRight,
-            y: ruleY,
-          });
-          y -= 7;
-        }
-      }
-
-      if (y < minY) {
-        pushPage();
-      }
-    }
-  }
-
-  if (currentPage.length > 0) {
+  function newPage(includeHeader = false) {
+    currentPage = [];
     pages.push(currentPage);
+
+    currentPage.push({
+      kind: "rect",
+      x: 0,
+      y: 0,
+      width: PAGE.width,
+      height: PAGE.height,
+      color: COLORS.page,
+    });
+
+    if (includeHeader) {
+      currentPage.push({
+        kind: "rect",
+        x: 0,
+        y: PAGE.height - HEADER.height,
+        width: PAGE.width,
+        height: HEADER.height,
+        color: COLORS.blue,
+      });
+
+      currentPage.push({
+        kind: "text",
+        x: HEADER.paddingX,
+        y: PAGE.height - HEADER.topInset,
+        font: "F2",
+        size: 22,
+        color: COLORS.white,
+        text: CV_PROFILE.name,
+      });
+
+      const leftX = HEADER.paddingX;
+      const rightX = PAGE.width / 2 + 16;
+      const contactTop = PAGE.height - 62;
+      const contactGap = 18;
+
+      [
+        CV_PROFILE.location,
+        CV_PROFILE.email,
+        `GitHub: ${CV_PROFILE.github}`,
+      ].forEach((text, index) => {
+        currentPage.push({
+          kind: "text",
+          x: leftX,
+          y: contactTop - index * contactGap,
+          font: "F1",
+          size: 9.8,
+          color: COLORS.white,
+          text,
+        });
+      });
+
+      [
+        CV_PROFILE.phone,
+        `Portfolio: ${CV_PROFILE.portfolio}`,
+      ].forEach((text, index) => {
+        currentPage.push({
+          kind: "text",
+          x: rightX,
+          y: contactTop - index * contactGap,
+          font: "F1",
+          size: 9.8,
+          color: COLORS.white,
+          text,
+        });
+      });
+
+      cursorY = PAGE.height - HEADER.height - 16;
+      return;
+    }
+
+    cursorY = PAGE.height - PAGE.marginTop;
   }
-  if (pages.length === 0) {
-    pages.push([]);
+
+  function ensureSpace(heightNeeded) {
+    if (cursorY - heightNeeded < PAGE.marginBottom) {
+      newPage(false);
+    }
   }
+
+  function drawTextLine(text, x, y, options) {
+    currentPage.push({
+      kind: "text",
+      x,
+      y,
+      font: options.font || "F1",
+      size: options.size || 12,
+      color: options.color || COLORS.body,
+      text,
+    });
+  }
+
+  function addParagraph(text, options = {}) {
+    const x = options.x ?? PAGE.marginX;
+    const width = options.width ?? PAGE.width - PAGE.marginX * 2;
+    const size = options.size ?? 12;
+    const leading = options.leading ?? size + 5;
+    const after = options.after ?? 10;
+    const lines = wrapText(text, width, size, options.wrap || {});
+
+    for (const line of lines) {
+      ensureSpace(leading + after);
+      drawTextLine(line, x, cursorY, options);
+      cursorY -= leading;
+    }
+
+    cursorY -= after;
+  }
+
+  function addSection(title) {
+    ensureSpace(22);
+    drawTextLine(title, PAGE.marginX, cursorY, {
+      font: "F2",
+      size: 13.5,
+      color: COLORS.dark,
+    });
+    currentPage.push({
+      kind: "line",
+      x1: PAGE.marginX,
+      x2: PAGE.width - PAGE.marginX,
+      y: cursorY - 10,
+      width: 1.5,
+      color: COLORS.blue,
+    });
+    cursorY -= 16;
+  }
+
+  function addEducationEntry(entry) {
+    ensureSpace(42);
+    addParagraph(entry.title, {
+      font: "F2",
+      size: 12.4,
+      color: COLORS.dark,
+      leading: 13.2,
+      after: 2,
+    });
+
+    entry.details.forEach((detail, index) => {
+      addParagraph(detail, {
+        size: 10.8,
+        color: COLORS.body,
+        leading: 13.2,
+        after: index === entry.details.length - 1 ? 5 : 1,
+      });
+    });
+  }
+
+  function addProject(project) {
+    ensureSpace(52);
+    addParagraph(project.title, {
+      font: "F2",
+      size: 12.3,
+      color: COLORS.dark,
+      leading: 14,
+      after: 2,
+    });
+    addParagraph(project.description, {
+      size: 10.6,
+      color: COLORS.body,
+      leading: 13.4,
+      after: 5,
+    });
+  }
+
+  function addSkillColumns(title, items) {
+    ensureSpace(68);
+    addParagraph(title, {
+      font: "F2",
+      size: 11.5,
+      color: COLORS.dark,
+      leading: 13,
+      after: 5,
+    });
+
+    const leftItems = items.slice(0, Math.ceil(items.length / 2));
+    const rightItems = items.slice(Math.ceil(items.length / 2));
+    const leftX = PAGE.marginX;
+    const rightX = PAGE.width / 2 + 6;
+    const bulletWidth = PAGE.width / 2 - PAGE.marginX - 14;
+    const lineHeight = 13;
+    const startY = cursorY;
+
+    const renderColumn = (columnItems, x) => {
+      let localY = startY;
+      columnItems.forEach((item) => {
+        const lines = wrapText(item, bulletWidth, 10.4, {
+          firstPrefix: "- ",
+          continuationPrefix: "  ",
+        });
+        lines.forEach((line, lineIndex) => {
+          drawTextLine(line, x, localY - lineIndex * 11, {
+            size: 10.2,
+            color: COLORS.body,
+          });
+        });
+        localY -= Math.max(lineHeight, lines.length * 11 + 1);
+      });
+      return localY;
+    };
+
+    const estimatedRows = Math.max(leftItems.length, rightItems.length);
+    ensureSpace(estimatedRows * lineHeight + 6);
+
+    const leftBottomY = renderColumn(leftItems, leftX);
+    const rightBottomY = renderColumn(rightItems, rightX);
+    cursorY = Math.min(leftBottomY, rightBottomY);
+  }
+
+  function addBulletList(items) {
+    items.forEach((item, index) => {
+      addParagraph(item, {
+        size: 10.2,
+        color: COLORS.body,
+        leading: 12.6,
+        after: index === items.length - 1 ? 0 : 1,
+        wrap: {
+          firstPrefix: "- ",
+          continuationPrefix: "  ",
+        },
+      });
+    });
+  }
+
+  newPage(true);
+
+  addSection("Professional Summary");
+  addParagraph(CV_PROFILE.summary, {
+    size: 10.7,
+    color: COLORS.body,
+    leading: 13,
+    after: 8,
+  });
+
+  addSection("Key Skills");
+  addSkillColumns(CV_PROFILE.keySkills.title, CV_PROFILE.keySkills.items);
+  cursorY -= 8;
+
+  addSection("Education");
+  CV_PROFILE.education.forEach(addEducationEntry);
+
+  addSection("Selected Projects");
+  CV_PROFILE.projects.forEach(addProject);
+
+  addSection("Technical Skills");
+  addParagraph(CV_PROFILE.technicalSkills.join(" | "), {
+    size: 10.7,
+    color: COLORS.body,
+    leading: 13.2,
+    after: 8,
+  });
+
+  addSection("Additional Information");
+  addBulletList(CV_PROFILE.additionalInformation);
 
   return pages;
 }
 
-function buildContentForPage(lines) {
-  const linesOutput = [];
+function buildContentForPage(operations) {
+  const output = [];
   let inTextObject = false;
 
   const beginText = () => {
     if (!inTextObject) {
-      linesOutput.push("BT");
+      output.push("BT");
       inTextObject = true;
     }
   };
 
   const endText = () => {
     if (inTextObject) {
-      linesOutput.push("ET");
+      output.push("ET");
       inTextObject = false;
     }
   };
 
-  for (const line of lines) {
-    if (line.kind === "rule") {
+  for (const operation of operations) {
+    if (operation.kind === "rect") {
       endText();
-      linesOutput.push("q");
-      linesOutput.push("0.65 w");
-      linesOutput.push("0.38 0.38 0.38 RG");
-      linesOutput.push(`${line.x1.toFixed(2)} ${line.y.toFixed(2)} m`);
-      linesOutput.push(`${line.x2.toFixed(2)} ${line.y.toFixed(2)} l`);
-      linesOutput.push("S");
-      linesOutput.push("Q");
+      output.push("q");
+      output.push(`${operation.color[0].toFixed(3)} ${operation.color[1].toFixed(3)} ${operation.color[2].toFixed(3)} rg`);
+      output.push(`${operation.x.toFixed(2)} ${operation.y.toFixed(2)} ${operation.width.toFixed(2)} ${operation.height.toFixed(2)} re`);
+      output.push("f");
+      output.push("Q");
       continue;
     }
 
-    if (!line.text || line.style === "spacer") {
+    if (operation.kind === "line") {
+      endText();
+      output.push("q");
+      output.push(`${operation.width.toFixed(2)} w`);
+      output.push(`${operation.color[0].toFixed(3)} ${operation.color[1].toFixed(3)} ${operation.color[2].toFixed(3)} RG`);
+      output.push(`${operation.x1.toFixed(2)} ${operation.y.toFixed(2)} m`);
+      output.push(`${operation.x2.toFixed(2)} ${operation.y.toFixed(2)} l`);
+      output.push("S");
+      output.push("Q");
       continue;
     }
 
-    beginText();
-    const color = line.color || [0, 0, 0];
-    linesOutput.push(`${color[0].toFixed(3)} ${color[1].toFixed(3)} ${color[2].toFixed(3)} rg`);
-    linesOutput.push(`1 0 0 1 ${Number(line.x).toFixed(2)} ${line.y.toFixed(2)} Tm`);
-    linesOutput.push(`/${line.font} ${line.size} Tf`);
-    linesOutput.push(`(${escapePdfText(line.text)}) Tj`);
+    if (operation.kind === "text" && operation.text) {
+      beginText();
+      output.push(`${operation.color[0].toFixed(3)} ${operation.color[1].toFixed(3)} ${operation.color[2].toFixed(3)} rg`);
+      output.push(`1 0 0 1 ${operation.x.toFixed(2)} ${operation.y.toFixed(2)} Tm`);
+      output.push(`/${operation.font} ${operation.size.toFixed(2)} Tf`);
+      output.push(`(${escapePdfText(toAsciiSafe(operation.text))}) Tj`);
+    }
   }
 
   endText();
-  return linesOutput.join("\n");
+  return output.join("\n");
 }
 
 export function buildCvPdf() {
-  const pages = buildPages();
+  const pages = createBuilder();
   const pageObjectIds = [];
   const contentObjectIds = [];
   const objects = [];
@@ -322,8 +412,7 @@ export function buildCvPdf() {
   for (let index = 0; index < pages.length; index += 1) {
     const pageId = pageObjectIds[index];
     const contentId = contentObjectIds[index];
-    const lines = pages[index];
-    const content = buildContentForPage(lines);
+    const content = buildContentForPage(pages[index]);
     const contentLength = bytesLength(content);
 
     objects.push({
