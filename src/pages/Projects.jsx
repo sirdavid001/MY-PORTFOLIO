@@ -1,27 +1,27 @@
 const projects = [
   {
-    title: "uknowme",
+    title: "Sirdavidgadget",
     description:
-      "Identity and profile-focused application designed to present user information with a clear and engaging interface.",
-    stack: ["JavaScript", "Frontend"],
-    code: "https://github.com/sirdavid001/uknowme",
+      "Gadget storefront and admin platform with product management, cart and checkout flow, order tracking, and operational admin tools.",
+    stack: ["TypeScript", "React", "E-commerce", "Admin"],
+    code: "https://github.com/sirdavid001/Sirdavidgadget",
     image:
-      "https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    title: "settlex-backend",
+    title: "MY-PORTFOLIO",
     description:
-      "Backend service project with API-focused architecture and core transaction logic implementation.",
-    stack: ["TypeScript", "Backend API"],
-    code: "https://github.com/sirdavid001/settlex-backend",
+      "Personal portfolio application combining project showcase, CV export and email delivery, contact flows, and an integrated shop/admin experience.",
+    stack: ["TypeScript", "React", "Portfolio", "Vite"],
+    code: "https://github.com/sirdavid001/MY-PORTFOLIO",
     image:
-      "https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
   },
   {
     title: "online-exam-system",
     description:
-      "Exam management project with question delivery and submission workflows for online assessment use cases.",
-    stack: ["Python", "Education Tech"],
+      "Web-based examination system for managing tests, delivering questions online, handling submissions, and supporting result workflows.",
+    stack: ["Python", "HTML", "CSS", "Education"],
     code: "https://github.com/sirdavid001/online-exam-system",
     image:
       "https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1200&q=80",
@@ -34,7 +34,7 @@ export default function Projects() {
       <div>
         <p className="text-sm uppercase tracking-widest text-blue-600">Featured Work</p>
         <h1 className="font-display text-4xl font-bold text-slate-900 sm:text-5xl">Projects</h1>
-        <p className="mt-2 text-base text-slate-600 sm:text-lg">Real work and practical products from my GitHub.</p>
+        <p className="mt-2 text-base text-slate-600 sm:text-lg">Current public work pulled from my real GitHub repositories.</p>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">

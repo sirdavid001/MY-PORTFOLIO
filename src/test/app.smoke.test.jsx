@@ -17,7 +17,7 @@ describe("App smoke tests", () => {
     renderAppAt("/projects");
 
     expect(await screen.findByRole("heading", { name: /^projects$/i })).toBeInTheDocument();
-    expect(screen.getByText(/real work and practical products from my github/i)).toBeInTheDocument();
+    expect(screen.getByText(/current public work pulled from my real github repositories/i)).toBeInTheDocument();
   });
 
   it("renders the contact page", async () => {
