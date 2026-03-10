@@ -11,6 +11,7 @@ import {
   SiTailwindcss,
   SiTypescript,
 } from "react-icons/si";
+import profileImage from "../../assets/profile.jpg";
 
 const principles = [
   {
@@ -75,9 +76,9 @@ export default function Home() {
 
         <div className="rounded-3xl bg-white p-3 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
           <img
-            src="/assets/profile.jpg"
+            src={profileImage}
             alt="Portrait of Chinedu David"
-            className="h-full w-full rounded-2xl object-cover"
+            className="h-full w-full rounded-2xl object-cover object-top"
           />
         </div>
       </section>
