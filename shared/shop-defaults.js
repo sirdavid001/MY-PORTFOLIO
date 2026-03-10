@@ -251,7 +251,7 @@ export function normalizeProduct(raw) {
   return {
     id,
     name: String(raw?.name || "").trim() || "Untitled Gadget",
-    brand: String(raw?.brand || "").trim() || "Sirdavid",
+    brand: String(raw?.brand || "").trim() || "Sirdavidgadget",
     condition: String(raw?.condition || "").trim() || "Used - Good",
     category: String(raw?.category || "").trim() || "Accessories",
     storageGb: toNullableInteger(raw?.storageGb ?? raw?.storage_gb, { min: 1, max: 8192 }),

@@ -84,7 +84,7 @@ describe("App smoke tests", () => {
   it("renders the portfolio home page", async () => {
     renderAppAt("/");
 
-    expect(await screen.findByRole("heading", { name: /hi, i'm sirdavid/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /hi, i'm sirdavidgadget/i })).toBeInTheDocument();
   });
 
   it("renders the projects page", async () => {
@@ -104,7 +104,7 @@ describe("App smoke tests", () => {
   it("renders the storefront on shop routes", async () => {
     renderAppAt("/shop");
 
-    expect(await screen.findByText(/^sirdavid gadgets$/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/^sirdavidgadget$/i)).length).toBeGreaterThan(0);
     expect(screen.getByText(/premium storefront/i)).toBeInTheDocument();
   });
 

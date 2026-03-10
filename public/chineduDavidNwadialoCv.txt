@@ -1,0 +1,99 @@
+Chinedu David Nwadialo
+Full Stack Developer
+itssirdavid@gmail.com
++2347041342391
+Lagos, Nigeria
+github.com/sirdavid001
+sirdavid.site
+
+Professional Summary
+Full Stack Web Developer with a focus on building responsive, production-ready web applications. Experienced in creating clean, user-friendly interfaces while ensuring backend systems are reliable and efficient. Proficient in transforming product requirements into secure, maintainable, and deployment-ready web solutions. Particularly interested in projects involving role-based access control, database-driven content, payment systems, and admin dashboards. Passionate about growing into a senior web engineer with full ownership of web product development from conception to deployment, while maintaining high standards for performance, security, and reliability.
+
+Education
+Bachelor of Science in Computer Science
+Dennis Osadebay University
+2021 - 2025
+Senior Secondary School Certificate
+Redeemers International High School Asaba
+2014 - 2019
+Asaba, Delta State, Nigeria
+West African Examinations Council (WAEC) – SSCE certificate
+National Examinations Council (NECO) – SSCE certificate
+Junior WAEC (BECE/JSS3 result)
+Primary School Leaving Certificate
+Jasmine Children School
+2010 - 2013
+Asaba, Delta State, Nigeria
+
+Projects
+MY-PORTFOLIO
+Technologies: React, JavaScript, Vite, Tailwind CSS, Node.js, Supabase, Paystack, Resend
+Feb - Mar 2025
+sirdavid.site
+Built a full-stack portfolio/shop web application with complete checkout and admin management flow
+Implemented secure payment integration with Paystack including webhook handling for transaction verification
+Integrated email notification system using Resend API for order confirmations and updates
+Developed admin dashboard with product and shipping management endpoints
+Implemented Supabase for order persistence and data management
+Configured deployment-ready setup with Vercel and environment-driven API integrations
+online-exam-system
+Technologies: Python, Django, PostgreSQL, JavaScript, HTML/CSS, Gunicorn, WhiteNoise
+Aug 2025 - Feb 2026
+https://online-exam-system-dt8t.onrender.com
+Developed a comprehensive role-based online examination platform for admins, teachers, and students
+Implemented course, question, and test management system with timed exams featuring shuffle and attempt limits
+Built automated scoring system with support for negative marking and detailed student results tracking
+Created admin workflows for user onboarding, approvals, announcements, and governance dashboards
+Integrated export functionality for generating reports in CSV and Excel formats
+Deployed production-ready application with PostgreSQL database and Gunicorn/WhiteNoise stack
+uKnowMe
+Technologies: React, JavaScript, HTML/CSS
+2025 - 2026
+www.uknowme.sbs
+Built an identity/profile-focused web application with clean, user-friendly interface
+Designed and implemented responsive UI/UX for optimal user experience across devices
+Demonstrated frontend development skills with focus on product presentation quality
+Deployed live application showcasing professional web development capabilities
+
+Technical Skills
+Programming Languages:
+JavaScript
+TypeScript
+Python
+SQL
+HTML
+CSS
+Frontend Frameworks & Libraries:
+React
+React Native (Expo)
+Next.js
+Vite
+Tailwind CSS
+Backend Frameworks & Tools:
+Django
+Node.js
+Fastify
+Express
+Gunicorn
+WhiteNoise
+Databases & ORMs:
+PostgreSQL
+SQLite
+Supabase
+Prisma ORM
+Development Tools:
+Git
+GitHub
+npm
+Docker
+Vercel
+Render
+CI/CD
+API & Integration:
+REST API
+JWT/Session Auth
+Webhooks
+AWS SDK (S3)
+Zod
+Ethers.js
+References available upon request

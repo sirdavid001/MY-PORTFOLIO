@@ -402,7 +402,7 @@ function formatOrderForAdminHtml(order, trackingUrl) {
 <div style="background:#f8fafc;padding:24px 12px;font-family:Arial,sans-serif;color:#0f172a">
   <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden">
     <div style="padding:20px;background:linear-gradient(120deg,#0f172a,#1e293b);color:#f8fafc">
-      <p style="margin:0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#bae6fd">Sirdavid Gadgets</p>
+      <p style="margin:0;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#bae6fd">Sirdavidgadget</p>
       <h2 style="margin:8px 0 0;font-size:24px;line-height:1.2">Paid Store Order</h2>
       <p style="margin:8px 0 0;font-size:14px;color:#cbd5e1">Reference: <strong>${reference}</strong></p>
     </div>
@@ -465,7 +465,7 @@ We will update this status as your order moves to processing and shipping.
 
 Need help? Contact ${supportEmail}.
 
-Thank you for shopping with Sirdavid Gadgets.`;
+Thank you for shopping with Sirdavidgadget.`;
 }
 
 function escapeHtml(value) {
@@ -500,7 +500,7 @@ function formatCustomerHtml(order, trackingUrl, supportEmail = "support@sirdavid
   <p>You can track with your order reference now, or with a tracking number once assigned by dispatch.</p>
   <p>We will update this status as your order moves to processing and shipping.</p>
   <p>Need help? Contact <a href="mailto:${safeSupportEmail}">${safeSupportEmail}</a>.</p>
-  <p>Thank you for shopping with Sirdavid Gadgets.</p>
+  <p>Thank you for shopping with Sirdavidgadget.</p>
 </div>`;
 }
 
@@ -791,7 +791,7 @@ export default async function handler(req, res) {
     const resendKey = process.env.RESEND_API_KEY;
     const toEmail = process.env.ORDER_RECEIVER_EMAIL || "support@sirdavid.site";
     const configuredFromEmail = String(process.env.RESEND_FROM_EMAIL || "noreply@sirdavid.site").trim();
-    const senderName = String(process.env.RESEND_FROM_NAME || "Sirdavid Gadgets").trim();
+    const senderName = String(process.env.RESEND_FROM_NAME || "Sirdavidgadget").trim();
     const supportEmail = String(process.env.SUPPORT_EMAIL || "support@sirdavid.site").trim();
     const fromEmail = formatSenderAddress(configuredFromEmail, senderName);
     const replyToEmail = isValidEmail(supportEmail) ? supportEmail : undefined;

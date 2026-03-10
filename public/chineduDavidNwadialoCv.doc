@@ -1,0 +1,78 @@
+{\rtf1\ansi\ansicpg1252\deff0
+{\fonttbl{\f0\fswiss Arial;}
+}
+{\colortbl;\red0\green0\blue0;\red23\green79\blue209;}
+\pard\qc\b\f0\fs36 Chinedu David Nwadialo\par
+\pard\qc\b0\fs28 Full Stack Developer\par
+\pard\qj\fs22 itssirdavid@gmail.com \endash\ +2347041342391 \endash\ Lagos, Nigeria\par
+\pard\qj\fs22 github.com/sirdavid001 \endash\ sirdavid.site\par
+\par
+
+\pard\b\fs28 Professional Summary\par
+\pard\b0\fs22 Full Stack Web Developer with a focus on building responsive, production-ready web applications.\par
+Experienced in creating clean, user-friendly interfaces while ensuring backend systems are reliable and efficient.\par
+Proficient in transforming product requirements into secure, maintainable, and deployment-ready web solutions.\par
+Particularly interested in role-based access control, database-driven content, payment systems, and admin dashboards.\par
+Passionate about growing into a senior web engineer with full ownership of web product development from conception to deployment, while maintaining high standards for performance, security, and reliability.\par
+\par
+\pard\b\fs28 Education\par
+\pard\b0\fs22 Bachelor of Science in Computer Science\par
+Dennis Osadebay University\par
+2021 - 2025\par
+\par
+Senior Secondary School Certificate\par
+Redeemers International High School Asaba\par
+2014 - 2019\par
+Asaba, Delta State, Nigeria\par
+\par
+West African Examinations Council (WAEC) – SSCE certificate\par
+National Examinations Council (NECO) – SSCE certificate\par
+Junior WAEC (BECE/JSS3 result)\par
+\par
+Primary School Leaving Certificate\par
+Jasmine Children School\par
+2010 - 2013\par
+Asaba, Delta State, Nigeria\par
+\par
+\pard\b\fs28 Projects\par
+\pard\b0\fs22 MY-PORTFOLIO\par
+Technologies: React, JavaScript, Vite, Tailwind CSS, Node.js, Supabase, Paystack, Resend\par
+Feb - Mar 2025\par
+sirdavid.site\par
+- Built a full-stack portfolio/shop web application with complete checkout and admin management flow.\par
+- Implemented secure payment integration with Paystack including webhook handling for transaction verification.\par
+- Integrated email notification system using Resend API for order confirmations and updates.\par
+- Developed admin dashboard with product and shipping management endpoints.\par
+- Implemented Supabase for order persistence and data management.\par
+- Configured deployment-ready setup with Vercel and environment-driven API integrations.\par
+\par
+online-exam-system\par
+Technologies: Python, Django, PostgreSQL, JavaScript, HTML/CSS, Gunicorn, WhiteNoise\par
+Aug 2025 - Feb 2026\par
+https://online-exam-system-dt8t.onrender.com\par
+- Developed a comprehensive role-based online examination platform for admins, teachers, and students.\par
+- Implemented course, question, and test management system with timed exams featuring shuffle and attempt limits.\par
+- Built automated scoring system with support for negative marking and detailed student results tracking.\par
+- Created admin workflows for user onboarding, approvals, announcements, and governance dashboards.\par
+- Integrated export functionality for generating reports in CSV and Excel formats.\par
+- Deployed production-ready application with PostgreSQL database and Gunicorn/WhiteNoise stack.\par
+\par
+uKnowMe\par
+Technologies: React, JavaScript, HTML/CSS\par
+2025 - 2026\par
+www.uknowme.sbs\par
+- Built an identity/profile-focused web application with clean, user-friendly interface.\par
+- Designed and implemented responsive UI/UX for optimal user experience across devices.\par
+- Demonstrated frontend development skills with focus on product presentation quality.\par
+- Deployed live application showcasing professional web development capabilities.\par
+\par
+\pard\b\fs28 Technical Skills\par
+\pard\b0\fs22 Programming Languages: JavaScript, TypeScript, Python, SQL, HTML, CSS\par
+Frontend Frameworks & Libraries: React, React Native (Expo), Next.js, Vite, Tailwind CSS\par
+Backend Frameworks & Tools: Django, Node.js, Fastify, Express, Gunicorn, WhiteNoise\par
+Databases & ORMs: PostgreSQL, SQLite, Supabase, Prisma ORM\par
+Development Tools: Git, GitHub, npm, Docker, Vercel, Render, CI/CD\par
+API & Integration: REST API, JWT/Session Auth, Webhooks, AWS SDK (S3), Zod, Ethers.js\par
+\par
+\pard\b\fs24 References available upon request\par
+}

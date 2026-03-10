@@ -166,7 +166,7 @@ function normalizePayload(payload, { partial = false } = {}) {
 
   if (!partial || Object.prototype.hasOwnProperty.call(payload, "brand")) {
     const brand = String(payload?.brand || "").trim();
-    if (!partial || brand) result.brand = brand || "Sirdavid";
+    if (!partial || brand) result.brand = brand || "Sirdavidgadget";
   }
 
   if (!partial || Object.prototype.hasOwnProperty.call(payload, "condition")) {

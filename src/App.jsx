@@ -5,8 +5,9 @@ import Home from "./pages/Home";
 import Projects from "./pages/Projects";
 import Contact from "./pages/Contact";
 import ShopApp from "./shop/ShopApp";
-import { CartProvider } from "./shop/CartContext";
 import AdminApp from "./shop/AdminApp";
+import AdminSignup from "./shop/components/admin/AdminSignup";
+import { Toaster } from "sonner";
 
 const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]);
 const SECURE_ADMIN_PATH = "/secure-admin-portal-xyz";
@@ -21,6 +22,7 @@ const SHOP_PATHS = new Set([
   "/faqs",
   "/faq",
   "/shipping-policy",
+  "/admin-setup-first-time",
   SECURE_ADMIN_PATH,
 ]);
 
@@ -34,44 +36,40 @@ export default function App() {
     .filter(Boolean);
   const isBusinessSubdomain = hostLabels.some((label) => BUSINESS_SUBDOMAINS.has(label));
   const isShopPath =
+    normalizedPathname.startsWith("/product/") ||
     normalizedPathname.startsWith(SECURE_ADMIN_PATH) ||
     normalizedPathname.startsWith(`/shop${SECURE_ADMIN_PATH}`) ||
     SHOP_PATHS.has(normalizedPathname);
 
   if (isBusinessSubdomain || isShopPath) {
     return (
-      <CartProvider>
+      <>
         <Routes>
           <Route path={`${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
           <Route path={`/shop${SECURE_ADMIN_PATH}/*`} element={<AdminApp />} />
-          <Route path="/shop" element={<ShopApp />} />
-          <Route path="/" element={<ShopApp />} />
-          <Route path="/cart" element={<ShopApp />} />
-          <Route path="/track-order" element={<ShopApp />} />
-          <Route path="/terms-and-conditions" element={<ShopApp />} />
-          <Route path="/refund-policy" element={<ShopApp />} />
-          <Route path="/privacy-policy" element={<ShopApp />} />
-          <Route path="/faqs" element={<ShopApp />} />
-          <Route path="/faq" element={<ShopApp />} />
-          <Route path="/shipping-policy" element={<ShopApp />} />
+          <Route path="/admin-setup-first-time" element={<AdminSignup />} />
           <Route path="*" element={<ShopApp />} />
         </Routes>
-      </CartProvider>
+        <Toaster position="top-right" richColors />
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] text-slate-900">
-      <Navbar />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-0 pt-24 sm:px-6 lg:px-8">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </main>
-      <Footer />
-    </div>
+    <>
+      <div className="min-h-screen bg-[#f3f4f6] text-slate-900">
+        <Navbar />
+        <main className="mx-auto w-full max-w-6xl px-4 pb-0 pt-24 sm:px-6 lg:px-8">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="*" element={<Home />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+      <Toaster position="top-right" richColors />
+    </>
   );
 }
