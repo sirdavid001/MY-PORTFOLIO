@@ -1,10 +1,14 @@
 export const CV_PROFILE = {
   name: "Chinedu David Nwadialo",
+  displayName: "Chinedu David",
+  role: "Computer Science Graduate and Web Developer",
   location: "Lagos, Nigeria",
   phone: "+2347041342391",
   email: "itssirdavid@gmail.com",
   portfolio: "sirdavid.site",
+  portfolioUrl: "https://sirdavid.site",
   github: "github.com/sirdavid001",
+  githubUrl: "https://github.com/sirdavid001",
   summary:
     "Recent Bachelor of Science graduate in Computer Science from Dennis Osadebay University with experience completing practical projects, organizing information, and solving problems using both technical and analytical skills. Strong attention to detail, communication, and teamwork abilities. Open to entry-level opportunities in administration, customer support, operations, technology, or other roles where reliability, organization, and problem-solving are valued.",
   keySkills: {

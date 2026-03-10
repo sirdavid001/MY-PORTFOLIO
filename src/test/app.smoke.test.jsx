@@ -10,7 +10,7 @@ describe("App smoke tests", () => {
   it("renders the portfolio home page", async () => {
     renderAppAt("/");
 
-    expect(await screen.findByRole("heading", { name: /hi, i'm sirdavidgadget/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /hi, i'm chinedu david/i })).toBeInTheDocument();
   });
 
   it("renders the projects page", async () => {

@@ -12,6 +12,7 @@ import {
   SiTailwindcss,
   SiTypescript,
 } from "react-icons/si";
+import { CV_PROFILE } from "../../shared/cv-profile.js";
 import profileImage from "../../assets/profile.jpg";
 
 function isValidEmail(value) {
@@ -130,13 +131,15 @@ export default function Home() {
       <section className="grid min-h-[70vh] items-center gap-8 py-10 md:grid-cols-[1fr_0.95fr] md:gap-10 md:py-12">
         <div>
           <h1 className="font-display text-4xl font-bold leading-tight text-slate-900 sm:text-5xl lg:text-6xl">
-            Hi, I&apos;m <span className="text-blue-600">Sirdavidgadget</span>
+            Hi, I&apos;m <span className="text-blue-600">{CV_PROFILE.displayName}</span>
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
-            I build practical, high-impact digital products focused on speed, usability, and clear business value.
+            I&apos;m a recent Computer Science graduate and web developer focused on practical, reliable digital products
+            and clear user experiences.
           </p>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
-            From idea to launch, I combine clean code, thoughtful design, and reliable engineering to deliver solutions that people actually use.
+            My work combines hands-on project delivery, problem solving, communication, and strong attention to detail
+            across both technical and operational tasks.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
@@ -212,7 +215,7 @@ export default function Home() {
             Open to freelance opportunities, collaborations, and product partnerships. Let&apos;s talk about your next project.
           </p>
           <a
-            href="mailto:support@sirdavid.site"
+            href={`mailto:${CV_PROFILE.email}`}
             className="mt-8 inline-flex rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 sm:px-7 sm:text-base"
           >
             Start a Conversation
