@@ -109,6 +109,69 @@ export default function Home() {
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
             From idea to launch, I combine clean code, thoughtful design, and reliable engineering to deliver solutions that people actually use.
           </p>
+          <div className="mt-8 max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">CV</p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <a
+                href={selectedCvFormat.href}
+                download={selectedCvFormat.download}
+                className="rounded-xl border border-blue-600 px-5 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50 sm:px-6 sm:text-base"
+              >
+                Download CV ({selectedCvFormat.label})
+              </a>
+              <div className="flex items-center gap-3">
+                <label htmlFor="cv-format" className="text-sm font-semibold text-slate-800">
+                  Choose format:
+                </label>
+                <select
+                  id="cv-format"
+                  value={cvFormat}
+                  onChange={(event) => setCvFormat(event.target.value)}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                >
+                  {cvFormats.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {cvFormat === "pdf" ? (
+              <p className="mt-3 text-xs text-slate-600">
+                PDF option downloads a true PDF file of the resume.
+              </p>
+            ) : (
+              <p className="mt-3 text-xs text-slate-600">
+                Word option downloads a Word-compatible document file.
+              </p>
+            )}
+
+            <form onSubmit={handleRequestCv} className="mt-5">
+              <p className="mb-2 text-sm font-semibold text-slate-800">Request CV by email</p>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                <input
+                  type="email"
+                  name="cvRequestEmail"
+                  placeholder="you@example.com"
+                  required
+                  aria-label="Email address to receive CV"
+                  value={requestEmail}
+                  onChange={(event) => setRequestEmail(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                />
+                <button
+                  type="submit"
+                  disabled={isRequestingCv}
+                  className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-6"
+                >
+                  {isRequestingCv ? "Sending..." : `Email My ${selectedCvFormat.label} CV`}
+                </button>
+              </div>
+              {requestStatus ? <p className="mt-3 text-sm text-slate-700">{requestStatus}</p> : null}
+            </form>
+          </div>
+
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               to="/projects"
@@ -122,64 +185,7 @@ export default function Home() {
             >
               Get In Touch
             </Link>
-            <a
-              href={selectedCvFormat.href}
-              download={selectedCvFormat.download}
-              className="rounded-xl border border-blue-600 px-5 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 sm:px-6 sm:text-base"
-            >
-              Download CV ({selectedCvFormat.label})
-            </a>
           </div>
-          <div className="mt-4 flex items-center gap-3">
-            <label htmlFor="cv-format" className="text-sm font-semibold text-slate-800">
-              Choose format:
-            </label>
-            <select
-              id="cv-format"
-              value={cvFormat}
-              onChange={(event) => setCvFormat(event.target.value)}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-            >
-              {cvFormats.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {cvFormat === "pdf" ? (
-            <p className="mt-2 text-xs text-slate-600">
-              PDF option downloads a true PDF file of the resume.
-            </p>
-          ) : (
-            <p className="mt-2 text-xs text-slate-600">
-              Word option downloads a Word-compatible document file.
-            </p>
-          )}
-
-          <form onSubmit={handleRequestCv} className="mt-6 max-w-xl">
-            <p className="mb-2 text-sm font-semibold text-slate-800">Request CV by email</p>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-              <input
-                type="email"
-                name="cvRequestEmail"
-                placeholder="you@example.com"
-                required
-                aria-label="Email address to receive CV"
-                value={requestEmail}
-                onChange={(event) => setRequestEmail(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-              />
-              <button
-                type="submit"
-                disabled={isRequestingCv}
-                className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-6"
-              >
-                {isRequestingCv ? "Sending..." : `Email My ${selectedCvFormat.label} CV`}
-              </button>
-            </div>
-            {requestStatus ? <p className="mt-3 text-sm text-slate-700">{requestStatus}</p> : null}
-          </form>
         </div>
 
         <div className="rounded-3xl bg-white p-3 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
