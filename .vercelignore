@@ -1,1 +1,7 @@
 functions
+
+# Shop and admin requests are handled by the Supabase edge function configured in src/shop/lib/api.ts.
+api/admin
+api/payments
+api/send-order.js
+api/shop/config.js
