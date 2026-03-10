@@ -1,17 +1,21 @@
+import { CV_PROFILE } from "../../shared/cv-profile.js";
+import { buildCvPdf } from "../../shared/cv-pdf.js";
+import { buildCvWordDocument } from "../../shared/cv-word.js";
+
 const CV_OPTIONS = {
   pdf: {
     value: "pdf",
     label: "PDF",
     href: "/api/cv-download?format=pdf",
     fileName: "chineduDavidNwadialoCv.pdf",
-    note: "Your resume is available as a true PDF file.",
+    note: "The requested CV is attached as a PDF.",
   },
   word: {
     value: "word",
     label: "Word",
     href: "/api/cv-download?format=word",
     fileName: "chineduDavidNwadialoCv.doc",
-    note: "Your resume is available as a Word-compatible document.",
+    note: "The requested CV is attached as a Word-compatible document.",
   },
 };
 
@@ -101,6 +105,35 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function encodeBase64(value) {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(value).toString("base64");
+  }
+
+  const bytes = value instanceof Uint8Array ? value : new TextEncoder().encode(String(value || ""));
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function buildCvAttachment(option) {
+  if (option.value === "word") {
+    const document = buildCvWordDocument();
+    return {
+      filename: option.fileName,
+      content: encodeBase64(new TextEncoder().encode(document)),
+    };
+  }
+
+  return {
+    filename: option.fileName,
+    content: encodeBase64(buildCvPdf()),
+  };
+}
+
 function extractResendErrorMessage(resendData) {
   if (!resendData) return "";
   if (typeof resendData === "string") return resendData.trim();
@@ -155,20 +188,59 @@ async function sendResendEmail(env, resendKey, payload) {
 
 function buildCvPayload({ email, format, request, env }) {
   const option = CV_OPTIONS[format] || CV_OPTIONS.pdf;
-  const supportEmail = String(env?.SUPPORT_EMAIL || "support@sirdavid.site").trim();
+  const supportEmail = String(env?.SUPPORT_EMAIL || CV_PROFILE.email).trim();
   const origin = normalizeBaseUrl(resolveRequestOrigin(request));
   const href = option.href;
   const absoluteHref = origin ? `${origin}${href}` : href;
-  const subject = `Your CV in ${option.label} format`;
-  const text = `Hi,\n\nThanks for your request.\n\nYour requested format: ${option.label}\nDownload: ${absoluteHref}\n\n${option.note}\n\nIf you have any issues accessing the file, please reply.\n\nBest,\nChinedu David Nwadialo`;
-  const html = `<p>Hi,</p>
-<p>Thanks for your request.</p>
-<p>Your requested format: <strong>${escapeHtml(option.label)}</strong></p>
-<p><a href="${escapeHtml(absoluteHref)}" style="font-weight: 600; color: #1d4ed8;">Download your CV</a></p>
-<p style="color: #475569; margin-top: 12px;">${escapeHtml(option.note)}</p>
-<p style="margin-top: 12px;">If you have any issues, contact <a href="mailto:${escapeHtml(supportEmail)}">${escapeHtml(supportEmail)}</a>.</p>
-<p>Best,<br/>Chinedu David Nwadialo</p>`;
-  return { option, absoluteHref, subject, text, html };
+  const subject = `${CV_PROFILE.name} - CV for Consideration`;
+  const text = `Dear Hiring Manager,
+
+Please find my ${option.label} CV attached for your review.
+
+I am writing to express my interest in current and future opportunities within your organization. I recently completed my Bachelor of Science in Computer Science and I bring practical experience in web development, problem solving, communication, documentation, and day-to-day digital tools.
+
+I would appreciate the opportunity to be considered for any suitable role where reliability, organization, adaptability, and a willingness to learn are valued.
+
+For convenience, you can also access the CV here:
+${absoluteHref}
+
+Thank you for your time and consideration. I would be glad to discuss any suitable opportunity.
+
+Kind regards,
+${CV_PROFILE.name}
+${CV_PROFILE.phone}
+${CV_PROFILE.email}
+${CV_PROFILE.portfolio}`;
+  const html = `<div style="font-family: Arial, Helvetica, sans-serif; color: #1f2937; line-height: 1.65;">
+<p>Dear Hiring Manager,</p>
+<p>Please find my <strong>${escapeHtml(option.label)} CV</strong> attached for your review.</p>
+<p>
+  I am writing to express my interest in current and future opportunities within your organization.
+  I recently completed my Bachelor of Science in Computer Science and I bring practical experience in
+  web development, problem solving, communication, documentation, and day-to-day digital tools.
+</p>
+<p>
+  I would appreciate the opportunity to be considered for any suitable role where reliability,
+  organization, adaptability, and a willingness to learn are valued.
+</p>
+<div style="margin: 20px 0; padding: 14px 16px; border: 1px solid #dbeafe; background: #f8fbff; border-radius: 10px;">
+  <p style="margin: 0 0 8px; font-weight: 600; color: #1d4ed8;">CV access</p>
+  <p style="margin: 0; color: #475569;">${escapeHtml(option.note)}</p>
+  <p style="margin: 10px 0 0;">
+    <a href="${escapeHtml(absoluteHref)}" style="font-weight: 600; color: #1d4ed8; text-decoration: none;">Download backup copy</a>
+  </p>
+</div>
+<p>Thank you for your time and consideration. I would be glad to discuss any suitable opportunity.</p>
+<p style="margin-bottom: 0;">Kind regards,</p>
+<p style="margin-top: 4px;">
+  ${escapeHtml(CV_PROFILE.name)}<br/>
+  ${escapeHtml(CV_PROFILE.phone)}<br/>
+  <a href="mailto:${escapeHtml(CV_PROFILE.email)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(CV_PROFILE.email)}</a><br/>
+  <a href="${escapeHtml(CV_PROFILE.portfolioUrl)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(CV_PROFILE.portfolio)}</a>
+</p>
+<p style="font-size: 13px; color: #64748b;">If you need anything else, you can also reply to <a href="mailto:${escapeHtml(supportEmail)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(supportEmail)}</a>.</p>
+</div>`;
+  return { option, absoluteHref, subject, text, html, attachments: [buildCvAttachment(option)] };
 }
 
 async function readJsonBody(request) {
@@ -220,13 +292,13 @@ export async function onRequestPost(context) {
   const configuredFromEmail = String(env?.RESEND_FROM_EMAIL || "noreply@sirdavid.site").trim();
   const senderName = String(env?.RESEND_FROM_NAME || "Chinedu David Nwadialo").trim();
   const fromEmail = formatSenderAddress(configuredFromEmail, senderName);
-  const replyToEmail = isValidEmail(env?.SUPPORT_EMAIL) ? env.SUPPORT_EMAIL : undefined;
+  const replyToEmail = isValidEmail(env?.SUPPORT_EMAIL) ? env.SUPPORT_EMAIL : CV_PROFILE.email;
 
   if (!isValidEmail(configuredFromEmail)) {
     return json({ ok: false, error: "RESEND_FROM_EMAIL is invalid or not configured correctly." }, 500);
   }
 
-  const { option: resolvedOption, subject, text, html } = buildCvPayload({
+  const { option: resolvedOption, subject, text, html, attachments } = buildCvPayload({
     email,
     format,
     request,
@@ -239,6 +311,7 @@ export async function onRequestPost(context) {
     subject,
     text,
     html,
+    attachments,
     reply_to: replyToEmail,
   });
 

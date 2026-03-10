@@ -63,7 +63,9 @@ export async function onRequestGet(context) {
         "content-type": "application/msword; charset=utf-8",
         "content-disposition": 'attachment; filename="chineduDavidNwadialoCv.doc"',
         "access-control-allow-origin": "*",
-        "cache-control": "public, max-age=3600",
+        "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        pragma: "no-cache",
+        expires: "0",
       },
     });
   }
@@ -75,7 +77,9 @@ export async function onRequestGet(context) {
       "content-type": "application/pdf",
       "content-disposition": 'attachment; filename="chineduDavidNwadialoCv.pdf"',
       "access-control-allow-origin": "*",
-      "cache-control": "public, max-age=3600",
+      "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      pragma: "no-cache",
+      expires: "0",
       "content-length": String(pdf.byteLength),
     },
   });

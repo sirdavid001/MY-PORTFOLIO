@@ -9,9 +9,9 @@ const PAGE = {
 };
 
 const HEADER = {
-  height: 110,
+  height: 128,
   paddingX: 28,
-  topInset: 24,
+  topInset: 28,
 };
 
 const COLORS = {
@@ -109,19 +109,19 @@ function createBuilder() {
         x: HEADER.paddingX,
         y: PAGE.height - HEADER.topInset,
         font: "F2",
-        size: 22,
+        size: 24,
         color: COLORS.white,
         text: CV_PROFILE.name,
       });
 
       const leftX = HEADER.paddingX;
       const rightX = PAGE.width / 2 + 16;
-      const contactTop = PAGE.height - 62;
+      const contactTop = PAGE.height - 68;
       const contactGap = 18;
 
       [
-        CV_PROFILE.location,
-        CV_PROFILE.email,
+        `Location: ${CV_PROFILE.location}`,
+        `Email: ${CV_PROFILE.email}`,
         `GitHub: ${CV_PROFILE.github}`,
       ].forEach((text, index) => {
         currentPage.push({
@@ -136,7 +136,7 @@ function createBuilder() {
       });
 
       [
-        CV_PROFILE.phone,
+        `Phone: ${CV_PROFILE.phone}`,
         `Portfolio: ${CV_PROFILE.portfolio}`,
       ].forEach((text, index) => {
         currentPage.push({
@@ -150,7 +150,7 @@ function createBuilder() {
         });
       });
 
-      cursorY = PAGE.height - HEADER.height - 16;
+      cursorY = PAGE.height - HEADER.height - 20;
       return;
     }
 
@@ -193,21 +193,22 @@ function createBuilder() {
   }
 
   function addSection(title) {
-    ensureSpace(22);
+    ensureSpace(40);
     drawTextLine(title, PAGE.marginX, cursorY, {
       font: "F2",
-      size: 13.5,
+      size: 14,
       color: COLORS.dark,
     });
+    const ruleY = cursorY - 16;
     currentPage.push({
       kind: "line",
       x1: PAGE.marginX,
       x2: PAGE.width - PAGE.marginX,
-      y: cursorY - 10,
-      width: 1.5,
+      y: ruleY,
+      width: 1.6,
       color: COLORS.blue,
     });
-    cursorY -= 16;
+    cursorY = ruleY - 16;
   }
 
   function addEducationEntry(entry) {
@@ -251,7 +252,7 @@ function createBuilder() {
     ensureSpace(68);
     addParagraph(title, {
       font: "F2",
-      size: 11.5,
+      size: 11.8,
       color: COLORS.dark,
       leading: 13,
       after: 5,
@@ -327,7 +328,7 @@ function createBuilder() {
   CV_PROFILE.projects.forEach(addProject);
 
   addSection("Technical Skills");
-  addParagraph(CV_PROFILE.technicalSkills.join(" | "), {
+  addParagraph(CV_PROFILE.technicalSkills.join(" - "), {
     size: 10.7,
     color: COLORS.body,
     leading: 13.2,

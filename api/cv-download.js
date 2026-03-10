@@ -14,7 +14,9 @@ function readFormat(value) {
 }
 
 function setCacheHeaders(res) {
-  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
 }
 
 export default function handler(req, res) {

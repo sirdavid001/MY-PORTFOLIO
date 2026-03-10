@@ -1,9 +1,11 @@
 import { CV_PROFILE } from "./cv-profile.js";
 
 const contactLines = [
-  `${CV_PROFILE.location} | ${CV_PROFILE.phone}`,
-  `${CV_PROFILE.email} | Portfolio: ${CV_PROFILE.portfolio}`,
+  `Location: ${CV_PROFILE.location}`,
+  `Email: ${CV_PROFILE.email}`,
   `GitHub: ${CV_PROFILE.github}`,
+  `Phone: ${CV_PROFILE.phone}`,
+  `Portfolio: ${CV_PROFILE.portfolio}`,
 ];
 
 export const CV_RESUME_LINES = [

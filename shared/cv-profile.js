@@ -1,6 +1,6 @@
 export const CV_PROFILE = {
   name: "Chinedu David Nwadialo",
-  displayName: "Chinedu David",
+  displayName: "Nwadialo David",
   role: "Computer Science Graduate and Web Developer",
   location: "Lagos, Nigeria",
   phone: "+2347041342391",

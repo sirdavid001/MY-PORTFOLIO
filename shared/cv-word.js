@@ -18,6 +18,26 @@ function renderList(items) {
     .join("");
 }
 
+function renderSkillColumns() {
+  const midpoint = Math.ceil(CV_PROFILE.keySkills.items.length / 2);
+  const leftSkills = CV_PROFILE.keySkills.items.slice(0, midpoint);
+  const rightSkills = CV_PROFILE.keySkills.items.slice(midpoint);
+
+  return `<div style="margin-top: 14px; font-size: 16px; font-weight: 700; color: #1f2937;">${escapeHtml(
+    CV_PROFILE.keySkills.title
+  )}</div>
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 10px;">
+    <tr>
+      <td style="width: 50%; vertical-align: top; padding-right: 18px;">
+        <ul style="margin: 0; padding: 0;">${renderList(leftSkills)}</ul>
+      </td>
+      <td style="width: 50%; vertical-align: top; padding-left: 18px;">
+        <ul style="margin: 0; padding: 0;">${renderList(rightSkills)}</ul>
+      </td>
+    </tr>
+  </table>`;
+}
+
 function renderEducation() {
   return CV_PROFILE.education
     .map((entry) => {
@@ -55,10 +75,13 @@ function renderSection(title, body) {
   </div>`;
 }
 
-export function buildCvWordDocument() {
-  const leftSkills = CV_PROFILE.keySkills.items.slice(0, Math.ceil(CV_PROFILE.keySkills.items.length / 2));
-  const rightSkills = CV_PROFILE.keySkills.items.slice(Math.ceil(CV_PROFILE.keySkills.items.length / 2));
+function renderContactRow(label, value) {
+  return `<div style="font-size: 15px; line-height: 1.95;">
+    <span style="font-weight: 700;">${escapeHtml(label)}:</span> ${escapeHtml(value)}
+  </div>`;
+}
 
+export function buildCvWordDocument() {
   return `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="en">
   <head>
@@ -67,58 +90,47 @@ export function buildCvWordDocument() {
     <meta name="Generator" content="OpenAI Codex" />
     <title>${escapeHtml(CV_PROFILE.name)} - CV</title>
   </head>
-  <body style="margin: 0; padding: 0; background: #f3f4f6; font-family: Arial, Helvetica, sans-serif; color: #1f2937;">
-    <div style="max-width: 960px; margin: 0 auto; background: #f3f4f6;">
-      <div style="background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%); color: #ffffff; padding: 28px 32px 26px;">
-        <div style="font-size: 30px; line-height: 1.2; font-weight: 700;">${escapeHtml(CV_PROFILE.name)}</div>
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 18px; color: #ffffff;">
+  <body style="margin: 0; padding: 0; background: #e5e7eb; font-family: Arial, Helvetica, sans-serif; color: #1f2937;">
+    <div style="max-width: 980px; margin: 0 auto; padding: 18px; background: #e5e7eb;">
+      <div style="background: #f3f4f6; border: 1px solid #d1d5db;">
+        <div style="background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 55%, #1e40af 100%); color: #ffffff; padding: 32px 34px 28px;">
+          <div style="font-size: 32px; line-height: 1.18; font-weight: 700;">${escapeHtml(CV_PROFILE.name)}</div>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 20px; color: #ffffff;">
           <tr>
-            <td style="width: 50%; vertical-align: top; padding-right: 18px;">
-              <div style="font-size: 15px; line-height: 1.9;">${escapeHtml(CV_PROFILE.location)}</div>
-              <div style="font-size: 15px; line-height: 1.9;">${escapeHtml(CV_PROFILE.email)}</div>
-              <div style="font-size: 15px; line-height: 1.9;">GitHub: ${escapeHtml(CV_PROFILE.github)}</div>
+            <td style="width: 50%; vertical-align: top; padding-right: 22px;">
+              ${renderContactRow("Location", CV_PROFILE.location)}
+              ${renderContactRow("Email", CV_PROFILE.email)}
+              ${renderContactRow("GitHub", CV_PROFILE.github)}
             </td>
-            <td style="width: 50%; vertical-align: top; padding-left: 18px;">
-              <div style="font-size: 15px; line-height: 1.9;">${escapeHtml(CV_PROFILE.phone)}</div>
-              <div style="font-size: 15px; line-height: 1.9;">Portfolio: ${escapeHtml(CV_PROFILE.portfolio)}</div>
+            <td style="width: 50%; vertical-align: top; padding-left: 22px;">
+              ${renderContactRow("Phone", CV_PROFILE.phone)}
+              ${renderContactRow("Portfolio", CV_PROFILE.portfolio)}
             </td>
           </tr>
         </table>
-      </div>
+        </div>
 
-      <div style="padding: 28px 30px 36px;">
-        ${renderSection(
-          "Professional Summary",
-          `<div style="margin-top: 14px; color: #3f4d63; font-size: 15px; line-height: 1.6;">${escapeHtml(CV_PROFILE.summary)}</div>`
-        )}
+        <div style="padding: 30px 32px 38px;">
+          ${renderSection(
+            "Professional Summary",
+            `<div style="margin-top: 14px; color: #3f4d63; font-size: 15px; line-height: 1.6;">${escapeHtml(CV_PROFILE.summary)}</div>`
+          )}
 
-        ${renderSection(
-          "Key Skills",
-          `<div style="margin-top: 14px; font-size: 16px; font-weight: 700; color: #1f2937;">${escapeHtml(CV_PROFILE.keySkills.title)}</div>
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 8px;">
-            <tr>
-              <td style="width: 50%; vertical-align: top; padding-right: 18px;">
-                <ul style="margin: 0; padding: 0;">${renderList(leftSkills)}</ul>
-              </td>
-              <td style="width: 50%; vertical-align: top; padding-left: 18px;">
-                <ul style="margin: 0; padding: 0;">${renderList(rightSkills)}</ul>
-              </td>
-            </tr>
-          </table>`
-        )}
+          ${renderSection("Key Skills", renderSkillColumns())}
 
-        ${renderSection("Education", renderEducation())}
-        ${renderSection("Selected Projects", renderProjects())}
-        ${renderSection(
-          "Technical Skills",
-          `<div style="margin-top: 14px; color: #3f4d63; font-size: 15px; line-height: 1.6;">${escapeHtml(
-            CV_PROFILE.technicalSkills.join(" | ")
-          )}</div>`
-        )}
-        ${renderSection(
-          "Additional Information",
-          `<ul style="margin: 14px 0 0; padding: 0;">${renderList(CV_PROFILE.additionalInformation)}</ul>`
-        )}
+          ${renderSection("Education", renderEducation())}
+          ${renderSection("Selected Projects", renderProjects())}
+          ${renderSection(
+            "Technical Skills",
+            `<div style="margin-top: 14px; color: #3f4d63; font-size: 15px; line-height: 1.6;">${escapeHtml(
+              CV_PROFILE.technicalSkills.join(" | ")
+            )}</div>`
+          )}
+          ${renderSection(
+            "Additional Information",
+            `<ul style="margin: 14px 0 0; padding: 0;">${renderList(CV_PROFILE.additionalInformation)}</ul>`
+          )}
+        </div>
       </div>
     </div>
   </body>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { FiDownload, FiGithub, FiGlobe, FiMail, FiMapPin, FiPhone } from "react-icons/fi";
 import {
   SiCss3,
   SiGit,
@@ -55,6 +56,19 @@ const cvFormats = [
   { value: "word", label: "Word", href: "/api/cv-download?format=word", download: "chineduDavidNwadialoCv.doc" },
 ];
 
+const cvPreviewContacts = [
+  { label: "Location", value: CV_PROFILE.location, icon: FiMapPin },
+  { label: "Email", value: CV_PROFILE.email, icon: FiMail },
+  { label: "GitHub", value: CV_PROFILE.github, icon: FiGithub },
+  { label: "Phone", value: CV_PROFILE.phone, icon: FiPhone },
+  { label: "Portfolio", value: CV_PROFILE.portfolio, icon: FiGlobe },
+];
+
+const cvPreviewSkillColumns = [
+  CV_PROFILE.keySkills.items.slice(0, Math.ceil(CV_PROFILE.keySkills.items.length / 2)),
+  CV_PROFILE.keySkills.items.slice(Math.ceil(CV_PROFILE.keySkills.items.length / 2)),
+];
+
 export default function Home() {
   const [cvFormat, setCvFormat] = useState("pdf");
   const selectedCvFormat = cvFormats.find((option) => option.value === cvFormat) || cvFormats[0];
@@ -68,7 +82,9 @@ export default function Home() {
     setIsDownloadingCv(true);
 
     try {
-      const response = await fetch(selectedCvFormat.href);
+      const separator = selectedCvFormat.href.includes("?") ? "&" : "?";
+      const downloadUrl = `${selectedCvFormat.href}${separator}ts=${Date.now()}`;
+      const response = await fetch(downloadUrl, { cache: "no-store" });
       if (!response.ok) {
         throw new Error("Could not download CV right now.");
       }
@@ -115,7 +131,7 @@ export default function Home() {
         throw new Error(result?.error || "Could not send CV right now.");
       }
 
-      setRequestStatus(`Done. Your ${selectedCvFormat.label} CV has been sent to ${requestEmail}.`);
+      setRequestStatus(`Done. My ${selectedCvFormat.label} CV has been sent to ${requestEmail}.`);
       setRequestEmail("");
     } catch (error) {
       setRequestStatus(
@@ -225,71 +241,166 @@ export default function Home() {
 
       <section className="border-t border-slate-200 py-16 sm:py-20">
         <div className="mx-auto max-w-4xl px-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">CV</p>
-            <h2 className="mt-3 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
-              Download or Request My CV
-            </h2>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={handleDownloadCv}
-                disabled={isDownloadingCv}
-                className="rounded-xl border border-blue-600 px-5 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50 sm:px-6 sm:text-base"
-              >
-                {isDownloadingCv ? "Downloading..." : `Download CV (${selectedCvFormat.label})`}
-              </button>
-              <div className="flex items-center gap-3">
-                <label htmlFor="cv-format" className="text-sm font-semibold text-slate-800">
-                  Choose format:
-                </label>
-                <select
-                  id="cv-format"
-                  value={cvFormat}
-                  onChange={(event) => setCvFormat(event.target.value)}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          <div className="grid gap-6 rounded-[32px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50/60 p-6 shadow-sm sm:p-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.88fr)]">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">CV</p>
+              <h2 className="mt-3 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
+                Download or Request My CV
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-600">
+                I refreshed the CV layout to make it cleaner, easier to scan, and closer to the professional format you
+                shared.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={handleDownloadCv}
+                  disabled={isDownloadingCv}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-600 px-5 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50 sm:px-6 sm:text-base"
                 >
-                  {cvFormats.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  <FiDownload className="h-4 w-4" aria-hidden="true" />
+                  {isDownloadingCv ? "Downloading..." : `Download CV (${selectedCvFormat.label})`}
+                </button>
+                <div className="flex items-center gap-3">
+                  <label htmlFor="cv-format" className="text-sm font-semibold text-slate-800">
+                    Choose format:
+                  </label>
+                  <select
+                    id="cv-format"
+                    value={cvFormat}
+                    onChange={(event) => setCvFormat(event.target.value)}
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  >
+                    {cvFormats.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {cvFormat === "pdf" ? (
+                <p className="mt-3 text-xs text-slate-600">
+                  PDF option downloads a true PDF file of the resume.
+                </p>
+              ) : (
+                <p className="mt-3 text-xs text-slate-600">
+                  Word option downloads a Word-compatible document file.
+                </p>
+              )}
+
+              <form onSubmit={handleRequestCv} className="mt-6 max-w-2xl">
+                <p className="mb-2 text-sm font-semibold text-slate-800">Request CV by email</p>
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="email"
+                    name="cvRequestEmail"
+                    placeholder="you@example.com"
+                    required
+                    aria-label="Email address to receive CV"
+                    value={requestEmail}
+                    onChange={(event) => setRequestEmail(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isRequestingCv}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-6"
+                  >
+                    <FiMail className="h-4 w-4" aria-hidden="true" />
+                    {isRequestingCv ? "Sending..." : `Email My ${selectedCvFormat.label} CV`}
+                  </button>
+                </div>
+                {requestStatus ? <p className="mt-3 text-sm text-slate-700">{requestStatus}</p> : null}
+              </form>
+            </div>
+
+            <div className="mx-auto w-full max-w-[420px] rounded-[28px] border border-slate-200 bg-[#e5e7eb] p-3 shadow-[0_26px_70px_rgba(15,23,42,0.14)]">
+              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-[#f3f4f6]">
+                <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-900 px-6 py-6 text-white">
+                  <h3 className="text-[1.8rem] font-bold leading-tight sm:text-[2rem]">{CV_PROFILE.name}</h3>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2.5">
+                        {cvPreviewContacts.slice(0, 3).map((item) => (
+                        <div key={item.label} className="flex items-start gap-2.5 text-sm leading-relaxed text-blue-50">
+                          <item.icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                          <span>{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-2.5">
+                      {cvPreviewContacts.slice(3).map((item) => (
+                        <div key={item.label} className="flex items-start gap-2.5 text-sm leading-relaxed text-blue-50">
+                          <item.icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                          <span>
+                            {item.label === "Portfolio" ? `Portfolio: ${item.value}` : item.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-5 px-6 py-6 text-slate-700">
+                  <div>
+                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Professional Summary</div>
+                    <div className="mt-2 h-1 bg-blue-600" />
+                    <p className="mt-4 text-sm leading-7">{CV_PROFILE.summary}</p>
+                  </div>
+
+                  <div>
+                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Key Skills</div>
+                    <div className="mt-2 h-1 bg-blue-600" />
+                    <div className="mt-4 text-lg font-semibold text-slate-900">{CV_PROFILE.keySkills.title}</div>
+                    <div className="mt-3 grid gap-2 text-sm leading-7 sm:grid-cols-2">
+                      {cvPreviewSkillColumns.map((column, columnIndex) => (
+                        <ul key={columnIndex} className="space-y-1.5">
+                          {column.map((skill) => (
+                            <li key={skill} className="list-disc pl-1 marker:text-slate-700">
+                              {skill}
+                            </li>
+                          ))}
+                        </ul>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Education</div>
+                    <div className="mt-2 h-1 bg-blue-600" />
+                    <div className="mt-4 space-y-4 text-sm leading-7">
+                      {CV_PROFILE.education.map((entry) => (
+                        <div key={entry.title}>
+                          <div className="font-semibold text-slate-900">{entry.title}</div>
+                          {entry.details.map((detail) => (
+                            <div key={detail}>{detail}</div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Selected Projects</div>
+                    <div className="mt-2 h-1 bg-blue-600" />
+                    <div className="mt-4 space-y-3 text-sm leading-7">
+                      {CV_PROFILE.projects.map((project) => (
+                        <div key={project.title}>
+                          <div className="font-semibold text-slate-900">{project.title}</div>
+                          <div>{project.description}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Technical Skills</div>
+                    <div className="mt-2 h-1 bg-blue-600" />
+                    <p className="mt-4 text-sm leading-7">{CV_PROFILE.technicalSkills.join(" • ")}</p>
+                  </div>
+                </div>
               </div>
             </div>
-            {cvFormat === "pdf" ? (
-              <p className="mt-3 text-xs text-slate-600">
-                PDF option downloads a true PDF file of the resume.
-              </p>
-            ) : (
-              <p className="mt-3 text-xs text-slate-600">
-                Word option downloads a Word-compatible document file.
-              </p>
-            )}
-
-            <form onSubmit={handleRequestCv} className="mt-6 max-w-2xl">
-              <p className="mb-2 text-sm font-semibold text-slate-800">Request CV by email</p>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                <input
-                  type="email"
-                  name="cvRequestEmail"
-                  placeholder="you@example.com"
-                  required
-                  aria-label="Email address to receive CV"
-                  value={requestEmail}
-                  onChange={(event) => setRequestEmail(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                />
-                <button
-                  type="submit"
-                  disabled={isRequestingCv}
-                  className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-6"
-                >
-                  {isRequestingCv ? "Sending..." : `Email My ${selectedCvFormat.label} CV`}
-                </button>
-              </div>
-              {requestStatus ? <p className="mt-3 text-sm text-slate-700">{requestStatus}</p> : null}
-            </form>
           </div>
         </div>
       </section>

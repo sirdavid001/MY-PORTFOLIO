@@ -17,7 +17,10 @@ describe("Portfolio button actions", () => {
     fireEvent.click(await screen.findByRole("button", { name: /download cv \(pdf\)/i }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith("/api/cv-download?format=pdf");
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/cv-download?format=pdf"),
+        expect.objectContaining({ cache: "no-store" })
+      );
     });
     expect(anchorClickSpy).toHaveBeenCalled();
 
@@ -26,7 +29,7 @@ describe("Portfolio button actions", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /email my pdf cv/i }));
 
-    expect(await screen.findByText(/your pdf cv has been sent to builder@example.com/i)).toBeInTheDocument();
+    expect(await screen.findByText(/my pdf cv has been sent to builder@example.com/i)).toBeInTheDocument();
 
     anchorClickSpy.mockRestore();
   });
