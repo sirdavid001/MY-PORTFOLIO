@@ -11,13 +11,13 @@ const BUSINESS_SUBDOMAINS = new Set(["shop", "store", "gadgets", "sirdavidshop"]
 const SECURE_ADMIN_PATH = "/secure-admin-portal-xyz";
 const SHOP_PATHS = new Set([
   "/shop",
-  `/shop${SECURE_ADMIN_PATH}`,
   "/cart",
   "/track-order",
   "/terms-and-conditions",
   "/refund-policy",
   "/privacy-policy",
   "/faqs",
+  "/legal",
   "/shipping-policy",
   "/admin-setup-first-time",
   SECURE_ADMIN_PATH,
