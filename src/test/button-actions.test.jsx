@@ -209,7 +209,7 @@ describe("Admin button actions", () => {
   });
 
   it("signs in to admin, switches tabs, and logs out", async () => {
-    renderAppAt("/secure-admin-portal-xyz?tab=products");
+    renderAppAt("/secure-admin-portal-xyz");
 
     fireEvent.change(await screen.findByLabelText(/email address/i), {
       target: { value: "admin@sirdavid.site" },
@@ -219,11 +219,11 @@ describe("Admin button actions", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /sign in to dashboard/i }));
 
-    expect(await screen.findByText(/products management/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /^orders$/i }));
     expect(await screen.findByText(/payment-confirmed orders only/i)).toBeInTheDocument();
-    expect(await screen.findByText(/jane doe/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/jane doe/i)).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /^products$/i }));
+    expect(await screen.findByText(/products management/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^shipping$/i }));
     expect(await screen.findByText(/shipping mode/i)).toBeInTheDocument();

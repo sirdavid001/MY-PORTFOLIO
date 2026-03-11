@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Shield, LogOut, Package, Layers, Truck, Activity, ChevronRight, Lock, Mail, AlertTriangle } from 'lucide-react';
-import { useSearchParams } from 'react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -39,7 +38,6 @@ function getValidTab(value: string | null | undefined): Tab | null {
 }
 
 export default function AdminPortal() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -61,23 +59,28 @@ export default function AdminPortal() {
   useEffect(() => { checkSession(); }, []);
 
   useEffect(() => {
-    const requestedTab = getValidTab(searchParams.get('tab'));
-    if (requestedTab && requestedTab !== activeTab) {
-      setActiveTab(requestedTab);
-    }
-  }, [activeTab, searchParams]);
+    if (typeof window === 'undefined') return undefined;
+
+    const syncTabFromLocation = () => {
+      const requestedTab = getValidTab(new URLSearchParams(window.location.search).get('tab'));
+      if (requestedTab) {
+        setActiveTab(requestedTab);
+      }
+    };
+
+    window.addEventListener('popstate', syncTabFromLocation);
+    return () => window.removeEventListener('popstate', syncTabFromLocation);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(TAB_STORAGE_KEY, activeTab);
 
-    const currentTab = getValidTab(searchParams.get('tab'));
-    if (currentTab === activeTab) return;
-
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', activeTab);
-    setSearchParams(next, { replace: true });
-  }, [activeTab, searchParams, setSearchParams]);
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.searchParams.get('tab') === activeTab) return;
+    currentUrl.searchParams.set('tab', activeTab);
+    window.history.replaceState(window.history.state, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
+  }, [activeTab]);
 
   async function checkSession() {
     try {
