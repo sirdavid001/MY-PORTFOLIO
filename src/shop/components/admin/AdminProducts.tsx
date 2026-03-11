@@ -13,6 +13,7 @@ import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { api } from '../../lib/api';
 import { getAutoFill } from './productAutoFill';
+import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Product {
@@ -68,6 +69,20 @@ const NETWORK_LOCK_OPTIONS = ['Unlocked', 'Locked'];
 const BATTERY_HEALTH_CATEGORIES = ['Phones', 'Tablets', 'Wearables'];
 const NETWORK_CATEGORIES = ['Phones', 'Tablets'];
 const DEFAULT_NGN_PER_USD = 1600;
+
+function isSupportedImageUrl(value: string) {
+  if (!value) return false;
+  if (value.startsWith('data:image/') || value.startsWith('blob:') || value.startsWith('/')) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 const BRAND_SUGGESTIONS: Record<string, string[]> = {
   Phones:     ['Apple', 'Samsung', 'Google', 'OnePlus', 'Xiaomi', 'Huawei', 'Motorola', 'Nokia', 'Sony', 'Realme', 'Infinix', 'Tecno', 'Oppo', 'Vivo'],
@@ -704,6 +719,10 @@ export default function AdminProducts({ isAuthenticated, onAuthError }: AdminPro
     if (!url) return;
     if (form.images.length >= 5) { toast.error('Maximum 5 images allowed'); return; }
     if (form.images.includes(url)) { toast.error('This image URL is already added'); return; }
+    if (!isSupportedImageUrl(url)) {
+      toast.error('Use a valid image URL starting with https://, http://, /, data:, or blob:');
+      return;
+    }
     set('images', [...form.images, url]);
     setUrlInput('');
   }
@@ -1250,8 +1269,11 @@ export default function AdminProducts({ isAuthenticated, onAuthError }: AdminPro
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-3">
                   {form.images.map((url, idx) => (
                     <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border bg-gray-50">
-                      <img src={url} alt="" className="w-full h-full object-cover"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <ImageWithFallback
+                        src={url}
+                        alt={`Product image ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                         {idx !== 0 && (
                           <button onClick={() => setPrimary(idx)}
@@ -1375,8 +1397,11 @@ function ProductTable({
               <TableCell>
                 <div className="flex items-center gap-2">
                   {p.images?.[0] ? (
-                    <img src={p.images[0]} alt={p.name}
-                      className="w-9 h-9 rounded-md object-cover bg-gray-100 shrink-0 border" />
+                    <ImageWithFallback
+                      src={p.images[0]}
+                      alt={p.name}
+                      className="w-9 h-9 rounded-md object-cover bg-gray-100 shrink-0 border"
+                    />
                   ) : (
                     <div className="w-9 h-9 rounded-md bg-gray-100 border flex items-center justify-center shrink-0">
                       <ImageIcon className="w-4 h-4 text-gray-400" />
