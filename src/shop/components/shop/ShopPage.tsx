@@ -15,11 +15,10 @@ import { addToCart, loadCart, getCartItemCount } from '../../lib/cart';
 import { api } from '../../lib/api';
 import { 
   PricingContext, 
-  createPricingContext,
-  DEFAULT_EXCHANGE_RATES,
   fetchExchangeRates, 
   savePricingContext, 
   loadPricingContext,
+  COUNTRY_CURRENCY_MAP 
 } from '../../lib/pricing';
 import { Globe } from 'lucide-react';
 
@@ -67,26 +66,28 @@ export default function ShopPage() {
 
       // Fetch location and exchange rates
       const [locationData, exchangeRates] = await Promise.all([
-        api.getLocation().catch(() => ({ countryCode: 'US', countryName: 'United States', currency: 'USD' })),
+        api.getLocation().catch(() => ({ country: 'US', currency: 'USD' })),
         fetchExchangeRates(),
       ]);
 
-      const context: PricingContext = createPricingContext(locationData, exchangeRates, {
-        countryCode: 'US',
-        countryName: 'United States',
-        currency: 'USD',
-      });
+      const context: PricingContext = {
+        country: locationData.country,
+        currency: locationData.currency,
+        exchangeRates,
+        lastUpdated: new Date().toISOString(),
+      };
 
       savePricingContext(context);
       setPricingContext(context);
     } catch (error) {
       console.error('Pricing initialization error:', error);
       // Fallback context
-      const fallback: PricingContext = createPricingContext(undefined, DEFAULT_EXCHANGE_RATES, {
-        countryCode: 'US',
-        countryName: 'United States',
+      const fallback: PricingContext = {
+        country: 'US',
         currency: 'USD',
-      });
+        exchangeRates: { USD: 1, NGN: 1500, GHS: 15, KES: 130, ZAR: 18, XOF: 600 },
+        lastUpdated: new Date().toISOString(),
+      };
       setPricingContext(fallback);
     }
   }
@@ -168,7 +169,7 @@ export default function ShopPage() {
   async function handlePaymentSuccess(reference: string) {
     try {
       const result = await api.verifyPayment(reference);
-      if (result?.paid || result?.data?.status === 'success') {
+      if (result.status && result.data.status === 'success') {
         toast.success('Payment successful! Your order has been confirmed.');
         // Clear cart
         localStorage.removeItem('cart');
@@ -217,7 +218,7 @@ export default function ShopPage() {
               <div className="flex items-center gap-2 text-sm">
                 <Globe className="w-4 h-4 text-blue-600" />
                 <span className="text-gray-700">
-                  Shopping from <span className="font-semibold">{pricingContext.countryName || pricingContext.country}</span>
+                  Shopping from <span className="font-semibold">{pricingContext.country}</span>
                   {' • '}
                   Prices shown in <span className="font-semibold">{pricingContext.currency}</span>
                 </span>

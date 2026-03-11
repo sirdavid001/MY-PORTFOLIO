@@ -2,12 +2,6 @@ import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-bda4aae5`;
 
-interface VerifyPaymentOptions {
-  expectedAmountKobo?: number;
-  expectedCurrency?: string;
-  expectedEmail?: string;
-}
-
 export async function apiRequest(
   endpoint: string,
   options: RequestInit = {},
@@ -62,21 +56,7 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(paymentData),
   }),
-  verifyPayment: (reference: string, options: VerifyPaymentOptions = {}) => {
-    const params = new URLSearchParams({ reference });
-
-    if (Number.isFinite(options.expectedAmountKobo)) {
-      params.set('expected_amount_kobo', String(options.expectedAmountKobo));
-    }
-    if (options.expectedCurrency) {
-      params.set('expected_currency', options.expectedCurrency);
-    }
-    if (options.expectedEmail) {
-      params.set('expected_email', options.expectedEmail);
-    }
-
-    return apiRequest(`/api/payments/paystack/verify?${params.toString()}`);
-  },
+  verifyPayment: (reference: string) => apiRequest(`/api/payments/paystack/verify/${reference}`),
 
   // Admin Auth
   adminSignup: (name: string, email: string, password: string) => apiRequest('/api/admin/signup', {

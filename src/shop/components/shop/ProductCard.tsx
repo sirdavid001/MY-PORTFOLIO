@@ -29,7 +29,7 @@ export default function ProductCard({ product, pricingContext, onAddToCart }: Pr
           onClick={() => navigate(`/product/${product.id}`)}
         >
           <ImageWithFallback
-            src={product.images[0] || undefined}
+            src={product.images[0] || ''}
             alt={product.name}
             query={`${product.name} ${product.brand} gadget`}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"

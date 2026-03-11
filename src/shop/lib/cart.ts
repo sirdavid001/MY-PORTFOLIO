@@ -39,18 +39,6 @@ export interface CheckoutData {
   notes: string;
 }
 
-export function createEmptyCheckoutData(): CheckoutData {
-  return {
-    customerName: '',
-    customerEmail: '',
-    customerPhone: '',
-    address: '',
-    city: '',
-    country: '',
-    notes: '',
-  };
-}
-
 export function loadCart(): Cart {
   try {
     const stored = localStorage.getItem('cart');
@@ -123,24 +111,31 @@ export function getCartItemCount(cart: Cart): number {
 export function loadCheckoutData(): CheckoutData {
   try {
     const stored = localStorage.getItem('checkoutData');
-    if (!stored) return createEmptyCheckoutData();
-    return {
-      ...createEmptyCheckoutData(),
-      ...JSON.parse(stored),
+    if (!stored) return {
+      customerName: '',
+      customerEmail: '',
+      customerPhone: '',
+      address: '',
+      city: '',
+      country: '',
+      notes: '',
     };
+    return JSON.parse(stored);
   } catch {
-    return createEmptyCheckoutData();
+    return {
+      customerName: '',
+      customerEmail: '',
+      customerPhone: '',
+      address: '',
+      city: '',
+      country: '',
+      notes: '',
+    };
   }
 }
 
 export function saveCheckoutData(data: CheckoutData) {
   localStorage.setItem('checkoutData', JSON.stringify(data));
-}
-
-export function clearCheckoutData(): CheckoutData {
-  const empty = createEmptyCheckoutData();
-  saveCheckoutData(empty);
-  return empty;
 }
 
 export function calculateShipping(

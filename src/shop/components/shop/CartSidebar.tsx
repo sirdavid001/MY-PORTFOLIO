@@ -143,7 +143,7 @@ export default function CartSidebar({ pricingContext, shippingSettings, onCartUp
                   aria-label={`View ${item.product.name}`}
                 >
                   <ImageWithFallback
-                    src={item.product.images?.[0] || undefined}
+                    src={item.product.images?.[0] || ''}
                     alt={item.product.name}
                     query={`${item.product.brand} ${item.product.name} gadget`}
                     className="w-full h-full object-cover"
