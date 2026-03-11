@@ -16,6 +16,8 @@ import { Product, addToCart, loadCart, getCartItemCount } from '../../lib/cart';
 import { api } from '../../lib/api';
 import {
   PricingContext,
+  createPricingContext,
+  DEFAULT_EXCHANGE_RATES,
   convertPrice,
   formatCurrency,
   fetchExchangeRates,
@@ -64,19 +66,23 @@ export default function ProductDetailPage() {
         return;
       }
       const [locationData, exchangeRates] = await Promise.all([
-        api.getLocation().catch(() => ({ country: 'US', currency: 'USD' })),
+        api.getLocation().catch(() => ({ countryCode: 'US', countryName: 'United States', currency: 'USD' })),
         fetchExchangeRates(),
       ]);
-      const context: PricingContext = {
-        country: locationData.country,
-        currency: locationData.currency,
-        exchangeRates,
-        lastUpdated: new Date().toISOString(),
-      };
+      const context: PricingContext = createPricingContext(locationData, exchangeRates, {
+        countryCode: 'US',
+        countryName: 'United States',
+        currency: 'USD',
+      });
       savePricingContext(context);
       setPricingContext(context);
     } catch (error) {
       console.error('Pricing initialization error:', error);
+      setPricingContext(createPricingContext(undefined, DEFAULT_EXCHANGE_RATES, {
+        countryCode: 'US',
+        countryName: 'United States',
+        currency: 'USD',
+      }));
     }
   }
 

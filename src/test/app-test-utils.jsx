@@ -268,9 +268,10 @@ export function createFetchMock({
       });
     }
 
-    if (url.startsWith("/api/payments/paystack/verify/")) {
+    if (url.startsWith("/api/payments/paystack/verify?") || url.startsWith("/api/payments/paystack/verify/")) {
       return jsonResponse({
-        status: true,
+        ok: true,
+        paid: true,
         data: { status: "success" },
       });
     }

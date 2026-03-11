@@ -124,6 +124,9 @@ describe("Shop button actions", () => {
     fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), {
       target: { value: "buyer@example.com" },
     });
+    fireEvent.change(screen.getByPlaceholderText(/8012345678/i), {
+      target: { value: "2012345678" },
+    });
     fireEvent.change(screen.getByPlaceholderText(/12 admiralty way/i), {
       target: { value: "12 Admiralty Way" },
     });
@@ -142,15 +145,61 @@ describe("Shop button actions", () => {
     fireEvent.click(payButton);
 
     await waitFor(() => {
+      expect(checkoutSpy).toHaveBeenCalledTimes(1);
+    });
+
+    const checkoutConfig = checkoutSpy.mock.calls[0][0];
+    await checkoutConfig.onSuccess({ reference: checkoutConfig.ref });
+
+    await waitFor(() => {
       expect(
-        fetch.mock.calls.some(
-          ([url, init]) =>
-            String(url).includes("/api/send-order") &&
-            String(init?.method || "").toUpperCase() === "POST"
-        )
+        fetch.mock.calls.some(([url]) => String(url).includes("/api/payments/paystack/verify?"))
       ).toBe(true);
     });
-    expect(checkoutSpy).toHaveBeenCalledTimes(1);
+
+    const orderCall = fetch.mock.calls.find(
+      ([url, init]) =>
+        String(url).includes("/api/send-order") &&
+        String(init?.method || "").toUpperCase() === "POST"
+    );
+
+    expect(orderCall).toBeTruthy();
+    const [, orderInit] = orderCall;
+    const orderBody = JSON.parse(orderInit.body);
+
+    expect(orderBody).toMatchObject({
+      currency: "GHS",
+      checkout: {
+        fullName: "Buyer Example",
+        email: "buyer@example.com",
+        phone: "+2332012345678",
+        address: "12 Admiralty Way",
+        city: "Accra",
+        country: "Ghana",
+        paymentMethod: "Paystack",
+      },
+    });
+    expect(orderBody.reference).toMatch(/^ORD-/);
+    expect(orderBody.items).toEqual([
+      expect.objectContaining({
+        quantity: 1,
+      }),
+    ]);
+    expect(orderBody.items[0].name).toMatch(/apple iphone/i);
+    expect(
+      fetch.mock.calls.some(
+        ([url, init]) =>
+          String(url).includes("/api/send-order") &&
+          String(init?.method || "").toUpperCase() === "POST"
+      )
+    ).toBe(true);
+    expect(
+      fetch.mock.calls.some(
+        ([url]) =>
+          String(url).includes("expected_currency=GHS") &&
+          String(url).includes("expected_email=buyer%40example.com")
+      )
+    ).toBe(true);
   });
 });
 
