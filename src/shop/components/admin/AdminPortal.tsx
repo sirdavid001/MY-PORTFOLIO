@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Shield, LogOut, Package, Layers, Truck, Activity, ChevronRight, Lock, Mail, AlertTriangle } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -13,27 +14,82 @@ import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 type Tab = 'orders' | 'products' | 'shipping';
 
+const TAB_STORAGE_KEY = 'admin-active-tab';
+
+const TAB_META: Record<Tab, { title: string; description: string; support: string }> = {
+  orders: {
+    title: 'Order Operations',
+    description: 'Track paid orders, update delivery progress, and assign tracking numbers from one queue.',
+    support: 'Best for daily fulfilment and after-payment support.',
+  },
+  products: {
+    title: 'Catalog Control',
+    description: 'Manage listings, pricing, publishing state, images, and exchange-rate inputs for the storefront.',
+    support: 'Best for stock updates, pricing edits, and new launches.',
+  },
+  shipping: {
+    title: 'Delivery Rules',
+    description: 'Tune flat, percentage, or hybrid shipping logic and preview how shipping affects checkout totals.',
+    support: 'Best for delivery policy, free-shipping thresholds, and margin protection.',
+  },
+};
+
+function getValidTab(value: string | null | undefined): Tab | null {
+  return value === 'orders' || value === 'products' || value === 'shipping' ? value : null;
+}
+
 export default function AdminPortal() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (typeof window === 'undefined') return 'orders';
+    return (
+      getValidTab(new URLSearchParams(window.location.search).get('tab')) ||
+      getValidTab(window.localStorage.getItem(TAB_STORAGE_KEY)) ||
+      'orders'
+    );
+  });
   const [loginHint, setLoginHint] = useState<string | null>(null);
   const [loginErrorMsg, setLoginErrorMsg] = useState<string | null>(null);
+  const activeMeta = useMemo(() => TAB_META[activeTab], [activeTab]);
 
   useEffect(() => { checkSession(); }, []);
+
+  useEffect(() => {
+    const requestedTab = getValidTab(searchParams.get('tab'));
+    if (requestedTab && requestedTab !== activeTab) {
+      setActiveTab(requestedTab);
+    }
+  }, [activeTab, searchParams]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(TAB_STORAGE_KEY, activeTab);
+
+    const currentTab = getValidTab(searchParams.get('tab'));
+    if (currentTab === activeTab) return;
+
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', activeTab);
+    setSearchParams(next, { replace: true });
+  }, [activeTab, searchParams, setSearchParams]);
 
   async function checkSession() {
     try {
       const token = localStorage.getItem('adminToken');
       if (!token) { setLoading(false); return; }
-      await api.adminSession();
+      const session = await api.adminSession();
       setIsAuthenticated(true);
+      setAdminEmail(session?.user?.email || '');
     } catch (err: any) {
       localStorage.removeItem('adminToken');
       setIsAuthenticated(false);
+      setAdminEmail('');
       if (err.message?.includes('401')) toast.error('Session expired. Please log in again.');
     } finally {
       setLoading(false);
@@ -51,6 +107,7 @@ export default function AdminPortal() {
       if (result.success && result.token) {
         localStorage.setItem('adminToken', result.token);
         setIsAuthenticated(true);
+        setAdminEmail(email.trim());
         toast.success('Welcome back!');
       } else {
         toast.error('Login failed');
@@ -79,6 +136,7 @@ export default function AdminPortal() {
     try { await api.adminLogout(); } catch {}
     localStorage.removeItem('adminToken');
     setIsAuthenticated(false);
+    setAdminEmail('');
     toast.success('Logged out');
   }
 
@@ -104,6 +162,7 @@ export default function AdminPortal() {
   function handleAuthError() {
     localStorage.removeItem('adminToken');
     setIsAuthenticated(false);
+    setAdminEmail('');
     toast.error('Session expired. Please log in again.');
   }
 
@@ -359,6 +418,55 @@ export default function AdminPortal() {
 
       {/* Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <Card className="border-gray-200 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    <Shield className="h-3.5 w-3.5" />
+                    Secure admin workspace
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">{activeMeta.title}</h1>
+                    <p className="mt-1 max-w-2xl text-sm text-gray-600">{activeMeta.description}</p>
+                  </div>
+                  <p className="text-xs text-gray-500">{activeMeta.support}</p>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Session</p>
+                  <p className="mt-1 font-medium text-gray-900">{adminEmail || 'Authenticated admin'}</p>
+                  <p className="mt-1 text-xs text-gray-500">Tab state is saved, so reopening the portal returns you to the last workspace.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 shadow-sm">
+            <CardContent className="grid gap-3 p-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Quick Actions</p>
+                <p className="mt-1 text-sm text-gray-600">Jump between the storefront, setup, and the active admin tab without losing context.</p>
+              </div>
+              <div className="grid gap-2">
+                <a
+                  href="/shop"
+                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-blue-300 hover:text-blue-700"
+                >
+                  Open storefront
+                </a>
+                <a
+                  href="/admin-setup-first-time"
+                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-blue-300 hover:text-blue-700"
+                >
+                  Setup or reset access
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {activeTab === 'orders'   && <AdminOrders   isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />}
         {activeTab === 'products' && <AdminProducts isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />}
         {activeTab === 'shipping' && <AdminShipping isAuthenticated={isAuthenticated} onAuthError={handleAuthError} />}

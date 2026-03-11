@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Truck, DollarSign, Percent, GitMerge, Info } from 'lucide-react';
+import { Truck, DollarSign, Percent, GitMerge, Info, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -36,6 +36,7 @@ export default function AdminShipping({ isAuthenticated, onAuthError }: AdminShi
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<ShippingSettings>(DEFAULT);
+  const [savedSettings, setSavedSettings] = useState<ShippingSettings>(DEFAULT);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => { if (isAuthenticated) loadSettings(); }, [isAuthenticated]);
@@ -44,7 +45,11 @@ export default function AdminShipping({ isAuthenticated, onAuthError }: AdminShi
     try {
       setLoading(true);
       const result = await api.getShippingSettings();
-      if (result.settings) setSettings({ ...DEFAULT, ...result.settings });
+      if (result.settings) {
+        const next = { ...DEFAULT, ...result.settings };
+        setSettings(next);
+        setSavedSettings(next);
+      }
     } catch (err: any) {
       if (err.message?.includes('401') || err.message?.includes('403')) onAuthError?.();
       else toast.error('Failed to load shipping settings: ' + err.message);
@@ -70,6 +75,7 @@ export default function AdminShipping({ isAuthenticated, onAuthError }: AdminShi
     setSaving(true);
     try {
       await api.updateShippingSettings(settings);
+      setSavedSettings(settings);
       toast.success('Shipping settings saved successfully');
     } catch (err: any) {
       toast.error('Failed to save settings: ' + err.message);
@@ -86,9 +92,69 @@ export default function AdminShipping({ isAuthenticated, onAuthError }: AdminShi
   );
 
   const SAMPLE = [25, 75, 150, 300];
+  const hasChanges = JSON.stringify(settings) !== JSON.stringify(savedSettings);
+  const previewForDefaultCart = calcPreview(settings, 150);
+  const modeLabel =
+    settings.mode === 'flat' ? 'Flat Rate'
+    : settings.mode === 'percent' ? 'Percentage'
+    : 'Hybrid';
 
   return (
     <div className="max-w-2xl space-y-5">
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Delivery policy workspace</p>
+              <p className="mt-1 text-sm text-gray-600">
+                Adjust your shipping formula and preview how it affects checkout totals before publishing the change.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={loadSettings}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Reload
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setSettings(savedSettings)} disabled={!hasChanges}>
+                Reset changes
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setSettings(DEFAULT)}>
+                Use defaults
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Mode</p>
+              <p className="mt-2 text-lg font-bold text-gray-900">{modeLabel}</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">$150 preview</p>
+              <p className="mt-2 text-lg font-bold text-gray-900">
+                {previewForDefaultCart === 0 ? 'FREE' : `$${previewForDefaultCart.toFixed(2)}`}
+              </p>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Free shipping</p>
+              <p className="mt-2 text-lg font-bold text-gray-900">
+                {settings.freeThreshold > 0 ? `$${settings.freeThreshold.toFixed(2)}` : 'Disabled'}
+              </p>
+            </div>
+          </div>
+
+          {hasChanges ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Unsaved changes are present. Save to publish the new delivery policy.
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+              Shipping settings are in sync with the current saved configuration.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Mode */}
       <Card>
         <CardHeader>

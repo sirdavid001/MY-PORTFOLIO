@@ -61,13 +61,16 @@ const DEFAULT_ORDERS = [
   {
     id: "order_1",
     reference: "ORD-1234567890",
-    customerName: "Jane Doe",
-    customerEmail: "jane@example.com",
-    customerPhone: "+2348012345678",
-    address: "10 Main Street",
-    city: "Lagos",
-    country: "Nigeria",
-    paymentMethod: "paystack",
+    checkout: {
+      fullName: "Jane Doe",
+      email: "jane@example.com",
+      phone: "+2348012345678",
+      address: "10 Main Street",
+      city: "Lagos",
+      country: "Nigeria",
+      paymentMethod: "Paystack",
+      notes: "Leave at the reception desk.",
+    },
     currency: "USD",
     subtotal: 175,
     shipping: 10,
@@ -89,13 +92,15 @@ const DEFAULT_ORDERS = [
 const DEFAULT_TRACK_ORDER = {
   id: "order_1",
   reference: "ORD-1234567890",
-  customerName: "Jane Doe",
-  customerEmail: "jane@example.com",
-  customerPhone: "+2348012345678",
-  address: "10 Main Street",
-  city: "Lagos",
-  country: "Nigeria",
-  paymentMethod: "paystack",
+  checkout: {
+    fullName: "Jane Doe",
+    email: "jane@example.com",
+    phone: "+2348012345678",
+    address: "10 Main Street",
+    city: "Lagos",
+    country: "Nigeria",
+    paymentMethod: "Paystack",
+  },
   currency: "USD",
   subtotal: 175,
   shipping: 10,
@@ -480,7 +485,8 @@ export function renderAppAt(pathname, options = {}) {
   window.history.pushState({}, "", pathname);
   window.dispatchEvent(new PopStateEvent("popstate"));
 
-  const isShopPath = pathname.startsWith("/product/") || SHOP_PATHS.has(pathname);
+  const normalizedPathname = pathname.split("?")[0];
+  const isShopPath = normalizedPathname.startsWith("/product/") || SHOP_PATHS.has(normalizedPathname);
   if (isShopPath) {
     void router.navigate(pathname);
   }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Upload, X, Star, Search, RefreshCw, Link2, Image as ImageIcon, Layers, ArrowLeftRight, Save } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, X, Star, Search, RefreshCw, Link2, Image as ImageIcon, Layers, ArrowLeftRight, Save, Package, CheckCircle2, CircleOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
@@ -493,6 +493,7 @@ export default function AdminProducts({ isAuthenticated, onAuthError }: AdminPro
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [search, setSearch] = useState('');
   const [showDialog, setShowDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -561,13 +562,25 @@ export default function AdminProducts({ isAuthenticated, onAuthError }: AdminPro
     const q = search.toLowerCase().trim();
     return products.filter(p => {
       const matchCat = categoryFilter === 'All' || p.category === categoryFilter;
-      if (!q) return matchCat;
-      return matchCat && [p.name, p.brand, p.model, p.category, p.id].join(' ').toLowerCase().includes(q);
+      const matchAvailability =
+        availabilityFilter === 'all' ||
+        (availabilityFilter === 'active' ? p.isActive : !p.isActive);
+      if (!q) return matchCat && matchAvailability;
+      return matchCat && matchAvailability && [p.name, p.brand, p.model, p.category, p.id].join(' ').toLowerCase().includes(q);
     });
-  }, [products, categoryFilter, search]);
+  }, [products, categoryFilter, availabilityFilter, search]);
+
+  const productStats = useMemo(() => ({
+    total: products.length,
+    active: products.filter((product) => product.isActive).length,
+    inactive: products.filter((product) => !product.isActive).length,
+    categories: new Set(products.map((product) => product.category).filter(Boolean)).size,
+  }), [products]);
+
+  const hasFilters = search.trim() || categoryFilter !== 'All' || availabilityFilter !== 'all';
 
   const grouped = useMemo(() => {
-    if (categoryFilter !== 'All') return null;
+    if (categoryFilter !== 'All' || availabilityFilter !== 'all') return null;
     const map: Record<string, Product[]> = {};
     filtered.forEach(p => {
       if (!map[p.category]) map[p.category] = [];
@@ -823,6 +836,61 @@ export default function AdminProducts({ isAuthenticated, onAuthError }: AdminPro
         </CardHeader>
 
         <CardContent className="pt-0">
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[
+              { label: 'Total Listings', value: productStats.total, icon: <Package className="h-4 w-4 text-gray-500" />, tone: 'text-gray-800' },
+              { label: 'Active', value: productStats.active, icon: <CheckCircle2 className="h-4 w-4 text-green-600" />, tone: 'text-green-700' },
+              { label: 'Inactive', value: productStats.inactive, icon: <CircleOff className="h-4 w-4 text-amber-600" />, tone: 'text-amber-700' },
+              { label: 'Categories', value: productStats.categories, icon: <Layers className="h-4 w-4 text-blue-600" />, tone: 'text-blue-700' },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="mb-2 flex items-center gap-1.5 text-xs text-gray-500">
+                  {stat.icon}
+                  <span>{stat.label}</span>
+                </div>
+                <p className={`text-2xl font-bold ${stat.tone}`}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {[
+              { value: 'all', label: 'All listings' },
+              { value: 'active', label: 'Active only' },
+              { value: 'inactive', label: 'Inactive only' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setAvailabilityFilter(option.value as 'all' | 'active' | 'inactive')}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  availabilityFilter === option.value
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+            {hasFilters ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearch('');
+                  setCategoryFilter('All');
+                  setAvailabilityFilter('all');
+                }}
+              >
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+
+          <p className="mb-4 text-xs text-gray-500">
+            Showing {filtered.length} of {products.length} listing{products.length === 1 ? '' : 's'}.
+          </p>
+
           {/* Category filter pills */}
           {allCategories.length > 1 && (
             <div className="flex flex-wrap gap-1.5 mb-4">

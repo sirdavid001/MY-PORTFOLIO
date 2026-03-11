@@ -13,6 +13,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { api } from '../../lib/api';
+import { normalizeOrderRecord, normalizeOrderRecords } from '../../lib/orders';
 
 interface AdminOrdersProps {
   isAuthenticated: boolean;
@@ -56,7 +57,7 @@ export default function AdminOrders({ isAuthenticated, onAuthError }: AdminOrder
     try {
       setLoading(true);
       const result = await api.getAdminOrders();
-      setOrders(result.orders || []);
+      setOrders(normalizeOrderRecords(result.orders || []));
     } catch (err: any) {
       if (err.message?.includes('401') || err.message?.includes('403')) onAuthError?.();
       else toast.error('Failed to load orders: ' + err.message);
@@ -67,7 +68,7 @@ export default function AdminOrders({ isAuthenticated, onAuthError }: AdminOrder
     setUpdatingStatus(orderId);
     try {
       await api.updateOrder(orderId, { status });
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+      setOrders(prev => prev.map(o => o.id === orderId ? normalizeOrderRecord({ ...o, status }) : o));
       toast.success('Status updated');
     } catch { toast.error('Failed to update status'); }
     finally { setUpdatingStatus(null); }
@@ -76,7 +77,7 @@ export default function AdminOrders({ isAuthenticated, onAuthError }: AdminOrder
   async function saveTracking(orderId: string) {
     try {
       await api.updateOrder(orderId, { trackingNumber: trackingInput });
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, trackingNumber: trackingInput } : o));
+      setOrders(prev => prev.map(o => o.id === orderId ? normalizeOrderRecord({ ...o, trackingNumber: trackingInput }) : o));
       setEditingTracking(null);
       toast.success('Tracking number updated');
     } catch { toast.error('Failed to update tracking'); }
@@ -92,6 +93,9 @@ export default function AdminOrders({ isAuthenticated, onAuthError }: AdminOrder
     processing: orders.filter(o => o.status === 'processing').length,
     inRoute:    orders.filter(o => ['in_route', 'shipped'].includes(o.status)).length,
     delivered:  orders.filter(o => ['delivered', 'completed'].includes(o.status)).length,
+    needsTracking: orders.filter(o =>
+      ['processing', 'in_route', 'shipped'].includes(o.status) && !String(o.trackingNumber || '').trim()
+    ).length,
   }), [orders]);
 
   // ── Filter ──────────────────────────────────────────────────────────────────
@@ -100,7 +104,19 @@ export default function AdminOrders({ isAuthenticated, onAuthError }: AdminOrder
     return orders.filter(o => {
       const matchStatus = statusFilter === 'all' || o.status === statusFilter;
       if (!q) return matchStatus;
-      const hay = [o.reference, o.customerName, o.customerEmail, o.customerPhone, o.address, o.city, o.country, o.trackingNumber].join(' ').toLowerCase();
+      const hay = [
+        o.reference,
+        o.customerName,
+        o.customerEmail,
+        o.customerPhone,
+        o.address,
+        o.city,
+        o.country,
+        o.trackingNumber,
+        o.notes,
+        o.checkout?.fullName,
+        o.checkout?.email,
+      ].join(' ').toLowerCase();
       return matchStatus && hay.includes(q);
     });
   }, [orders, search, statusFilter]);
@@ -134,7 +150,7 @@ export default function AdminOrders({ isAuthenticated, onAuthError }: AdminOrder
           { label: 'Paid',          value: stats.paid,                    icon: <CreditCard className="w-4 h-4 text-blue-500" />,    cls: 'text-blue-700' },
           { label: 'Processing',    value: stats.processing,              icon: <Package className="w-4 h-4 text-indigo-500" />,     cls: 'text-indigo-700' },
           { label: 'In Route',      value: stats.inRoute,                 icon: <Truck className="w-4 h-4 text-purple-500" />,       cls: 'text-purple-700' },
-          { label: 'Delivered',     value: stats.delivered,               icon: <PackageCheck className="w-4 h-4 text-cyan-500" />, cls: 'text-cyan-700' },
+          { label: stats.needsTracking > 0 ? 'Needs Tracking' : 'Delivered', value: stats.needsTracking > 0 ? stats.needsTracking : stats.delivered, icon: stats.needsTracking > 0 ? <Search className="w-4 h-4 text-amber-500" /> : <PackageCheck className="w-4 h-4 text-cyan-500" />, cls: stats.needsTracking > 0 ? 'text-amber-700' : 'text-cyan-700' },
         ].map(s => (
           <Card key={s.label}>
             <CardContent className="p-4">
@@ -375,6 +391,10 @@ export default function AdminOrders({ isAuthenticated, onAuthError }: AdminOrder
 }
 
 function OrderDetail({ order }: { order: any }) {
+  const paymentMethod = String(order.paymentMethod || '')
+    ? String(order.paymentMethod).charAt(0).toUpperCase() + String(order.paymentMethod).slice(1)
+    : '—';
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
       <div className="space-y-1">
@@ -398,7 +418,7 @@ function OrderDetail({ order }: { order: any }) {
           <span>Total Paid</span>
           <span>{order.currency} {(order.total || 0).toLocaleString()}</span>
         </div>
-        <p className="text-gray-400 text-xs capitalize">via {order.paymentMethod}</p>
+        <p className="text-gray-400 text-xs">via {paymentMethod}</p>
         {order.paymentVerifiedAt && (
           <p className="text-green-600 text-xs">
             ✓ Verified {new Date(order.paymentVerifiedAt).toLocaleString()}
@@ -413,6 +433,9 @@ function OrderDetail({ order }: { order: any }) {
             <span className="text-gray-500">{order.currency} {((item.price || 0) * item.quantity).toLocaleString()}</span>
           </div>
         ))}
+        <p className="text-gray-400 text-xs mt-1">
+          Tracking: {order.trackingNumber ? order.trackingNumber : 'Not assigned yet'}
+        </p>
         {order.notes && <p className="text-gray-400 text-xs italic mt-1">"{order.notes}"</p>}
       </div>
     </div>

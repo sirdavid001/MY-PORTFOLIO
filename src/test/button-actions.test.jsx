@@ -209,7 +209,7 @@ describe("Admin button actions", () => {
   });
 
   it("signs in to admin, switches tabs, and logs out", async () => {
-    renderAppAt("/secure-admin-portal-xyz");
+    renderAppAt("/secure-admin-portal-xyz?tab=products");
 
     fireEvent.change(await screen.findByLabelText(/email address/i), {
       target: { value: "admin@sirdavid.site" },
@@ -219,13 +219,17 @@ describe("Admin button actions", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /sign in to dashboard/i }));
 
-    expect(await screen.findByText(/payment-confirmed orders only/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /products/i }));
     expect(await screen.findByText(/products management/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /shipping/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^orders$/i }));
+    expect(await screen.findByText(/payment-confirmed orders only/i)).toBeInTheDocument();
+    expect(await screen.findByText(/jane doe/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^shipping$/i }));
     expect(await screen.findByText(/shipping mode/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(window.location.search).toContain("tab=shipping");
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /logout/i }));
     expect(await screen.findByRole("button", { name: /sign in to dashboard/i })).toBeInTheDocument();

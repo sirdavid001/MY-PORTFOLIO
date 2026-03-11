@@ -15,6 +15,7 @@ import { Separator } from '../ui/separator';
 import Header from './Header';
 import Footer from './Footer';
 import { api } from '../../lib/api';
+import { normalizeOrderRecord } from '../../lib/orders';
 
 // ─── Status configuration ─────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, {
@@ -201,7 +202,7 @@ export default function TrackOrderPage() {
     try {
       const result = await api.trackOrder(trimmed);
       if (result?.success && result?.order) {
-        setOrder(result.order);
+        setOrder(normalizeOrderRecord(result.order));
       } else {
         setOrder(null);
         toast.error('No order found with that reference.');
