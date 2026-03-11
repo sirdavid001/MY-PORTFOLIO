@@ -1,3 +1,5 @@
+import { ImageWithFallback } from "../shop/components/figma/ImageWithFallback";
+
 const projects = [
   {
     title: "Sirdavidgadget",
@@ -40,7 +42,7 @@ export default function Projects() {
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {projects.map((project) => (
           <article key={project.title} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-            <img src={project.image} alt={project.title} className="h-44 w-full object-cover" />
+            <ImageWithFallback src={project.image} alt={project.title} className="h-44 w-full object-cover" />
             <div className="space-y-3 p-5">
               <h2 className="font-display text-2xl font-semibold text-slate-900">{project.title}</h2>
               <p className="text-base text-slate-600 sm:text-lg">{project.description}</p>

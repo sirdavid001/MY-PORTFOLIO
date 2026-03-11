@@ -15,6 +15,7 @@ import {
 } from "react-icons/si";
 import { CV_PROFILE } from "../../shared/cv-profile.js";
 import profileImage from "../../assets/profile.jpg";
+import { ImageWithFallback } from "../shop/components/figma/ImageWithFallback";
 
 function isValidEmail(value) {
   return /^\S+@\S+\.\S+$/.test(String(value || ""));
@@ -174,7 +175,7 @@ export default function Home() {
         </div>
 
         <div className="rounded-3xl bg-white p-3 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
-          <img
+          <ImageWithFallback
             src={profileImage}
             alt="Portrait of Chinedu David"
             className="h-full w-full rounded-2xl object-cover object-top"
