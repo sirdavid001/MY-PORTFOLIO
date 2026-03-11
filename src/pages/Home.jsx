@@ -15,7 +15,7 @@ import {
 } from "react-icons/si";
 import { CV_PROFILE } from "../../shared/cv-profile.js";
 import profileImage from "../../assets/profile.jpg";
-import { ImageWithFallback } from "../shop/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "../components/ImageWithFallback";
 
 function isValidEmail(value) {
   return /^\S+@\S+\.\S+$/.test(String(value || ""));

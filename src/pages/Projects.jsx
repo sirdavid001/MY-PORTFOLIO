@@ -1,19 +1,10 @@
-import { ImageWithFallback } from "../shop/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "../components/ImageWithFallback";
 
 const projects = [
   {
-    title: "Sirdavidgadget",
-    description:
-      "Gadget storefront and admin platform with product management, cart and checkout flow, order tracking, and operational admin tools.",
-    stack: ["TypeScript", "React", "E-commerce", "Admin"],
-    code: "https://github.com/sirdavid001/Sirdavidgadget",
-    image:
-      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
     title: "MY-PORTFOLIO",
     description:
-      "Personal portfolio application combining project showcase, CV export and email delivery, contact flows, and an integrated shop/admin experience.",
+      "Personal portfolio application combining project showcase, CV export and email delivery, contact flows, and location-aware project budgeting.",
     stack: ["TypeScript", "React", "Portfolio", "Vite"],
     code: "https://github.com/sirdavid001/MY-PORTFOLIO",
     image:
@@ -39,7 +30,7 @@ export default function Projects() {
         <p className="mt-2 text-base text-slate-600 sm:text-lg">Current public work pulled from my real GitHub repositories.</p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2">
         {projects.map((project) => (
           <article key={project.title} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
             <ImageWithFallback src={project.image} alt={project.title} className="h-44 w-full object-cover" />

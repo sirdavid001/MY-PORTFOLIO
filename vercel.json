@@ -27,29 +27,12 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://js.paystack.co https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://ipapi.co https://ipwho.is https://open.er-api.com https://api.paystack.co https://vitals.vercel-insights.com https://*.supabase.co; frame-src https://js.paystack.co https://checkout.paystack.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-        }
-      ]
-    },
-    {
-      "source": "/.well-known/apple-developer-merchantid-domain-association",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/text"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
+          "value": "default-src 'self'; script-src 'self' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://ipapi.co https://ipwho.is https://open.er-api.com https://vitals.vercel-insights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
         }
       ]
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/admin/logout",
-      "destination": "/api/admin/session"
-    },
     {
       "source": "/((?!api/|assets/|\\.well-known/|.*\\..*).*)",
       "destination": "/index.html"

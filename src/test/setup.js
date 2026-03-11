@@ -35,7 +35,6 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  document.getElementById("sirdavidgadget-source-shop-css")?.remove();
 });
 
 if (!window.HTMLElement.prototype.scrollIntoView) {

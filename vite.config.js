@@ -10,9 +10,6 @@ export default defineConfig({
           if (!id.includes("node_modules")) return;
 
           if (id.includes("react-router")) return "router";
-          if (id.includes("@radix-ui") || id.includes("sonner") || id.includes("lucide-react")) {
-            return "shop-ui";
-          }
           if (id.includes("react") || id.includes("react-dom") || id.includes("scheduler")) {
             return "react-vendor";
           }

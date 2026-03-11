@@ -26,27 +26,4 @@ describe("App smoke tests", () => {
     expect(await screen.findByRole("heading", { name: /tell me about your project/i })).toBeInTheDocument();
     expect(screen.getByText(/project request form/i)).toBeInTheDocument();
   });
-
-  it("renders the storefront on shop routes", async () => {
-    renderAppAt("/shop");
-
-    expect(await screen.findByText(/apple iphone xr/i)).toBeInTheDocument();
-    expect(screen.getByText(/^SirDavid$/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^track order$/i })).toBeInTheDocument();
-  });
-
-  it("renders the tracking page on tracking routes", async () => {
-    renderAppAt("/track-order");
-
-    expect(await screen.findByRole("heading", { name: /track your order/i })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /track order/i }).length).toBeGreaterThan(0);
-  });
-
-  it("renders the admin login view when no admin session exists", async () => {
-    renderAppAt("/secure-admin-portal-xyz");
-
-    expect(await screen.findByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /admin portal/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /sign in to dashboard/i })).toBeInTheDocument();
-  });
 });
