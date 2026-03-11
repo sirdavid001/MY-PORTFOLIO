@@ -16,6 +16,8 @@ import { Product, addToCart, loadCart, getCartItemCount } from '../../lib/cart';
 import { api } from '../../lib/api';
 import {
   PricingContext,
+  DEFAULT_EXCHANGE_RATES,
+  createPricingContext,
   convertPrice,
   formatCurrency,
   fetchExchangeRates,
@@ -64,19 +66,25 @@ export default function ProductDetailPage() {
         return;
       }
       const [locationData, exchangeRates] = await Promise.all([
-        api.getLocation().catch(() => ({ country: 'US', currency: 'USD' })),
+        api.getLocation().catch(() => ({ countryCode: 'US', countryName: 'United States', currency: 'USD' })),
         fetchExchangeRates(),
       ]);
-      const context: PricingContext = {
-        country: locationData.country,
-        currency: locationData.currency,
-        exchangeRates,
-        lastUpdated: new Date().toISOString(),
-      };
+      const context: PricingContext = createPricingContext(locationData, exchangeRates, {
+        countryCode: 'US',
+        countryName: 'United States',
+        currency: 'USD',
+      });
       savePricingContext(context);
       setPricingContext(context);
     } catch (error) {
       console.error('Pricing initialization error:', error);
+      setPricingContext(
+        createPricingContext(undefined, DEFAULT_EXCHANGE_RATES, {
+          countryCode: 'US',
+          countryName: 'United States',
+          currency: 'USD',
+        })
+      );
     }
   }
 
@@ -145,7 +153,8 @@ export default function ProductDetailPage() {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!lightboxOpen || !product) return;
-      const imgs = product.images;
+      const imgs = product.images?.filter(Boolean) || [];
+      if (imgs.length === 0) return;
       if (e.key === 'ArrowRight') setSelectedImage((i) => (i + 1) % imgs.length);
       if (e.key === 'ArrowLeft') setSelectedImage((i) => (i - 1 + imgs.length) % imgs.length);
       if (e.key === 'Escape') setLightboxOpen(false);
@@ -200,7 +209,7 @@ export default function ProductDetailPage() {
   const currency = pricingContext?.currency || 'USD';
   const exchangeRates = pricingContext?.exchangeRates || { USD: 1 };
   const price = convertPrice(product.priceUSD, currency, exchangeRates);
-  const images = product.images?.length ? product.images : [''];
+  const images = product.images?.filter(Boolean) || [];
 
   // Related products: same category, not this product
   const relatedProducts = allProducts
@@ -269,7 +278,7 @@ export default function ProductDetailPage() {
               onClick={() => setLightboxOpen(true)}
             >
               <ImageWithFallback
-                src={images[selectedImage]}
+                src={images[selectedImage] || undefined}
                 alt={product.name}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
@@ -322,7 +331,7 @@ export default function ProductDetailPage() {
                     }`}
                   >
                     <ImageWithFallback
-                      src={img}
+                      src={img || undefined}
                       alt={`${product.name} view ${idx + 1}`}
                       className="w-full h-full object-cover"
                     />
@@ -629,7 +638,7 @@ export default function ProductDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <ImageWithFallback
-              src={images[selectedImage]}
+              src={images[selectedImage] || undefined}
               alt={product.name}
               className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
             />

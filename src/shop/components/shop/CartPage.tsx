@@ -19,15 +19,19 @@ import {
   updateCartItemQuantity,
   removeFromCart,
   clearCart,
+  clearCheckoutData,
   Cart,
   getCartTotal,
   calculateShipping,
+  createEmptyCheckoutData,
   loadCheckoutData,
   saveCheckoutData,
   CheckoutData,
 } from '../../lib/cart';
 import {
   PricingContext,
+  DEFAULT_EXCHANGE_RATES,
+  createPricingContext,
   convertPrice,
   formatCurrency,
   fetchExchangeRates,
@@ -127,10 +131,7 @@ function Field({ label, required, error, children }: {
 export default function CartPage() {
   const navigate = useNavigate();
   const [cart, setCart] = useState<Cart>({ items: [], updatedAt: '' });
-  const [checkoutData, setCheckoutData] = useState<CheckoutData>({
-    customerName: '', customerEmail: '', customerPhone: '',
-    address: '', city: '', country: '', notes: '',
-  });
+  const [checkoutData, setCheckoutData] = useState<CheckoutData>(createEmptyCheckoutData());
   const [dialCode, setDialCode] = useState('+234');
   const [phoneLocal, setPhoneLocal] = useState('');
   const [pricingContext, setPricingContext] = useState<PricingContext | null>(null);
@@ -151,11 +152,24 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
-    if (pricingContext?.country && !checkoutData.customerPhone) {
-      setDialCode(getDefaultDial(pricingContext.country));
+    const detectedCountryCode = pricingContext?.countryCode || pricingContext?.country;
+    if (detectedCountryCode && !checkoutData.customerPhone) {
+      setDialCode(getDefaultDial(detectedCountryCode));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pricingContext?.country]);
+  }, [pricingContext?.countryCode, pricingContext?.country, checkoutData.customerPhone]);
+
+  useEffect(() => {
+    const detectedCountryName = pricingContext?.countryName || pricingContext?.country || '';
+    if (!detectedCountryName) return;
+
+    setCheckoutData((current) => {
+      if (current.country.trim()) return current;
+
+      const updated = { ...current, country: detectedCountryName };
+      saveCheckoutData(updated);
+      return updated;
+    });
+  }, [pricingContext?.countryName, pricingContext?.country]);
 
   function loadPaystackScript() {
     if (typeof window !== 'undefined' && !window.PaystackPop) {
@@ -174,19 +188,25 @@ export default function CartPage() {
       const cached = loadPricingContext();
       if (cached) { setPricingContext(cached); return; }
       const [locationData, exchangeRates] = await Promise.all([
-        api.getLocation().catch(() => ({ country: 'NG', currency: 'NGN' })),
+        api.getLocation().catch(() => ({ countryCode: 'NG', countryName: 'Nigeria', currency: 'NGN' })),
         fetchExchangeRates(),
       ]);
-      const ctx: PricingContext = {
-        country: locationData.country,
-        currency: locationData.currency,
-        exchangeRates,
-        lastUpdated: new Date().toISOString(),
-      };
+      const ctx: PricingContext = createPricingContext(locationData, exchangeRates, {
+        countryCode: 'NG',
+        countryName: 'Nigeria',
+        currency: 'NGN',
+      });
       savePricingContext(ctx);
       setPricingContext(ctx);
     } catch (err) {
       console.error('Pricing init error:', err);
+      setPricingContext(
+        createPricingContext(undefined, DEFAULT_EXCHANGE_RATES, {
+          countryCode: 'NG',
+          countryName: 'Nigeria',
+          currency: 'NGN',
+        })
+      );
     }
   }
 
@@ -265,10 +285,41 @@ export default function CartPage() {
     if (!checkoutData.customerEmail.trim())  e.customerEmail = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(checkoutData.customerEmail))
       e.customerEmail = 'Enter a valid email address';
+    if (!checkoutData.customerPhone.trim())  e.customerPhone = 'Phone number is required';
+    else if (checkoutData.customerPhone.replace(/\D/g, '').length < 7)
+      e.customerPhone = 'Enter a valid phone number';
     if (!checkoutData.address.trim()) e.address = 'Delivery address is required';
     if (!checkoutData.city.trim())    e.city    = 'City is required';
+    if (!checkoutData.country.trim()) e.country = 'Country is required';
     setErrors(e);
     return Object.keys(e).length === 0;
+  }
+
+  function buildOrderPayload(reference: string) {
+    return {
+      reference,
+      currency,
+      subtotal,
+      shipping,
+      total,
+      items: cart.items.map((item) => ({
+        id: item.product.id,
+        name: item.product.name,
+        quantity: item.quantity,
+        price: convertPrice(item.product.priceUSD, currency, rates),
+      })),
+      checkout: {
+        fullName: checkoutData.customerName.trim(),
+        email: checkoutData.customerEmail.trim(),
+        phone: checkoutData.customerPhone.trim(),
+        callNumber: checkoutData.customerPhone.trim(),
+        address: checkoutData.address.trim(),
+        city: checkoutData.city.trim(),
+        country: checkoutCountry,
+        paymentMethod: 'Paystack',
+        notes: checkoutData.notes.trim(),
+      },
+    };
   }
 
   async function handleCheckout() {
@@ -291,34 +342,9 @@ export default function CartPage() {
 
     setLoading(true);
     try {
-      const rates = pricingContext?.exchangeRates || { USD: 1 };
-      const subUSD = getCartTotal(cart);
-      const shipUSD = shippingSettings ? calculateShipping(subUSD, shippingSettings) : 0;
-      const totalUSD = subUSD + shipUSD;
-      const sub   = convertPrice(subUSD,   currency, rates);
-      const ship  = convertPrice(shipUSD,  currency, rates);
-      const tot   = convertPrice(totalUSD, currency, rates);
       const ref   = `ORD-${Date.now()}`;
-
-      await api.submitOrder({
-        reference: ref,
-        customerName:  checkoutData.customerName,
-        customerEmail: checkoutData.customerEmail,
-        customerPhone: checkoutData.customerPhone,
-        address: checkoutData.address,
-        city:    checkoutData.city,
-        country: pricingContext?.country || checkoutData.country,
-        paymentMethod: 'paystack',
-        currency,
-        subtotal: sub, shipping: ship, total: tot,
-        notes: checkoutData.notes,
-        items: cart.items.map(item => ({
-          id:       item.product.id,
-          name:     item.product.name,
-          quantity: item.quantity,
-          price:    convertPrice(item.product.priceUSD, currency, rates),
-        })),
-      });
+      const orderPayload = buildOrderPayload(ref);
+      const expectedAmountKobo = Math.round(orderPayload.total * 100);
 
       // Use Paystack Inline v2 checkout() method — this auto-detects Apple
       // devices / Safari and shows a pre-checkout modal with Apple Pay button
@@ -328,10 +354,11 @@ export default function CartPage() {
       await handler.checkout({
         key:      paystackPublicKey,
         email:    checkoutData.customerEmail,
-        amount:   Math.round(tot * 100),
+        amount:   expectedAmountKobo,
         currency,
         ref,
         metadata: {
+          order_reference: ref,
           custom_fields: [
             { display_name: 'Customer Name', variable_name: 'customer_name', value: checkoutData.customerName },
             { display_name: 'Phone',         variable_name: 'phone',         value: checkoutData.customerPhone },
@@ -339,14 +366,41 @@ export default function CartPage() {
           ],
         },
         onSuccess: async (tx: any) => {
+          const paymentReference = tx.reference || ref;
+          let paymentVerified = false;
+
           try {
-            await api.verifyPayment(tx.reference || ref);
+            const verification = await api.verifyPayment(paymentReference, {
+              expectedAmountKobo,
+              expectedCurrency: currency,
+              expectedEmail: orderPayload.checkout.email,
+            });
+
+            paymentVerified = Boolean(verification?.paid || verification?.data?.status === 'success');
+            if (!paymentVerified) {
+              throw new Error(verification?.error || 'Payment could not be verified.');
+            }
+
+            await api.submitOrder(orderPayload);
             clearCart();
+            refreshCart();
+
+            const emptyCheckout = clearCheckoutData();
+            setCheckoutData(emptyCheckout);
+            setPhoneLocal('');
+            setDialCode(getDefaultDial(pricingContext?.countryCode || pricingContext?.country));
+
             toast.success('Payment successful! Order confirmed.');
-            setTimeout(() => navigate('/shop?payment=success&reference=' + (tx.reference || ref)), 1500);
+            navigate('/shop?payment=success&reference=' + ref);
           } catch (err) {
-            console.error('Verify error:', err);
-            toast.error('Payment received but verification failed. Ref: ' + (tx.reference || ref));
+            console.error('Checkout finalization error:', err);
+            if (paymentVerified) {
+              clearCart();
+              refreshCart();
+              toast.error(`Payment succeeded, but order confirmation needs manual review. Ref: ${ref}`);
+            } else {
+              toast.error('Payment received but verification failed. Ref: ' + paymentReference);
+            }
           } finally { setLoading(false); }
         },
         onCancel: () => {
@@ -371,6 +425,16 @@ export default function CartPage() {
   const shipping      = convertPrice(shipUSD,  currency, rates);
   const total         = convertPrice(totalUSD, currency, rates);
   const itemCount     = cart.items.reduce((s, i) => s + i.quantity, 0);
+  const checkoutCountry = checkoutData.country.trim()
+    || pricingContext?.countryName
+    || pricingContext?.country
+    || pricingContext?.countryCode
+    || '';
+  const deliveryDestination = [
+    checkoutData.address.trim(),
+    checkoutData.city.trim(),
+    checkoutCountry,
+  ].filter(Boolean).join(', ');
 
   const freeThreshold = shippingSettings?.freeThreshold || 0;
   const freeProgress  = freeThreshold > 0 ? Math.min((subUSD / freeThreshold) * 100, 100) : 0;
@@ -457,7 +521,7 @@ export default function CartPage() {
                   <div key={item.product.id} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
                       <ImageWithFallback
-                        src={item.product.images?.[0] || ''}
+                        src={item.product.images?.[0] || undefined}
                         alt={item.product.name}
                         query={`${item.product.brand} gadget`}
                         className="w-full h-full object-cover"
@@ -552,7 +616,7 @@ export default function CartPage() {
                           aria-label={`View ${item.product.name}`}
                         >
                           <ImageWithFallback
-                            src={item.product.images?.[0] || ''}
+                            src={item.product.images?.[0] || undefined}
                             alt={item.product.name}
                             query={`${item.product.name} ${item.product.brand} gadget`}
                             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
@@ -672,7 +736,7 @@ export default function CartPage() {
                 </div>
 
                 {/* Phone with country dial */}
-                <Field label="Phone Number" error={errors.customerPhone}>
+                  <Field label="Phone Number" required error={errors.customerPhone}>
                   <div className="flex">
                     <div className="relative flex-shrink-0">
                       <select
@@ -690,12 +754,13 @@ export default function CartPage() {
                       <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
                     </div>
                     <Input
+                      data-field-error={!!errors.customerPhone || undefined}
                       type="tel"
                       value={phoneLocal}
                       onChange={e => handlePhoneChange(e.target.value.replace(/[^\d\s\-()]/g, ''))}
                       placeholder="8012345678"
                       autoComplete="tel"
-                      className="rounded-l-none border-l-0 flex-1 min-w-0"
+                      className={`rounded-l-none border-l-0 flex-1 min-w-0 ${errors.customerPhone ? 'border-red-400 focus-visible:ring-red-300' : ''}`}
                     />
                   </div>
                   {dialCode && phoneLocal && (
@@ -731,12 +796,14 @@ export default function CartPage() {
                       className={errors.city ? 'border-red-400 focus-visible:ring-red-300' : ''}
                     />
                   </Field>
-                  <Field label="Country">
+                  <Field label="Country" required error={errors.country}>
                     <Input
-                      value={checkoutData.country || pricingContext?.country || ''}
+                      data-field-error={!!errors.country || undefined}
+                      value={checkoutData.country || pricingContext?.countryName || pricingContext?.country || ''}
                       onChange={e => handleInputChange('country', e.target.value)}
                       placeholder="e.g. Nigeria"
                       autoComplete="country-name"
+                      className={errors.country ? 'border-red-400 focus-visible:ring-red-300' : ''}
                     />
                   </Field>
                 </div>
@@ -795,6 +862,12 @@ export default function CartPage() {
                         {shipping === 0 ? 'FREE' : formatCurrency(shipping, currency)}
                       </span>
                     </div>
+                    {deliveryDestination && (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-600">Delivery</span>
+                        <span className="font-medium text-right text-gray-700">{deliveryDestination}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-gray-50 rounded-xl px-4 py-3 flex justify-between items-center">
