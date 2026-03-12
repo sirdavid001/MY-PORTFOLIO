@@ -163,12 +163,12 @@ export default function Home() {
             >
               View My Work
             </Link>
-            <Link
-              to="/shop"
+            <a
+              href="/shop"
               className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 sm:px-6 sm:text-base"
             >
               Visit Shop
-            </Link>
+            </a>
             <Link
               to="/contact"
               className="rounded-xl border border-slate-400 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-100 sm:px-6 sm:text-base"

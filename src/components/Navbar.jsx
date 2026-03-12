@@ -5,7 +5,6 @@ import Logo from "./Logo";
 const links = [
   { to: "/", label: "Home" },
   { to: "/projects", label: "Projects" },
-  { to: "/shop", label: "Shop" },
   { to: "/contact", label: "Contact" },
 ];
 
@@ -39,6 +38,12 @@ export default function Navbar() {
               {link.label}
             </NavLink>
           ))}
+          <a
+            href="/shop"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+          >
+            Shop
+          </a>
         </nav>
       </div>
 
@@ -55,6 +60,13 @@ export default function Navbar() {
                 {link.label}
               </NavLink>
             ))}
+            <a
+              href="/shop"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              onClick={() => setOpen(false)}
+            >
+              Shop
+            </a>
           </div>
         </nav>
       )}

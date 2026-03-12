@@ -20,7 +20,7 @@ export default function Footer() {
             <div className="mt-3 grid gap-2 text-slate-600">
               <Link to="/" className="hover:text-slate-900">Home</Link>
               <Link to="/projects" className="hover:text-slate-900">Projects</Link>
-              <Link to="/shop" className="hover:text-slate-900">Shop</Link>
+              <a href="/shop" className="hover:text-slate-900">Shop</a>
               <Link to="/contact" className="hover:text-slate-900">Contact</Link>
             </div>
           </div>
