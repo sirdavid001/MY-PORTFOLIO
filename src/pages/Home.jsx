@@ -14,8 +14,6 @@ import {
   SiTypescript,
 } from "react-icons/si";
 import { CV_PROFILE } from "../../shared/cv-profile.js";
-import profileImage from "../../assets/profile.jpg";
-import { ImageWithFallback } from "../components/ImageWithFallback";
 
 function isValidEmail(value) {
   return /^\S+@\S+\.\S+$/.test(String(value || ""));
@@ -145,8 +143,8 @@ export default function Home() {
 
   return (
     <div className="space-y-0">
-      <section className="grid min-h-[70vh] items-center gap-8 py-10 md:grid-cols-[1fr_0.95fr] md:gap-10 md:py-12">
-        <div>
+      <section className="min-h-[70vh] py-10 md:py-12">
+        <div className="max-w-3xl">
           <h1 className="font-display text-4xl font-bold leading-tight text-slate-900 sm:text-5xl lg:text-6xl">
             Hi, I&apos;m <span className="text-blue-600">{CV_PROFILE.displayName}</span>
           </h1>
@@ -178,14 +176,6 @@ export default function Home() {
               Get In Touch
             </Link>
           </div>
-        </div>
-
-        <div className="rounded-3xl bg-white p-3 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
-          <ImageWithFallback
-            src={profileImage}
-            alt="Portrait of Chinedu David"
-            className="h-full w-full rounded-2xl object-cover object-top"
-          />
         </div>
       </section>
 
