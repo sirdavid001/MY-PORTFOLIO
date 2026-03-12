@@ -1,4 +1,4 @@
-import { CV_PROFILE } from "./cv-profile.js";
+import { CV_PROFILE } from "./profile.js";
 
 const contactLines = [
   `Location: ${CV_PROFILE.location}`,

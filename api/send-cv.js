@@ -1,8 +1,8 @@
-import { applyRateLimit } from "../server/_lib/rate-limit.js";
-import { getClientIp } from "../server/_lib/security.js";
-import { CV_PROFILE } from "../shared/cv-profile.js";
-import { buildCvPdf } from "../shared/cv-pdf.js";
-import { buildCvWordDocument } from "../shared/cv-word.js";
+import { applyRateLimit } from "./_lib/rate-limit.js";
+import { getClientIp } from "./_lib/security.js";
+import { CV_PROFILE } from "../shared/cv/profile.js";
+import { buildCvPdf } from "../shared/cv/pdf.js";
+import { buildCvWordDocument } from "../shared/cv/word.js";
 
 const CV_OPTIONS = {
   pdf: {

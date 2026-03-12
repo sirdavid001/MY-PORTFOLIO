@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCurrencyForCountry, getLocationFactor } from "../lib/budgeting";
+import { getCurrencyForCountry, getLocationFactor } from "../../shared/budgeting.js";
 import { normalizeCountryCode, normalizeCurrencyCode, normalizeLocationPayload, resolveCountryName } from "../../shared/location.js";
 
 const BUDGET_CONTEXT_STORAGE_KEY = "sd_budget_context";

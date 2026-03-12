@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useBudgetContext from "../hooks/useBudgetContext";
-import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../lib/budgeting";
-import { CV_PROFILE } from "../../shared/cv-profile.js";
+import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../../shared/budgeting.js";
+import { CV_PROFILE } from "../../shared/cv/profile.js";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none ring-blue-300/60 placeholder:text-slate-400 focus:ring";

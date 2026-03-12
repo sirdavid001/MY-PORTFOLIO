@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FiDownload, FiGithub, FiGlobe, FiMail, FiMapPin, FiPhone } from "react-icons/fi";
+import { FiDownload, FiMail } from "react-icons/fi";
 import {
   SiCss3,
   SiGit,
@@ -13,7 +13,7 @@ import {
   SiTailwindcss,
   SiTypescript,
 } from "react-icons/si";
-import { CV_PROFILE } from "../../shared/cv-profile.js";
+import { CV_PROFILE } from "../../shared/cv/profile.js";
 
 function isValidEmail(value) {
   return /^\S+@\S+\.\S+$/.test(String(value || ""));
@@ -53,19 +53,6 @@ const tech = [
 const cvFormats = [
   { value: "pdf", label: "PDF", href: "/api/cv-download?format=pdf", download: "chineduDavidNwadialoCv.pdf" },
   { value: "word", label: "Word", href: "/api/cv-download?format=word", download: "chineduDavidNwadialoCv.doc" },
-];
-
-const cvPreviewContacts = [
-  { label: "Location", value: CV_PROFILE.location, icon: FiMapPin },
-  { label: "Email", value: CV_PROFILE.email, icon: FiMail },
-  { label: "GitHub", value: CV_PROFILE.github, icon: FiGithub },
-  { label: "Phone", value: CV_PROFILE.phone, icon: FiPhone },
-  { label: "Portfolio", value: CV_PROFILE.portfolio, icon: FiGlobe },
-];
-
-const cvPreviewSkillColumns = [
-  CV_PROFILE.keySkills.items.slice(0, Math.ceil(CV_PROFILE.keySkills.items.length / 2)),
-  CV_PROFILE.keySkills.items.slice(Math.ceil(CV_PROFILE.keySkills.items.length / 2)),
 ];
 
 export default function Home() {
@@ -232,7 +219,7 @@ export default function Home() {
 
       <section className="border-t border-slate-200 py-16 sm:py-20">
         <div className="mx-auto max-w-4xl px-4">
-          <div className="grid gap-6 rounded-[32px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50/60 p-6 shadow-sm sm:p-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.88fr)]">
+          <div className="rounded-[32px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50/60 p-6 shadow-sm sm:p-8">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">CV</p>
               <h2 className="mt-3 font-display text-3xl font-bold text-slate-900 sm:text-4xl">
@@ -304,93 +291,6 @@ export default function Home() {
                 </div>
                 {requestStatus ? <p className="mt-3 text-sm text-slate-700">{requestStatus}</p> : null}
               </form>
-            </div>
-
-            <div className="mx-auto w-full max-w-[420px] rounded-[28px] border border-slate-200 bg-[#e5e7eb] p-3 shadow-[0_26px_70px_rgba(15,23,42,0.14)]">
-              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-[#f3f4f6]">
-                <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-900 px-6 py-6 text-white">
-                  <h3 className="text-[1.8rem] font-bold leading-tight sm:text-[2rem]">{CV_PROFILE.name}</h3>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-2.5">
-                        {cvPreviewContacts.slice(0, 3).map((item) => (
-                        <div key={item.label} className="flex items-start gap-2.5 text-sm leading-relaxed text-blue-50">
-                          <item.icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                          <span>{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="space-y-2.5">
-                      {cvPreviewContacts.slice(3).map((item) => (
-                        <div key={item.label} className="flex items-start gap-2.5 text-sm leading-relaxed text-blue-50">
-                          <item.icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                          <span>
-                            {item.label === "Portfolio" ? `Portfolio: ${item.value}` : item.value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-5 px-6 py-6 text-slate-700">
-                  <div>
-                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Professional Summary</div>
-                    <div className="mt-2 h-1 bg-blue-600" />
-                    <p className="mt-4 text-sm leading-7">{CV_PROFILE.summary}</p>
-                  </div>
-
-                  <div>
-                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Key Skills</div>
-                    <div className="mt-2 h-1 bg-blue-600" />
-                    <div className="mt-4 text-lg font-semibold text-slate-900">{CV_PROFILE.keySkills.title}</div>
-                    <div className="mt-3 grid gap-2 text-sm leading-7 sm:grid-cols-2">
-                      {cvPreviewSkillColumns.map((column, columnIndex) => (
-                        <ul key={columnIndex} className="space-y-1.5">
-                          {column.map((skill) => (
-                            <li key={skill} className="list-disc pl-1 marker:text-slate-700">
-                              {skill}
-                            </li>
-                          ))}
-                        </ul>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Education</div>
-                    <div className="mt-2 h-1 bg-blue-600" />
-                    <div className="mt-4 space-y-4 text-sm leading-7">
-                      {CV_PROFILE.education.map((entry) => (
-                        <div key={entry.title}>
-                          <div className="font-semibold text-slate-900">{entry.title}</div>
-                          {entry.details.map((detail) => (
-                            <div key={detail}>{detail}</div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Selected Projects</div>
-                    <div className="mt-2 h-1 bg-blue-600" />
-                    <div className="mt-4 space-y-3 text-sm leading-7">
-                      {CV_PROFILE.projects.map((project) => (
-                        <div key={project.title}>
-                          <div className="font-semibold text-slate-900">{project.title}</div>
-                          <div>{project.description}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-[1.65rem] font-bold tracking-tight text-slate-900">Technical Skills</div>
-                    <div className="mt-2 h-1 bg-blue-600" />
-                    <p className="mt-4 text-sm leading-7">{CV_PROFILE.technicalSkills.join(" • ")}</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

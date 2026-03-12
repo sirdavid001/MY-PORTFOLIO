@@ -16,6 +16,19 @@ npm run build
 npm run preview
 ```
 
+## Project structure
+
+```text
+api/              Vercel serverless routes and API-only helpers
+public/           Static public assets
+shared/           Code shared by the frontend and API routes
+shared/cv/        CV profile data plus CV document builders
+src/              React application source
+src/components/   Reusable UI and layout components
+src/hooks/        React hooks
+src/pages/        Route-level page components
+```
+
 ## Vercel settings
 
 - Framework preset: `Vite`

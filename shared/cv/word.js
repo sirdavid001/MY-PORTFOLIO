@@ -1,4 +1,4 @@
-import { CV_PROFILE } from "./cv-profile.js";
+import { CV_PROFILE } from "./profile.js";
 
 function escapeHtml(value) {
   return String(value || "")

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { CV_PROFILE } from "../../shared/cv-profile.js";
+import { CV_PROFILE } from "../../../shared/cv/profile.js";
 
 export default function Logo({ to = "/", compact = false }) {
   return (

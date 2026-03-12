@@ -1,5 +1,5 @@
-import { buildCvPdf } from "../shared/cv-pdf.js";
-import { buildCvWordDocument } from "../shared/cv-word.js";
+import { buildCvPdf } from "../shared/cv/pdf.js";
+import { buildCvWordDocument } from "../shared/cv/word.js";
 
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "*");

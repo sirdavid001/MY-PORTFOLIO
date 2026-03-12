@@ -1,6 +1,6 @@
 import Logo from "./Logo";
 import { Link } from "react-router-dom";
-import { CV_PROFILE } from "../../shared/cv-profile.js";
+import { CV_PROFILE } from "../../../shared/cv/profile.js";
 
 export default function Footer() {
   return (

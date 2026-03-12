@@ -1,4 +1,4 @@
-import { getCurrencyForCountry } from "../src/lib/budgeting.js";
+import { getCurrencyForCountry } from "./budgeting.js";
 
 const INVALID_COUNTRY_CODES = new Set(["XX", "ZZ", "T1"]);
 
