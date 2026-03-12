@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { getCurrencyForCountry, getLocationFactor } from "../lib/pricing";
+import { getCurrencyForCountry, getLocationFactor } from "../lib/budgeting";
 import { normalizeCountryCode, normalizeCurrencyCode, normalizeLocationPayload, resolveCountryName } from "../../shared/location.js";
 
-const PRICING_CONTEXT_STORAGE_KEY = "sd_pricing_context";
+const BUDGET_CONTEXT_STORAGE_KEY = "sd_budget_context";
+const LEGACY_PRICING_CONTEXT_STORAGE_KEY = "sd_pricing_context";
 
 const defaultContext = {
   countryCode: "NG",
@@ -36,7 +37,7 @@ function resolveExchangeRate(currency, rates, fallbackExchangeRate = 1) {
   return Math.max(0.0001, toFiniteNumber(fallbackExchangeRate, 1));
 }
 
-function buildPricingContext({
+function buildBudgetContext({
   countryCode,
   countryName,
   currency,
@@ -74,45 +75,48 @@ function buildPricingContext({
   };
 }
 
-function loadStoredPricingContext() {
+function loadStoredBudgetContext() {
   if (typeof window === "undefined") return null;
 
   try {
-    const raw = window.localStorage.getItem(PRICING_CONTEXT_STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(BUDGET_CONTEXT_STORAGE_KEY) ||
+      window.localStorage.getItem(LEGACY_PRICING_CONTEXT_STORAGE_KEY);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    return buildPricingContext(parsed || {});
+    return buildBudgetContext(parsed || {});
   } catch {
     return null;
   }
 }
 
-function persistPricingContext(pricingContext) {
+function persistBudgetContext(budgetContext) {
   if (typeof window === "undefined") return;
 
   try {
     window.localStorage.setItem(
-      PRICING_CONTEXT_STORAGE_KEY,
+      BUDGET_CONTEXT_STORAGE_KEY,
       JSON.stringify({
-        countryCode: pricingContext.countryCode,
-        countryName: pricingContext.countryName,
-        currency: pricingContext.currency,
-        exchangeRate: pricingContext.exchangeRate,
-        rates: pricingContext.rates,
+        countryCode: budgetContext.countryCode,
+        countryName: budgetContext.countryName,
+        currency: budgetContext.currency,
+        exchangeRate: budgetContext.exchangeRate,
+        rates: budgetContext.rates,
       })
     );
+    window.localStorage.removeItem(LEGACY_PRICING_CONTEXT_STORAGE_KEY);
   } catch {
-    // Ignore storage failures and keep the in-memory pricing context.
+    // Ignore storage failures and keep the in-memory budget context.
   }
 }
 
-export default function usePricingContext() {
-  const [pricingContext, setPricingContext] = useState(() => loadStoredPricingContext() || defaultContext);
+export default function useBudgetContext() {
+  const [budgetContext, setBudgetContext] = useState(() => loadStoredBudgetContext() || defaultContext);
 
   useEffect(() => {
     let active = true;
-    const cachedContext = loadStoredPricingContext();
+    const cachedContext = loadStoredBudgetContext();
 
     function localeFallback() {
       const locales = Array.isArray(navigator.languages) && navigator.languages.length > 0
@@ -191,10 +195,10 @@ export default function usePricingContext() {
       return localeFallback();
     }
 
-    async function resolvePricingContext() {
+    async function resolveBudgetContext() {
       try {
         const detected = await detectLocation();
-        const provisionalContext = buildPricingContext({
+        const provisionalContext = buildBudgetContext({
           countryCode: detected.countryCode || cachedContext?.countryCode || defaultContext.countryCode,
           countryName: detected.countryName || cachedContext?.countryName || defaultContext.countryName,
           currency: detected.currency || cachedContext?.currency || defaultContext.currency,
@@ -210,15 +214,15 @@ export default function usePricingContext() {
         });
 
         if (!active) return;
-        setPricingContext(provisionalContext);
-        persistPricingContext(provisionalContext);
+        setBudgetContext(provisionalContext);
+        persistBudgetContext(provisionalContext);
 
         try {
           const fxResponse = await fetch("https://open.er-api.com/v6/latest/USD");
           if (!fxResponse.ok) return;
 
           const fx = await fxResponse.json();
-          const resolvedContext = buildPricingContext({
+          const resolvedContext = buildBudgetContext({
             countryCode: provisionalContext.countryCode,
             countryName: provisionalContext.countryName,
             currency: provisionalContext.currency,
@@ -227,24 +231,24 @@ export default function usePricingContext() {
           });
 
           if (!active) return;
-          setPricingContext(resolvedContext);
-          persistPricingContext(resolvedContext);
+          setBudgetContext(resolvedContext);
+          persistBudgetContext(resolvedContext);
         } catch {
           // Keep the detected currency and cached rates when the exchange-rate service is unavailable.
         }
       } catch {
-        const fallbackContext = buildPricingContext(cachedContext || defaultContext);
+        const fallbackContext = buildBudgetContext(cachedContext || defaultContext);
         if (!active) return;
-        setPricingContext(fallbackContext);
-        persistPricingContext(fallbackContext);
+        setBudgetContext(fallbackContext);
+        persistBudgetContext(fallbackContext);
       }
     }
 
-    resolvePricingContext();
+    resolveBudgetContext();
     return () => {
       active = false;
     };
   }, []);
 
-  return pricingContext;
+  return budgetContext;
 }

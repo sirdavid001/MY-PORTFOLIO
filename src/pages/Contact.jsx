@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import usePricingContext from "../hooks/usePricingContext";
-import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../lib/pricing";
+import useBudgetContext from "../hooks/useBudgetContext";
+import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../lib/budgeting";
 import { CV_PROFILE } from "../../shared/cv-profile.js";
 
 const inputClass =
@@ -64,7 +64,7 @@ const defaultForm = {
 };
 
 export default function Contact() {
-  const pricingContext = usePricingContext();
+  const budgetContext = useBudgetContext();
   const [formData, setFormData] = useState(defaultForm);
   const [countryOptions, setCountryOptions] = useState([
     { code: "US", name: "United States", flag: countryCodeToFlag("US") },
@@ -72,8 +72,8 @@ export default function Contact() {
 
   const selectedCountry =
     countryOptions.find((country) => country.code === formData.countryCode) || countryOptions[0];
-  const selectedCurrencyCode = getCurrencyForCountry(formData.countryCode, pricingContext.currency);
-  const selectedUsdRate = pricingContext.rates[selectedCurrencyCode] || 1;
+  const selectedCurrencyCode = getCurrencyForCountry(formData.countryCode, budgetContext.currency);
+  const selectedUsdRate = budgetContext.rates[selectedCurrencyCode] || 1;
   const selectedCountryFactor = getLocationFactor(formData.countryCode);
 
   useEffect(() => {
@@ -91,11 +91,11 @@ export default function Contact() {
 
     setCountryOptions(countries);
 
-    const detectedRegion = pricingContext.countryCode || (locale.includes("-") ? locale.split("-")[1]?.toUpperCase() : "");
+    const detectedRegion = budgetContext.countryCode || (locale.includes("-") ? locale.split("-")[1]?.toUpperCase() : "");
     if (detectedRegion && countries.some((country) => country.code === detectedRegion)) {
       setFormData((prev) => ({ ...prev, countryCode: detectedRegion }));
     }
-  }, [pricingContext.countryCode]);
+  }, [budgetContext.countryCode]);
 
   const budgetOptions = useMemo(() => {
     const baseMin = roundMoney(250 * selectedUsdRate * selectedCountryFactor);
