@@ -1,4 +1,5 @@
 import Logo from "./Logo";
+import { Link } from "react-router-dom";
 import { CV_PROFILE } from "../../shared/cv-profile.js";
 
 export default function Footer() {
@@ -17,9 +18,10 @@ export default function Footer() {
           <div>
             <h4 className="font-display text-xl font-semibold text-slate-900">Quick Links</h4>
             <div className="mt-3 grid gap-2 text-slate-600">
-              <a href="/" className="hover:text-slate-900">Home</a>
-              <a href="/projects" className="hover:text-slate-900">Projects</a>
-              <a href="/contact" className="hover:text-slate-900">Contact</a>
+              <Link to="/" className="hover:text-slate-900">Home</Link>
+              <Link to="/projects" className="hover:text-slate-900">Projects</Link>
+              <Link to="/shop" className="hover:text-slate-900">Shop</Link>
+              <Link to="/contact" className="hover:text-slate-900">Contact</Link>
             </div>
           </div>
 
