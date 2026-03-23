@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { FiMail, FiMapPin, FiPhone, FiGithub, FiGlobe, FiSend } from "react-icons/fi";
 import useBudgetContext from "../hooks/useBudgetContext";
 import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../../shared/budgeting.js";
 import { CV_PROFILE } from "../../shared/cv/profile.js";
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 outline-none ring-blue-300/60 placeholder:text-slate-400 focus:ring";
+  "mt-2 w-full rounded-2xl border border-border bg-background px-4 py-4 text-foreground outline-none ring-primary/20 placeholder:text-muted-foreground transition focus:ring-4 focus:border-primary";
 const selectClass =
-  "mt-1 w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-3 pr-10 text-slate-900 outline-none ring-blue-300/60 transition hover:border-slate-400 focus:border-blue-500 focus:ring";
+  "mt-2 w-full appearance-none rounded-2xl border border-border bg-background px-4 py-4 pr-10 text-foreground outline-none ring-primary/20 transition focus:ring-4 focus:border-primary cursor-pointer";
 
 const COUNTRY_CODES = [
   "AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ",
@@ -61,6 +63,24 @@ const defaultForm = {
   timeline: "",
   budget: "",
   customBudget: "",
+};
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+  },
 };
 
 export default function Contact() {
@@ -168,302 +188,313 @@ ${formData.features}`
 
   function SelectArrow() {
     return (
-      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">
+      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-muted-foreground">
         ▾
       </span>
     );
   }
 
   return (
-    <section className="py-8 sm:py-12">
-      <div className="mx-auto mb-10 max-w-4xl text-center">
-        <h1 className="font-display text-4xl font-bold text-slate-900 sm:text-6xl">Tell Me About Your Project</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-base text-slate-600 sm:text-xl">
-          Share your goals, requirements, timeline, and budget so I can propose the right solution.
-        </p>
+    <motion.section 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="py-12 sm:py-20"
+    >
+      <div className="mx-auto mb-16 max-w-4xl text-center">
+        <motion.h1 variants={itemVariants} className="text-4xl font-extrabold text-foreground sm:text-7xl tracking-tight">
+          Let&apos;s Build <span className="text-gradient">Something Great</span>
+        </motion.h1>
+        <motion.p variants={itemVariants} className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl leading-relaxed">
+          Share your goals, requirements, timeline, and budget so I can propose the right solution for your next breakthrough.
+        </motion.p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <aside className="rounded-2xl border border-slate-200 bg-[#f7f7f9] p-6">
-          <h2 className="font-display text-4xl font-bold text-slate-900">Get In Touch</h2>
-          <p className="mt-4 text-lg leading-relaxed text-slate-600">
-            I&apos;m open to project work, collaborations, and professional opportunities. Feel free to reach out through
-            the channels below.
+      <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr]">
+        <motion.aside variants={itemVariants} className="glass-card rounded-[3rem] p-10 h-fit">
+          <h2 className="text-3xl font-bold text-foreground mb-6">Get In Touch</h2>
+          <p className="text-lg leading-relaxed text-muted-foreground mb-10">
+            I&apos;m open to project work, collaborations, and professional opportunities. Feel free to reach out through any channel.
           </p>
 
-          <div className="mt-8 space-y-5">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-lg text-blue-600">
-                @
+          <div className="space-y-6">
+            <div className="flex items-start gap-5 group">
+              <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                <FiMail className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xl font-semibold text-slate-900">Email</p>
-                <a className="text-lg text-slate-600 hover:text-blue-600" href={`mailto:${CV_PROFILE.email}`}>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Email</p>
+                <a className="text-lg font-semibold text-foreground hover:text-primary transition-colors" href={`mailto:${CV_PROFILE.email}`}>
                   {CV_PROFILE.email}
                 </a>
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-lg text-blue-600">
-                o
+            <div className="flex items-start gap-5 group">
+              <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                <FiMapPin className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xl font-semibold text-slate-900">Location</p>
-                <p className="text-lg text-slate-600">{CV_PROFILE.location}</p>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Location</p>
+                <p className="text-lg font-semibold text-foreground">{CV_PROFILE.location}</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-lg text-blue-600">
-                #
+            <div className="flex items-start gap-5 group">
+              <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                <FiPhone className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xl font-semibold text-slate-900">Phone</p>
-                <p className="text-lg text-slate-600">{CV_PROFILE.phone}</p>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Phone</p>
+                <p className="text-lg font-semibold text-foreground">{CV_PROFILE.phone}</p>
               </div>
             </div>
           </div>
 
-          <div className="mt-8">
-            <p className="text-xl font-semibold text-slate-900">Portfolio and Profiles</p>
-            <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-12 pt-10 border-t border-border/40">
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Profiles</p>
+            <div className="flex flex-wrap gap-3">
               <a
                 href={CV_PROFILE.githubUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+                className="inline-flex items-center gap-2 rounded-2xl bg-card border border-border px-5 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-95"
               >
+                <FiGithub className="h-4 w-4" />
                 GitHub
               </a>
               <a
                 href={CV_PROFILE.portfolioUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white"
+                className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95"
               >
+                <FiGlobe className="h-4 w-4" />
                 Portfolio
               </a>
-              <a
-                href={`mailto:${CV_PROFILE.email}`}
-                className="inline-flex items-center justify-center rounded-xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white"
-              >
-                Email
-              </a>
             </div>
           </div>
-        </aside>
+        </motion.aside>
 
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-display text-4xl font-bold text-slate-900">Project Request Form</h2>
+        <motion.form 
+          variants={itemVariants} 
+          onSubmit={handleSubmit} 
+          className="glass-card rounded-[3rem] p-10 shadow-xl"
+        >
+          <h2 className="text-3xl font-bold text-foreground mb-8">Project Request Form</h2>
 
-          <p className="mt-4 text-sm font-medium text-slate-700">I am a/an</p>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setClientType("Individual")}
-              className={`rounded-xl border px-4 py-3 text-lg font-medium transition ${
-                formData.clientType === "Individual"
-                  ? "border-blue-600 bg-blue-50 text-blue-700"
-                  : "border-slate-300 bg-white text-slate-700"
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <span aria-hidden="true">👤</span>
-                <span>Individual</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setClientType("Organization")}
-              className={`rounded-xl border px-4 py-3 text-lg font-medium transition ${
-                formData.clientType === "Organization"
-                  ? "border-blue-600 bg-blue-50 text-blue-700"
-                  : "border-slate-300 bg-white text-slate-700"
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <span aria-hidden="true">🏢</span>
-                <span>Organization</span>
-              </span>
-            </button>
-          </div>
-
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-slate-700">
-              {formData.clientType === "Organization" ? "Organization Name *" : "Your Name *"}
-              <input
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleChange}
-                required
-                placeholder={formData.clientType === "Organization" ? "Your organization name" : "John Doe"}
-                className={inputClass}
-              />
-            </label>
-
-            <label className="text-sm font-medium text-slate-700">
-              Email Address *
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                placeholder="john@example.com"
-                className={inputClass}
-              />
-            </label>
-          </div>
-
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-slate-700">
-              Phone Number (Optional)
-              <input
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+234 800 000 0000"
-                className={inputClass}
-              />
-            </label>
-
-            <label className="text-sm font-medium text-slate-700">
-              Country *
-              <div className="relative">
-                <select
-                  name="countryCode"
-                  value={formData.countryCode}
-                  onChange={handleChange}
-                  required
-                  className={selectClass}
+          <div className="space-y-6">
+            <div>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">I am a/an</p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setClientType("Individual")}
+                  className={`rounded-2xl border px-6 py-4 text-lg font-bold transition-all active:scale-95 ${
+                    formData.clientType === "Individual"
+                      ? "border-primary bg-primary/5 text-primary shadow-inner"
+                      : "border-border bg-background/50 text-muted-foreground hover:border-primary/30"
+                  }`}
                 >
-                  {countryOptions.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.flag} {country.name}
-                    </option>
-                  ))}
-                </select>
-                <SelectArrow />
+                  👤 Individual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClientType("Organization")}
+                  className={`rounded-2xl border px-6 py-4 text-lg font-bold transition-all active:scale-95 ${
+                    formData.clientType === "Organization"
+                      ? "border-primary bg-primary/5 text-primary shadow-inner"
+                      : "border-border bg-background/50 text-muted-foreground hover:border-primary/30"
+                  }`}
+                >
+                  🏢 Organization
+                </button>
               </div>
-            </label>
-          </div>
-
-          <label className="mt-4 block text-sm font-medium text-slate-700">
-            Project Type *
-            <div className="relative">
-              <select
-                name="projectType"
-                value={formData.projectType}
-                onChange={handleChange}
-                required
-                className={selectClass}
-              >
-                <option value="">Select a project type</option>
-                <option>Website</option>
-                <option>Web App</option>
-                <option>E-commerce</option>
-                <option>Mobile App</option>
-                <option>Redesign</option>
-                <option>Maintenance</option>
-                <option>Other</option>
-              </select>
-              <SelectArrow />
             </div>
-          </label>
 
-          <label className="mt-4 block text-sm font-medium text-slate-700">
-            Detailed Project Description *
-            <textarea
-              rows="4"
-              name="goals"
-              value={formData.goals}
-              onChange={handleChange}
-              required
-              placeholder="Describe your vision, goals, target users, and what success looks like."
-              className={inputClass}
-            />
-          </label>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">
+                  {formData.clientType === "Organization" ? "Organization Name *" : "Your Name *"}
+                </span>
+                <input
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  required
+                  placeholder={formData.clientType === "Organization" ? "Your organization" : "John Doe"}
+                  className={inputClass}
+                />
+              </label>
 
-          <label className="mt-4 block text-sm font-medium text-slate-700">
-            Specific Requirements
-            <textarea
-              rows="3"
-              name="features"
-              value={formData.features}
-              onChange={handleChange}
-              required
-              placeholder="e.g. authentication, payments, dashboard, notifications, API integration"
-              className={inputClass}
-            />
-          </label>
+              <label className="block">
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Email Address *</span>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  placeholder="john@example.com"
+                  className={inputClass}
+                />
+              </label>
+            </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-slate-700">
-              Budget Range *
+            <div className="grid gap-6 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Phone (Optional)</span>
+                <input
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="+234 800 000 0000"
+                  className={inputClass}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Country *</span>
+                <div className="relative">
+                  <select
+                    name="countryCode"
+                    value={formData.countryCode}
+                    onChange={handleChange}
+                    required
+                    className={selectClass}
+                  >
+                    {countryOptions.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.flag} {country.name}
+                      </option>
+                    ))}
+                  </select>
+                  <SelectArrow />
+                </div>
+              </label>
+            </div>
+
+            <label className="block">
+              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Project Type *</span>
               <div className="relative">
                 <select
-                  name="budget"
-                  value={formData.budget}
+                  name="projectType"
+                  value={formData.projectType}
                   onChange={handleChange}
                   required
                   className={selectClass}
                 >
-                  <option value="">Select budget range (min {formatMoney(roundMoney(250 * selectedUsdRate * selectedCountryFactor), selectedCurrencyCode)})</option>
-                  {budgetOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
+                  <option value="">Select a project type</option>
+                  <option>Website</option>
+                  <option>Web App</option>
+                  <option>E-commerce</option>
+                  <option>Mobile App</option>
+                  <option>Redesign</option>
+                  <option>Maintenance</option>
+                  <option>Other</option>
                 </select>
                 <SelectArrow />
               </div>
             </label>
 
-            <label className="text-sm font-medium text-slate-700">
-              Desired Timeline *
-              <div className="relative">
-                <select
-                  name="timeline"
-                  value={formData.timeline}
-                  onChange={handleChange}
-                  required
-                  className={selectClass}
-                >
-                  <option value="">Select timeline</option>
-                  <option>ASAP (1-2 weeks)</option>
-                  <option>Short Term (3-4 weeks)</option>
-                  <option>Medium Term (1-2 months)</option>
-                  <option>Flexible</option>
-                </select>
-                <SelectArrow />
-              </div>
-            </label>
-          </div>
-
-          {formData.budget === "custom" && (
-            <label className="mt-4 block text-sm font-medium text-slate-700">
-              Custom Budget *
-              <input
-                name="customBudget"
-                value={formData.customBudget}
+            <label className="block">
+              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Detailed Description *</span>
+              <textarea
+                rows="4"
+                name="goals"
+                value={formData.goals}
                 onChange={handleChange}
                 required
-                inputMode="decimal"
-                placeholder={`Enter amount (minimum ${formatMoney(roundMoney(250 * selectedUsdRate * selectedCountryFactor), selectedCurrencyCode)})`}
+                placeholder="Describe your vision, goals, and what success looks like."
                 className={inputClass}
               />
             </label>
-          )}
 
-          <button
-            type="submit"
-            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800"
-          >
-            Send Project Request
-          </button>
-        </form>
+            <label className="block">
+              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Specific Requirements</span>
+              <textarea
+                rows="2"
+                name="features"
+                value={formData.features}
+                onChange={handleChange}
+                required
+                placeholder="e.g. auth, payments, dashboard, API integration"
+                className={inputClass}
+              />
+            </label>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Budget Range *</span>
+                <div className="relative">
+                  <select
+                    name="budget"
+                    value={formData.budget}
+                    onChange={handleChange}
+                    required
+                    className={selectClass}
+                  >
+                    <option value="">Min {formatMoney(roundMoney(250 * selectedUsdRate * selectedCountryFactor), selectedCurrencyCode)}</option>
+                    {budgetOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <SelectArrow />
+                </div>
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Desired Timeline *</span>
+                <div className="relative">
+                  <select
+                    name="timeline"
+                    value={formData.timeline}
+                    onChange={handleChange}
+                    required
+                    className={selectClass}
+                  >
+                    <option value="">Select timeline</option>
+                    <option>ASAP (1-2 weeks)</option>
+                    <option>Short Term (3-4 weeks)</option>
+                    <option>Medium Term (1-2 months)</option>
+                    <option>Flexible</option>
+                  </select>
+                  <SelectArrow />
+                </div>
+              </label>
+            </div>
+
+            {formData.budget === "custom" && (
+              <motion.label 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="block"
+              >
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Custom Amount *</span>
+                <input
+                  name="customBudget"
+                  value={formData.customBudget}
+                  onChange={handleChange}
+                  required
+                  inputMode="decimal"
+                  placeholder={`Min ${formatMoney(roundMoney(250 * selectedUsdRate * selectedCountryFactor), selectedCurrencyCode)}`}
+                  className={inputClass}
+                />
+              </motion.label>
+            )}
+
+            <button
+              type="submit"
+              className="group relative flex w-full items-center justify-center gap-3 rounded-[2rem] bg-foreground px-8 py-5 text-xl font-bold text-background transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-95"
+            >
+              <FiSend className="h-6 w-6 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+              Send Project Request
+            </button>
+          </div>
+        </motion.form>
       </div>
-    </section>
+    </motion.section>
   );
 }

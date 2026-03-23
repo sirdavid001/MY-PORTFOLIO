@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+import { FiGithub, FiExternalLink } from "react-icons/fi";
 import { ImageWithFallback } from "../components/ui/ImageWithFallback";
 
 const projects = [
@@ -21,41 +23,111 @@ const projects = [
   },
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 100,
+    },
+  },
+};
+
 export default function Projects() {
   return (
-    <section className="space-y-8 py-8">
-      <div>
-        <p className="text-sm uppercase tracking-widest text-blue-600">Featured Work</p>
-        <h1 className="font-display text-4xl font-bold text-slate-900 sm:text-5xl">Projects</h1>
-        <p className="mt-2 text-base text-slate-600 sm:text-lg">Current public work pulled from my real GitHub repositories.</p>
+    <motion.section 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-12 py-12"
+    >
+      <div className="max-w-2xl">
+        <motion.p variants={itemVariants} className="text-sm font-bold uppercase tracking-widest text-primary mb-3">
+          Featured Work
+        </motion.p>
+        <motion.h1 variants={itemVariants} className="text-4xl font-extrabold text-foreground sm:text-6xl">
+          Projects
+        </motion.h1>
+        <motion.p variants={itemVariants} className="mt-4 text-lg text-muted-foreground sm:text-xl leading-relaxed">
+          A selection of projects I&apos;ve built, ranging from web applications to specialized tools.
+        </motion.p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2">
         {projects.map((project) => (
-          <article key={project.title} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-            <ImageWithFallback src={project.image} alt={project.title} className="h-44 w-full object-cover" />
-            <div className="space-y-3 p-5">
-              <h2 className="font-display text-2xl font-semibold text-slate-900">{project.title}</h2>
-              <p className="text-base text-slate-600 sm:text-lg">{project.description}</p>
-              <div className="flex flex-wrap gap-2">
+          <motion.article 
+            key={project.title} 
+            variants={itemVariants}
+            whileHover={{ y: -8 }}
+            className="group glass-card overflow-hidden rounded-[2.5rem] bg-card/40 transition-all hover:shadow-2xl hover:shadow-primary/10 border-border/40"
+          >
+            <div className="relative aspect-video overflow-hidden">
+              <ImageWithFallback 
+                src={project.image} 
+                alt={project.title} 
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </div>
+            
+            <div className="space-y-4 p-8">
+              <div className="flex justify-between items-start">
+                <h2 className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors">{project.title}</h2>
+                <div className="flex gap-3">
+                  <a
+                    href={project.code}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 rounded-xl bg-accent/50 text-foreground transition-all hover:bg-primary hover:text-white"
+                    title="View Code"
+                  >
+                    <FiGithub className="h-5 w-5" />
+                  </a>
+                </div>
+              </div>
+              
+              <p className="text-lg leading-relaxed text-muted-foreground line-clamp-3">
+                {project.description}
+              </p>
+              
+              <div className="flex flex-wrap gap-2 pt-2">
                 {project.stack.map((tag) => (
-                  <span key={tag} className="rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-sm font-medium text-slate-700">
+                  <span 
+                    key={tag} 
+                    className="rounded-xl border border-border bg-background/50 px-3 py-1 text-xs font-bold text-foreground/80 hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                  >
                     {tag}
                   </span>
                 ))}
               </div>
-              <a
-                href={project.code}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                View Code
-              </a>
+              
+              <div className="pt-6">
+                <a
+                  href={project.code}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-bold text-primary group-hover:underline"
+                >
+                  Explore Documentation
+                  <FiExternalLink className="h-4 w-4" />
+                </a>
+              </div>
             </div>
-          </article>
+          </motion.article>
         ))}
       </div>
-    </section>
+    </motion.section>
   );
 }

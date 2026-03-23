@@ -24,7 +24,7 @@ export function ImageWithFallback({ src, alt, className, style, onError, ...rest
 
     return (
       <div
-        className={`flex items-center justify-center bg-slate-100 text-slate-400 ${className || ""}`.trim()}
+        className={`flex items-center justify-center bg-muted text-muted-foreground ${className || ""}`.trim()}
         style={style}
         role="img"
         aria-label={fallbackLabel}
