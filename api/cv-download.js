@@ -2,7 +2,7 @@ import { buildCvPdf } from "../shared/cv/pdf.js";
 import { buildCvWordDocument } from "../shared/cv/word.js";
 
 function setCors(res, methods) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "https://sirdavid.site");
   res.setHeader("Access-Control-Allow-Methods", methods);
   res.setHeader("Access-Control-Allow-Headers", "content-type");
 }

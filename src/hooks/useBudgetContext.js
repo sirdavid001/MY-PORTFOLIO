@@ -4,6 +4,7 @@ import { normalizeCountryCode, normalizeCurrencyCode, normalizeLocationPayload, 
 
 const BUDGET_CONTEXT_STORAGE_KEY = "sd_budget_context";
 const LEGACY_PRICING_CONTEXT_STORAGE_KEY = "sd_pricing_context";
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const defaultContext = {
   countryCode: "NG",
@@ -91,6 +92,19 @@ function loadStoredBudgetContext() {
   }
 }
 
+function isCacheFresh() {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(BUDGET_CONTEXT_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    const cachedAt = Number(parsed?.cachedAt || 0);
+    return cachedAt > 0 && Date.now() - cachedAt < CACHE_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
 function persistBudgetContext(budgetContext) {
   if (typeof window === "undefined") return;
 
@@ -103,6 +117,7 @@ function persistBudgetContext(budgetContext) {
         currency: budgetContext.currency,
         exchangeRate: budgetContext.exchangeRate,
         rates: budgetContext.rates,
+        cachedAt: Date.now(),
       })
     );
     window.localStorage.removeItem(LEGACY_PRICING_CONTEXT_STORAGE_KEY);
@@ -196,6 +211,8 @@ export default function useBudgetContext() {
     }
 
     async function resolveBudgetContext() {
+      if (isCacheFresh()) return;
+
       try {
         const detected = await detectLocation();
         const provisionalContext = buildBudgetContext({

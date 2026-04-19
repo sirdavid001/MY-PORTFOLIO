@@ -1,4 +1,6 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import useSEO from "../hooks/useSEO";
 import { FiGithub, FiExternalLink } from "react-icons/fi";
 import { ImageWithFallback } from "../components/ui/ImageWithFallback";
 
@@ -45,87 +47,115 @@ const itemVariants = {
   },
 };
 
-export default function Projects() {
+function ProjectCard({ project, variants }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+
   return (
-    <motion.section 
-      variants={containerVariants}
+    <motion.article
+      variants={variants}
+      whileHover={{ y: -8 }}
+      className="group glass-card overflow-hidden rounded-[2.5rem] bg-card/40 transition-all hover:shadow-2xl hover:shadow-primary/10 border-border/40"
+    >
+      <div className="relative aspect-video overflow-hidden bg-slate-200 dark:bg-slate-700">
+        {!imageLoaded && (
+          <div className="absolute inset-0 animate-pulse bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
+        )}
+        <ImageWithFallback
+          src={project.image}
+          alt={project.title}
+          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-110 ${
+            imageLoaded ? "opacity-100" : "opacity-0"
+          }`}
+          onLoad={() => setImageLoaded(true)}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      </div>
+
+      <div className="space-y-4 p-8">
+        <div className="flex justify-between items-start">
+          <h2 className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors">{project.title}</h2>
+          <div className="flex gap-3">
+            <a
+              href={project.code}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2 rounded-xl bg-accent/50 text-foreground transition-all hover:bg-primary hover:text-white"
+              title="View Code"
+              aria-label={`View ${project.title} code on GitHub`}
+            >
+              <FiGithub className="h-5 w-5" />
+            </a>
+          </div>
+        </div>
+
+        <p className="text-lg leading-relaxed text-muted-foreground line-clamp-3">
+          {project.description}
+        </p>
+
+        <div className="flex flex-wrap gap-2 pt-2">
+          {project.stack.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-xl border border-border bg-background/50 px-3 py-1 text-xs font-bold text-foreground/80 hover:border-primary/30 hover:bg-primary/5 transition-colors"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        <div className="pt-6">
+          <a
+            href={project.code}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm font-bold text-primary group-hover:underline"
+          >
+            Explore Documentation
+            <FiExternalLink className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
+export default function Projects() {
+  useSEO({
+    title: "Projects — Chinedu David Nwadialo",
+    description: "Featured web development projects by Chinedu David Nwadialo, including portfolio sites, exam systems, and more.",
+    path: "/projects",
+  });
+
+  const prefersReducedMotion = useReducedMotion();
+  const activeContainerVariants = prefersReducedMotion
+    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
+    : containerVariants;
+  const activeItemVariants = prefersReducedMotion
+    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
+    : itemVariants;
+
+  return (
+    <motion.section
+      variants={activeContainerVariants}
       initial="hidden"
       animate="visible"
       className="space-y-12 py-12"
     >
       <div className="max-w-2xl">
-        <motion.p variants={itemVariants} className="text-sm font-bold uppercase tracking-widest text-primary mb-3">
+        <motion.p variants={activeItemVariants} className="text-sm font-bold uppercase tracking-widest text-primary mb-3">
           Featured Work
         </motion.p>
-        <motion.h1 variants={itemVariants} className="text-4xl font-extrabold text-foreground sm:text-6xl">
+        <motion.h1 variants={activeItemVariants} className="text-4xl font-extrabold text-foreground sm:text-6xl">
           Projects
         </motion.h1>
-        <motion.p variants={itemVariants} className="mt-4 text-lg text-muted-foreground sm:text-xl leading-relaxed">
+        <motion.p variants={activeItemVariants} className="mt-4 text-lg text-muted-foreground sm:text-xl leading-relaxed">
           A selection of projects I&apos;ve built, ranging from web applications to specialized tools.
         </motion.p>
       </div>
 
       <div className="grid gap-8 md:grid-cols-2">
         {projects.map((project) => (
-          <motion.article 
-            key={project.title} 
-            variants={itemVariants}
-            whileHover={{ y: -8 }}
-            className="group glass-card overflow-hidden rounded-[2.5rem] bg-card/40 transition-all hover:shadow-2xl hover:shadow-primary/10 border-border/40"
-          >
-            <div className="relative aspect-video overflow-hidden">
-              <ImageWithFallback 
-                src={project.image} 
-                alt={project.title} 
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </div>
-            
-            <div className="space-y-4 p-8">
-              <div className="flex justify-between items-start">
-                <h2 className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors">{project.title}</h2>
-                <div className="flex gap-3">
-                  <a
-                    href={project.code}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2 rounded-xl bg-accent/50 text-foreground transition-all hover:bg-primary hover:text-white"
-                    title="View Code"
-                  >
-                    <FiGithub className="h-5 w-5" />
-                  </a>
-                </div>
-              </div>
-              
-              <p className="text-lg leading-relaxed text-muted-foreground line-clamp-3">
-                {project.description}
-              </p>
-              
-              <div className="flex flex-wrap gap-2 pt-2">
-                {project.stack.map((tag) => (
-                  <span 
-                    key={tag} 
-                    className="rounded-xl border border-border bg-background/50 px-3 py-1 text-xs font-bold text-foreground/80 hover:border-primary/30 hover:bg-primary/5 transition-colors"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              
-              <div className="pt-6">
-                <a
-                  href={project.code}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-bold text-primary group-hover:underline"
-                >
-                  Explore Documentation
-                  <FiExternalLink className="h-4 w-4" />
-                </a>
-              </div>
-            </div>
-          </motion.article>
+          <ProjectCard key={project.title} project={project} variants={activeItemVariants} />
         ))}
       </div>
     </motion.section>

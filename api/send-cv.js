@@ -3,6 +3,7 @@ import { getClientIp } from "./_lib/security.js";
 import { CV_PROFILE } from "../shared/cv/profile.js";
 import { buildCvPdf } from "../shared/cv/pdf.js";
 import { buildCvWordDocument } from "../shared/cv/word.js";
+import { escapeHtml } from "../shared/utils.js";
 
 const CV_OPTIONS = {
   pdf: {
@@ -22,13 +23,14 @@ const CV_OPTIONS = {
 };
 
 function setCors(res, methods) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "https://sirdavid.site");
   res.setHeader("Access-Control-Allow-Methods", methods);
   res.setHeader("Access-Control-Allow-Headers", "content-type");
 }
 
 function json(res, status, data, methods) {
   setCors(res, methods);
+  res.setHeader("Cache-Control", "no-store, no-cache");
   res.status(status).json(data);
 }
 
@@ -39,9 +41,12 @@ function firstHeaderValue(value) {
 
 function resolveRequestOrigin(req) {
   const rawProto = firstHeaderValue(req.headers["x-forwarded-proto"]) || "https";
-  const proto = rawProto.split(",")[0].trim() || "https";
+  const protoCandidate = rawProto.split(",")[0].trim().toLowerCase();
+  const proto = protoCandidate === "http" || protoCandidate === "https" ? protoCandidate : "https";
   const rawHost = firstHeaderValue(req.headers["x-forwarded-host"]) || firstHeaderValue(req.headers.host);
-  const host = rawHost.split(",")[0].trim();
+  const hostCandidate = rawHost.split(",")[0].trim();
+  // Only accept valid hostname characters to prevent header injection.
+  const host = /^[a-zA-Z0-9.\-:]+$/.test(hostCandidate) ? hostCandidate : "";
   if (!host) return "";
   return `${proto}://${host}`;
 }
@@ -75,15 +80,6 @@ function formatSenderAddress(fromEmail, fromName) {
   return `${name} <${email}>`;
 }
 
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 function encodeBase64(value) {
   if (typeof Buffer !== "undefined") {
     return Buffer.from(value).toString("base64");
@@ -113,19 +109,26 @@ function buildCvAttachment(option) {
   };
 }
 
+const MAX_BODY_BYTES = 10 * 1024; // 10 KB
+
 async function readJsonBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
   if (typeof req.body === "string") {
+    if (Buffer.byteLength(req.body, "utf8") > MAX_BODY_BYTES) return null;
     try {
       return JSON.parse(req.body);
     } catch {
-      return {};
+      return null;
     }
   }
 
   const chunks = [];
+  let totalBytes = 0;
   for await (const chunk of req) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    const buf = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    totalBytes += buf.length;
+    if (totalBytes > MAX_BODY_BYTES) return null;
+    chunks.push(buf);
   }
 
   const raw = Buffer.concat(chunks).toString("utf8");
@@ -133,7 +136,7 @@ async function readJsonBody(req) {
   try {
     return JSON.parse(raw);
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -270,6 +273,9 @@ export default async function handler(req, res) {
 
   try {
     const payload = await readJsonBody(req);
+    if (payload === null) {
+      return json(res, 413, { ok: false, error: "Request body too large or malformed." }, methods);
+    }
     const email = String(payload?.email || "").trim();
     const format = normalizeFormat(payload?.format);
     const option = CV_OPTIONS[format];
@@ -292,7 +298,7 @@ export default async function handler(req, res) {
       );
     }
 
-    const configuredFromEmail = String(process.env.RESEND_FROM_EMAIL || "noreply@sirdavid.site").trim();
+    const configuredFromEmail = String(process.env.RESEND_FROM_EMAIL || CV_PROFILE.email).trim();
     const senderName = String(process.env.RESEND_FROM_NAME || "Chinedu David Nwadialo").trim();
     const fromEmail = formatSenderAddress(configuredFromEmail, senderName);
     const replyToEmail = isValidEmail(process.env.SUPPORT_EMAIL) ? process.env.SUPPORT_EMAIL : CV_PROFILE.email;

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import useSEO from "../hooks/useSEO";
 import { FiMail, FiMapPin, FiPhone, FiGithub, FiGlobe, FiSend } from "react-icons/fi";
 import useBudgetContext from "../hooks/useBudgetContext";
 import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../../shared/budgeting.js";
@@ -84,8 +85,24 @@ const itemVariants = {
 };
 
 export default function Contact() {
+  useSEO({
+    title: "Contact — Chinedu David Nwadialo",
+    description: "Start a project with Chinedu David Nwadialo. Submit a project request with your requirements, timeline, and budget.",
+    path: "/contact",
+  });
+
+  const prefersReducedMotion = useReducedMotion();
+  const activeContainerVariants = prefersReducedMotion
+    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
+    : containerVariants;
+  const activeItemVariants = prefersReducedMotion
+    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
+    : itemVariants;
+
   const budgetContext = useBudgetContext();
   const [formData, setFormData] = useState(defaultForm);
+  const [budgetError, setBudgetError] = useState("");
+  const [submitStatus, setSubmitStatus] = useState("");
   const [countryOptions, setCountryOptions] = useState([
     { code: "US", name: "United States", flag: countryCodeToFlag("US") },
   ]);
@@ -148,11 +165,14 @@ export default function Contact() {
 
   function handleSubmit(event) {
     event.preventDefault();
+    setBudgetError("");
+    setSubmitStatus("");
+
     const minBudget = roundMoney(250 * selectedUsdRate * selectedCountryFactor);
     const customBudgetAmount = Number(String(formData.customBudget).replace(/[^0-9.]/g, ""));
 
     if (formData.budget === "custom" && (!customBudgetAmount || customBudgetAmount < minBudget)) {
-      alert(
+      setBudgetError(
         `Minimum budget is ${formatMoney(minBudget, selectedCurrencyCode)} for ${selectedCountry.name}.`
       );
       return;
@@ -182,7 +202,7 @@ Specific requirements:
 ${formData.features}`
     );
 
-    alert("Request prepared. Your email app will open so you can send your project brief.");
+    setSubmitStatus("Request prepared. Your email app will open so you can send your project brief.");
     window.location.href = `mailto:${CV_PROFILE.email}?subject=${subject}&body=${body}`;
   }
 
@@ -195,23 +215,23 @@ ${formData.features}`
   }
 
   return (
-    <motion.section 
-      variants={containerVariants}
+    <motion.section
+      variants={activeContainerVariants}
       initial="hidden"
       animate="visible"
       className="py-12 sm:py-20"
     >
       <div className="mx-auto mb-16 max-w-4xl text-center">
-        <motion.h1 variants={itemVariants} className="text-4xl font-extrabold text-foreground sm:text-7xl tracking-tight">
+        <motion.h1 variants={activeItemVariants} className="text-4xl font-extrabold text-foreground sm:text-7xl tracking-tight">
           Let&apos;s Build <span className="text-gradient">Something Great</span>
         </motion.h1>
-        <motion.p variants={itemVariants} className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl leading-relaxed">
+        <motion.p variants={activeItemVariants} className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl leading-relaxed">
           Share your goals, requirements, timeline, and budget so I can propose the right solution for your next breakthrough.
         </motion.p>
       </div>
 
       <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr]">
-        <motion.aside variants={itemVariants} className="glass-card rounded-[3rem] p-10 h-fit">
+        <motion.aside variants={activeItemVariants} className="glass-card rounded-[3rem] p-10 h-fit">
           <h2 className="text-3xl font-bold text-foreground mb-6">Get In Touch</h2>
           <p className="text-lg leading-relaxed text-muted-foreground mb-10">
             I&apos;m open to project work, collaborations, and professional opportunities. Feel free to reach out through any channel.
@@ -277,7 +297,7 @@ ${formData.features}`
         </motion.aside>
 
         <motion.form 
-          variants={itemVariants} 
+          variants={activeItemVariants} 
           onSubmit={handleSubmit} 
           className="glass-card rounded-[3rem] p-10 shadow-xl"
         >
@@ -467,22 +487,30 @@ ${formData.features}`
             </div>
 
             {formData.budget === "custom" && (
-              <motion.label 
+              <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
-                className="block"
               >
-                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Custom Amount *</span>
-                <input
-                  name="customBudget"
-                  value={formData.customBudget}
-                  onChange={handleChange}
-                  required
-                  inputMode="decimal"
-                  placeholder={`Min ${formatMoney(roundMoney(250 * selectedUsdRate * selectedCountryFactor), selectedCurrencyCode)}`}
-                  className={inputClass}
-                />
-              </motion.label>
+                <label className="block">
+                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Custom Amount *</span>
+                  <input
+                    name="customBudget"
+                    value={formData.customBudget}
+                    onChange={handleChange}
+                    required
+                    inputMode="decimal"
+                    placeholder={`Min ${formatMoney(roundMoney(250 * selectedUsdRate * selectedCountryFactor), selectedCurrencyCode)}`}
+                    className={inputClass}
+                  />
+                </label>
+                {budgetError && (
+                  <p role="alert" className="mt-2 text-sm font-medium text-red-500">{budgetError}</p>
+                )}
+              </motion.div>
+            )}
+
+            {submitStatus && (
+              <p role="status" className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{submitStatus}</p>
             )}
 
             <button
