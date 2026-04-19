@@ -1,13 +1,5 @@
 import { CV_PROFILE } from "./profile.js";
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+import { escapeHtml } from "../utils.js";
 
 function renderList(items) {
   return items

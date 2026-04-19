@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import useSEO from "../hooks/useSEO";
+import Button from "../components/ui/Button";
 import { FiDownload, FiMail, FiArrowRight } from "react-icons/fi";
 import {
   SiCss3,
@@ -79,6 +81,20 @@ const itemVariants = {
 };
 
 export default function Home() {
+  useSEO({
+    title: "Chinedu David Nwadialo — Web Developer",
+    description: "Portfolio of Chinedu David Nwadialo, a Computer Science graduate and web developer building high-performance digital products.",
+    path: "/",
+  });
+
+  const prefersReducedMotion = useReducedMotion();
+  const activeContainerVariants = prefersReducedMotion
+    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
+    : containerVariants;
+  const activeItemVariants = prefersReducedMotion
+    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
+    : itemVariants;
+
   const [cvFormat, setCvFormat] = useState("pdf");
   const selectedCvFormat = cvFormats.find((option) => option.value === cvFormat) || cvFormats[0];
   const [requestEmail, setRequestEmail] = useState("");
@@ -153,7 +169,7 @@ export default function Home() {
 
   return (
     <motion.div
-      variants={containerVariants}
+      variants={activeContainerVariants}
       initial="hidden"
       animate="visible"
       className="space-y-0"
@@ -165,25 +181,25 @@ export default function Home() {
         
         <div className="relative max-w-4xl">
           <motion.h1 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="text-5xl font-extrabold leading-tight text-foreground sm:text-6xl md:text-7xl"
           >
             Hi, I&apos;m <span className="text-gradient">{CV_PROFILE.displayName}</span>
           </motion.h1>
           <motion.p 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
           >
             I&apos;m a recent Computer Science graduate and web developer dedicated to building practical, high-performance digital products and elegant user experiences.
           </motion.p>
           <motion.p 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
           >
             I bridge the gap between technical complexity and intuitive design, delivering robust solutions with meticulous attention to detail.
           </motion.p>
           <motion.div 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="mt-10 flex flex-wrap gap-4"
           >
             <Link
@@ -206,13 +222,13 @@ export default function Home() {
       <section className="border-t border-border/40 py-24 sm:py-32">
         <div className="text-center mb-16">
           <motion.h2 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="text-3xl font-bold text-foreground sm:text-5xl"
           >
             My Approach
           </motion.h2>
           <motion.p 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="mt-4 text-lg text-muted-foreground sm:text-xl"
           >
             I build with purpose, precision, and a focus on long-term scalability.
@@ -223,7 +239,7 @@ export default function Home() {
           {principles.map((item, idx) => (
             <motion.article 
               key={item.title}
-              variants={itemVariants}
+              variants={activeItemVariants}
               whileHover={{ y: -5 }}
               className="glass-card rounded-[2.5rem] p-10 flex flex-col items-start text-left"
             >
@@ -240,13 +256,13 @@ export default function Home() {
       <section className="border-t border-border/40 py-24 sm:py-32">
         <div className="text-center mb-12">
           <motion.h2 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="text-3xl font-bold text-foreground sm:text-5xl"
           >
             Technologies I Use
           </motion.h2>
           <motion.p 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="mt-4 text-lg text-muted-foreground sm:text-xl"
           >
             A curated stack for building modern, resilient web applications.
@@ -254,7 +270,7 @@ export default function Home() {
         </div>
 
         <motion.div 
-          variants={itemVariants}
+          variants={activeItemVariants}
           className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-4"
         >
           {tech.map((item) => (
@@ -282,18 +298,18 @@ export default function Home() {
 
         <div className="relative mx-auto max-w-3xl z-10">
           <motion.h2 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="text-4xl font-extrabold sm:text-6xl tracking-tight"
           >
             Let&apos;s Build Something Great
           </motion.h2>
           <motion.p 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="mt-6 text-xl text-blue-100/80 leading-relaxed"
           >
             Ready for your next digital breakthrough? I&apos;m open to freelance opportunities, high-impact collaborations, and forward-thinking partnerships.
           </motion.p>
-          <motion.div variants={itemVariants} className="mt-12">
+          <motion.div variants={activeItemVariants} className="mt-12">
             <a
               href={`mailto:${CV_PROFILE.email}`}
               className="inline-flex rounded-2xl bg-white px-10 py-5 text-lg font-bold text-[#08183c] transition-all hover:-translate-y-1 hover:bg-blue-50 active:scale-95 shadow-xl"
@@ -307,7 +323,7 @@ export default function Home() {
       <section className="border-t border-border/40 py-24 sm:py-32">
         <div className="mx-auto max-w-4xl">
           <motion.div 
-            variants={itemVariants}
+            variants={activeItemVariants}
             className="glass-card rounded-[3rem] p-8 sm:p-12 relative overflow-hidden"
           >
             <div className="relative z-10">
@@ -322,15 +338,16 @@ export default function Home() {
               </p>
               
               <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
-                <button
+                <Button
                   type="button"
+                  variant="primary"
                   onClick={handleDownloadCv}
                   disabled={isDownloadingCv}
-                  className="inline-flex min-w-[200px] items-center justify-center gap-3 rounded-2xl bg-primary px-8 py-4 text-center text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl disabled:opacity-50"
+                  className="min-w-[200px]"
                 >
                   <FiDownload className="h-5 w-5" aria-hidden="true" />
                   {isDownloadingCv ? "Downloading..." : `Download ${selectedCvFormat.label} CV`}
-                </button>
+                </Button>
                 
                 <div className="flex items-center gap-4 bg-background/50 px-4 py-2 rounded-2xl border border-border">
                   <label htmlFor="cv-format" className="text-sm font-bold text-foreground">
@@ -364,14 +381,14 @@ export default function Home() {
                     onChange={(event) => setRequestEmail(event.target.value)}
                     className="w-full rounded-2xl border border-border bg-background px-6 py-4 text-base text-foreground outline-none ring-primary/20 transition focus:ring-4"
                   />
-                  <button
+                  <Button
                     type="submit"
+                    variant="outline"
                     disabled={isRequestingCv}
-                    className="inline-flex items-center justify-center gap-3 rounded-2xl border border-primary px-8 py-4 text-base font-bold text-primary transition-all hover:bg-primary/5 active:scale-95 disabled:opacity-50"
                   >
                     <FiMail className="h-5 w-5" aria-hidden="true" />
                     {isRequestingCv ? "Sending..." : "Send to Inbox"}
-                  </button>
+                  </Button>
                 </div>
                 {requestStatus ? (
                   <motion.p 

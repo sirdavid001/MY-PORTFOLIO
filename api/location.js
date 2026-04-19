@@ -3,7 +3,7 @@ import { getClientIp } from "./_lib/security.js";
 import { normalizeLocationPayload, isProbablyPublicIp } from "../shared/location.js";
 
 function setCors(res, methods) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "https://sirdavid.site");
   res.setHeader("Access-Control-Allow-Methods", methods);
   res.setHeader("Access-Control-Allow-Headers", "content-type");
 }
@@ -30,7 +30,9 @@ function getPlatformLocation(req) {
 }
 
 async function lookupIpApi(ip) {
-  const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`);
+  const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
+    signal: AbortSignal.timeout(5000),
+  });
   if (!response.ok) return null;
 
   const data = await response.json();
@@ -46,7 +48,9 @@ async function lookupIpApi(ip) {
 }
 
 async function lookupIpWho(ip) {
-  const response = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`);
+  const response = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+    signal: AbortSignal.timeout(5000),
+  });
   if (!response.ok) return null;
 
   const data = await response.json();
