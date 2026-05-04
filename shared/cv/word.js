@@ -87,6 +87,11 @@ export function buildCvWordDocument() {
       <div style="background: #f3f4f6; border: 1px solid #d1d5db;">
         <div style="background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 55%, #1e40af 100%); color: #ffffff; padding: 32px 34px 28px;">
           <div style="font-size: 32px; line-height: 1.18; font-weight: 700;">${escapeHtml(CV_PROFILE.name)}</div>
+          ${
+            CV_PROFILE.classification
+              ? `<div style="margin-top: 6px; font-size: 14px; font-weight: 500; color: #dbeafe; letter-spacing: 0.2px;">${escapeHtml(CV_PROFILE.classification)}</div>`
+              : ""
+          }
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 20px; color: #ffffff;">
           <tr>
             <td style="width: 50%; vertical-align: top; padding-right: 22px;">
@@ -116,7 +121,11 @@ export function buildCvWordDocument() {
             "Technical Skills",
             `<div style="margin-top: 14px; color: #3f4d63; font-size: 15px; line-height: 1.6;">${escapeHtml(
               CV_PROFILE.technicalSkills.join(" | ")
-            )}</div>`
+            )}</div>${
+              CV_PROFILE.technicalSkillsNote
+                ? `<div style="margin-top: 10px; color: #4b5563; font-size: 14px; line-height: 1.55; font-style: italic;">${escapeHtml(CV_PROFILE.technicalSkillsNote)}</div>`
+                : ""
+            }`
           )}
           ${renderSection(
             "Additional Information",

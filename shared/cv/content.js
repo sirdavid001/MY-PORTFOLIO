@@ -10,6 +10,9 @@ const contactLines = [
 
 export const CV_RESUME_LINES = [
   { style: "title", text: CV_PROFILE.name },
+  ...(CV_PROFILE.classification
+    ? [{ style: "subtitle", text: CV_PROFILE.classification }]
+    : []),
   ...contactLines.map((text) => ({ style: "meta", text })),
   { style: "spacer" },
   { style: "section", text: "Professional Summary" },
@@ -35,6 +38,9 @@ export const CV_RESUME_LINES = [
   { style: "spacer" },
   { style: "section", text: "Technical Skills" },
   { style: "body", text: CV_PROFILE.technicalSkills.join(" | ") },
+  ...(CV_PROFILE.technicalSkillsNote
+    ? [{ style: "body", text: CV_PROFILE.technicalSkillsNote }]
+    : []),
   { style: "spacer" },
   { style: "section", text: "Additional Information" },
   ...CV_PROFILE.additionalInformation.map((text) => ({ style: "bullet", text })),

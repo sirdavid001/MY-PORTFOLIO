@@ -9,7 +9,7 @@ const PAGE = {
 };
 
 const HEADER = {
-  height: 128,
+  height: 144,
   paddingX: 28,
   topInset: 28,
 };
@@ -114,9 +114,21 @@ function createBuilder() {
         text: CV_PROFILE.name,
       });
 
+      if (CV_PROFILE.classification) {
+        currentPage.push({
+          kind: "text",
+          x: HEADER.paddingX,
+          y: PAGE.height - HEADER.topInset - 18,
+          font: "F1",
+          size: 11,
+          color: COLORS.white,
+          text: CV_PROFILE.classification,
+        });
+      }
+
       const leftX = HEADER.paddingX;
       const rightX = PAGE.width / 2 + 16;
-      const contactTop = PAGE.height - 68;
+      const contactTop = PAGE.height - 84;
       const contactGap = 18;
 
       [
@@ -332,8 +344,16 @@ function createBuilder() {
     size: 10.7,
     color: COLORS.body,
     leading: 13.2,
-    after: 8,
+    after: CV_PROFILE.technicalSkillsNote ? 4 : 8,
   });
+  if (CV_PROFILE.technicalSkillsNote) {
+    addParagraph(CV_PROFILE.technicalSkillsNote, {
+      size: 10.4,
+      color: COLORS.body,
+      leading: 13,
+      after: 8,
+    });
+  }
 
   addSection("Additional Information");
   addBulletList(CV_PROFILE.additionalInformation);

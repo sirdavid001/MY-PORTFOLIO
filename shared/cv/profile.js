@@ -2,6 +2,7 @@ export const CV_PROFILE = {
   name: "Chinedu David Nwadialo",
   displayName: "Nwadialo David",
   role: "Computer Science Graduate and Web Developer",
+  classification: "BSc Computer Science - Second Class Honours (Lower Division)",
   location: "Lagos, Nigeria",
   phone: "+2347041342391",
   email: "itssirdavid@gmail.com",
@@ -10,50 +11,44 @@ export const CV_PROFILE = {
   github: "github.com/sirdavid001",
   githubUrl: "https://github.com/sirdavid001",
   summary:
-    "Recent Bachelor of Science graduate in Computer Science from Dennis Osadebay University with experience completing practical projects, organizing information, and solving problems using both technical and analytical skills. Strong attention to detail, communication, and teamwork abilities. Open to entry-level opportunities in administration, customer support, operations, technology, or other roles where reliability, organization, and problem-solving are valued.",
+    "Computer Science graduate of Dennis Osadebay University (Second Class Honours, Lower Division) with hands-on experience building full-stack web applications, organizing information, and solving problems using both technical and analytical skills. Strong attention to detail, communication, and teamwork abilities. Open to entry-level opportunities in software development, IT support, administration, operations, or customer-facing roles where reliability, organization, and problem-solving are valued.",
   keySkills: {
     title: "Workplace Skills",
     items: [
       "Communication and teamwork",
       "Problem solving and analytical thinking",
-      "Data entry and record keeping",
+      "Data entry, record keeping, and documentation",
       "Time management and organization",
-      "Documentation and reporting",
-      "Adaptability and willingness to learn",
+      "Adaptability and willingness to learn new systems quickly",
     ],
   },
   education: [
     {
       title: "Bachelor of Science (BSc), Computer Science",
-      details: ["Dennis Osadebay University | 2021 - 2025"],
+      details: [
+        "Dennis Osadebay University, Asaba, Nigeria | 2021 - 2026",
+        "Classification: Second Class Honours (Lower Division)",
+        "Faculty of Computing - Degree conferred 18 February 2026",
+      ],
     },
     {
       title: "Senior Secondary School Certificate (SSCE)",
       details: [
-        "Redeemers International High School, Asaba",
+        "Redeemers International High School, Asaba | 2013 - 2019",
         "WAEC and NECO Certificates",
       ],
-    },
-    {
-      title: "Primary School Leaving Certificate",
-      details: ["Jasmine Children School, Asaba"],
     },
   ],
   projects: [
     {
       title: "Online Examination System",
       description:
-        "Developed a web-based platform that allows administrators and teachers to manage exams, track student results, and generate reports. The system includes timed tests, automated scoring, and result export features.",
+        "Developed a web-based platform that allows administrators and teachers to manage exams, track student results, and generate reports. Includes timed tests, automated scoring, and result export features.",
     },
     {
-      title: "Personal Portfolio Website",
+      title: "Personal Portfolio Website (sirdavid.site)",
       description:
-        "Created and deployed a personal website showcasing projects and technical work while managing hosting, updates, and site performance.",
-    },
-    {
-      title: "Profile Web Application (uKnowMe)",
-      description:
-        "Built a user-focused web application with responsive design, emphasizing clear presentation of profile information and user experience.",
+        "Designed, built, and deployed a personal website showcasing projects and technical work. Manage hosting, updates, and site performance independently.",
     },
   ],
   technicalSkills: [
@@ -63,13 +58,14 @@ export const CV_PROFILE = {
     "HTML & CSS",
     "React",
     "Next.js",
-    "Basic database management",
     "Git & version control",
+    "Basic database management",
   ],
+  technicalSkillsNote:
+    "Also comfortable with Microsoft Office, Google Workspace, and common online collaboration tools.",
   additionalInformation: [
     "Comfortable working with computers, office software, and online tools",
-    "Able to learn new systems quickly",
     "Available for full-time, part-time, or entry-level roles",
-    "Willing to work in both technical and non-technical positions",
+    "Open to both technical and non-technical positions",
   ],
 };
