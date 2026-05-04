@@ -9,8 +9,6 @@ const projects = [
     title: "UKM (uKnowMe)",
     description:
       "A premium anonymous inbox application focused on meaningful interactions. Unlike generic anonymous apps, UKM uses a 'Prompt-first' approach to spark community engagement.",
-    uniqueness:
-      "Features 'Launch-mode safety' and prompt-driven engagement nudges to prevent toxicity and encourage deeper user connections.",
     stack: ["Expo Router", "TypeScript", "NativeWind", "Supabase", "Zustand"],
     code: "https://github.com/sirdavid001/ukm",
     link: "http://www.uknowme.sbs",
@@ -21,8 +19,6 @@ const projects = [
     title: "Sirdavid Multi-Store",
     description:
       "A comprehensive full-stack e-commerce solution for managing online stores. Features end-to-end integration of a high-performance storefront and a backend management API.",
-    uniqueness:
-      "A complete end-to-end custom integration of a frontend shop and specialized backend inventory management tools.",
     stack: ["JavaScript", "Python", "Django", "PostgreSQL", "Tailwind CSS"],
     code: "https://github.com/sirdavid001/Store",
     link: "https://sirdavidshop.sirdavid.site",
@@ -33,8 +29,6 @@ const projects = [
     title: "QuickPOS",
     description:
       "A high-performance Point of Sale system designed for retail efficiency. It supports offline-first usage and real-time inventory management.",
-    uniqueness:
-      "Supports hardware barcode scanning (USB/Bluetooth/Camera) and automated product lookups via Open Food Facts API.",
     stack: ["JavaScript", "CSS", "Chart.js", "Docker", "PWA"],
     code: "https://github.com/sirdavid001/QuickPOS",
     link: "https://pos-client-ruddy.vercel.app",
@@ -45,8 +39,6 @@ const projects = [
     title: "Online Exam System",
     description:
       "An end-to-end academic portal for university examinations. Manages the full lifecycle from question creation to automated grading.",
-    uniqueness:
-      "Features specialized workflows for Students, Teachers, and University Admins with a recently refreshed, high-usability interface.",
     stack: ["Python", "Django", "HTML", "CSS", "JavaScript"],
     code: "https://github.com/sirdavid001/online-exam-system",
     link: "https://online-exam-system-nine-topaz.vercel.app",
@@ -137,19 +129,9 @@ function ProjectCard({ project, variants }) {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <p className="text-lg leading-relaxed text-muted-foreground">
-            {project.description}
-          </p>
-          {project.uniqueness && (
-            <div className="rounded-2xl bg-primary/5 p-4 border border-primary/10">
-              <p className="text-sm font-bold text-primary mb-1 uppercase tracking-wider">Why it&apos;s unique</p>
-              <p className="text-sm text-foreground/80 leading-relaxed italic">
-                &quot;{project.uniqueness}&quot;
-              </p>
-            </div>
-          )}
-        </div>
+        <p className="text-lg leading-relaxed text-muted-foreground">
+          {project.description}
+        </p>
 
         <div className="flex flex-wrap gap-2 pt-2">
           {project.stack.map((tag) => (
