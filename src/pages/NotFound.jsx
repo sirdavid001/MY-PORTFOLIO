@@ -1,7 +1,15 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import useSEO from "../hooks/useSEO";
 
 export default function NotFound() {
+  useSEO({
+    title: "Page not found — Chinedu David Nwadialo",
+    description: "The page you're looking for doesn't exist or has been moved.",
+    path: "/404",
+    noindex: true,
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
