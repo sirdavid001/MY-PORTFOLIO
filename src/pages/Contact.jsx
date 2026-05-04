@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import useSEO from "../hooks/useSEO";
+import { ROUTE_BY_KEY } from "../../shared/seo.js";
 import { FiMail, FiMapPin, FiPhone, FiGithub, FiGlobe, FiSend } from "react-icons/fi";
 import useBudgetContext from "../hooks/useBudgetContext";
 import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../../shared/budgeting.js";
@@ -85,11 +86,7 @@ const itemVariants = {
 };
 
 export default function Contact() {
-  useSEO({
-    title: "Contact — Chinedu David Nwadialo",
-    description: "Start a project with Chinedu David Nwadialo. Submit a project request with your requirements, timeline, and budget.",
-    path: "/contact",
-  });
+  useSEO(ROUTE_BY_KEY.contact);
 
   const prefersReducedMotion = useReducedMotion();
   const activeContainerVariants = prefersReducedMotion

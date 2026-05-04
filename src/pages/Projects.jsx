@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import useSEO from "../hooks/useSEO";
+import { ROUTE_BY_KEY } from "../../shared/seo.js";
 import { FiGithub, FiExternalLink } from "react-icons/fi";
 import { ImageWithFallback } from "../components/ui/ImageWithFallback";
 
@@ -161,11 +162,7 @@ function ProjectCard({ project, variants }) {
 }
 
 export default function Projects() {
-  useSEO({
-    title: "Projects — Chinedu David Nwadialo",
-    description: "Featured web development projects by Chinedu David Nwadialo, including portfolio sites, exam systems, and more.",
-    path: "/projects",
-  });
+  useSEO(ROUTE_BY_KEY.projects);
 
   const prefersReducedMotion = useReducedMotion();
   const activeContainerVariants = prefersReducedMotion

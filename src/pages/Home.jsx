@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import useSEO from "../hooks/useSEO";
+import { ROUTE_BY_KEY } from "../../shared/seo.js";
 import Button from "../components/ui/Button";
 import { FiDownload, FiMail, FiArrowRight } from "react-icons/fi";
 import {
@@ -81,11 +82,7 @@ const itemVariants = {
 };
 
 export default function Home() {
-  useSEO({
-    title: "Chinedu David Nwadialo — Web Developer",
-    description: "Portfolio of Chinedu David Nwadialo, a Computer Science graduate and web developer building high-performance digital products.",
-    path: "/",
-  });
+  useSEO(ROUTE_BY_KEY.home);
 
   const prefersReducedMotion = useReducedMotion();
   const activeContainerVariants = prefersReducedMotion
