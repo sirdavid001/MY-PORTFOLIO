@@ -36,12 +36,12 @@ const projects = [
     status: "Production Ready",
   },
   {
-    title: "Online Exam System",
+    title: "OEMS (Online Exam Management System)",
     description:
-      "An end-to-end academic portal for university examinations. Manages the full lifecycle from question creation to automated grading.",
-    stack: ["Python", "Django", "HTML", "CSS", "JavaScript"],
-    code: "https://github.com/sirdavid001/online-exam-system",
-    link: "https://online-exam-system-nine-topaz.vercel.app",
+      "An end-to-end academic portal for university examinations. Manages the full lifecycle from question creation to automated grading, with specialized workflows for Students, Teachers, and Admins.",
+    stack: ["TypeScript", "React", "NestJS", "Prisma", "PostgreSQL"],
+    code: "https://github.com/sirdavid001/OEMS",
+    link: "https://oems-tau.vercel.app/login",
     image: "/projects/exam_system.png",
     status: "MVP Stage",
   },
