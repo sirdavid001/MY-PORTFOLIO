@@ -48,6 +48,10 @@ function estimateChars(width, size) {
   return Math.max(12, Math.floor(width / averageCharWidth));
 }
 
+function estimateTextWidth(text, size) {
+  return String(text || "").length * Number(size || 12) * 0.52;
+}
+
 function wrapText(text, width, size, options = {}) {
   const safeText = toAsciiSafe(text || "").replace(/\s+/g, " ").trim();
   const firstPrefix = toAsciiSafe(options.firstPrefix || "");
@@ -224,21 +228,47 @@ function createBuilder() {
   }
 
   function addEducationEntry(entry) {
-    ensureSpace(42);
-    addParagraph(entry.title, {
+    ensureSpace(50);
+    const titleSize = 12.4;
+    const dateSize = 10.6;
+    const titleY = cursorY;
+
+    drawTextLine(entry.title, PAGE.marginX, titleY, {
       font: "F2",
-      size: 12.4,
+      size: titleSize,
       color: COLORS.dark,
-      leading: 13.2,
-      after: 2,
     });
 
-    entry.details.forEach((detail, index) => {
-      addParagraph(detail, {
+    if (entry.dateRange) {
+      const safeDate = toAsciiSafe(entry.dateRange);
+      const dateWidth = estimateTextWidth(safeDate, dateSize);
+      drawTextLine(
+        safeDate,
+        PAGE.width - PAGE.marginX - dateWidth,
+        titleY + 1,
+        { font: "F1", size: dateSize, color: COLORS.body }
+      );
+    }
+
+    cursorY -= 14;
+
+    if (entry.institution) {
+      addParagraph(entry.institution, {
+        font: "F1",
         size: 10.8,
         color: COLORS.body,
-        leading: 13.2,
-        after: index === entry.details.length - 1 ? 5 : 1,
+        leading: 13,
+        after: 1,
+      });
+    }
+
+    const details = entry.details || [];
+    details.forEach((detail, index) => {
+      addParagraph(detail, {
+        size: 10.4,
+        color: COLORS.body,
+        leading: 13,
+        after: index === details.length - 1 ? 8 : 1,
       });
     });
   }
@@ -260,16 +290,8 @@ function createBuilder() {
     });
   }
 
-  function addSkillColumns(title, items) {
-    ensureSpace(68);
-    addParagraph(title, {
-      font: "F2",
-      size: 11.8,
-      color: COLORS.dark,
-      leading: 13,
-      after: 5,
-    });
-
+  function addSkillColumns(items) {
+    ensureSpace(60);
     const leftItems = items.slice(0, Math.ceil(items.length / 2));
     const rightItems = items.slice(Math.ceil(items.length / 2));
     const leftX = PAGE.marginX;
@@ -329,18 +351,11 @@ function createBuilder() {
     after: 8,
   });
 
-  addSection("Key Skills");
-  addSkillColumns(CV_PROFILE.keySkills.title, CV_PROFILE.keySkills.items);
-  cursorY -= 8;
-
   addSection("Education");
   CV_PROFILE.education.forEach(addEducationEntry);
 
-  addSection("Selected Projects");
-  CV_PROFILE.projects.forEach(addProject);
-
   addSection("Technical Skills");
-  addParagraph(CV_PROFILE.technicalSkills.join(" - "), {
+  addParagraph(CV_PROFILE.technicalSkills.join("  -  "), {
     size: 10.7,
     color: COLORS.body,
     leading: 13.2,
@@ -354,6 +369,13 @@ function createBuilder() {
       after: 8,
     });
   }
+
+  addSection("Selected Projects");
+  CV_PROFILE.projects.forEach(addProject);
+
+  addSection("Workplace Skills");
+  addSkillColumns(CV_PROFILE.workplaceSkills);
+  cursorY -= 8;
 
   addSection("Additional Information");
   addBulletList(CV_PROFILE.additionalInformation);
