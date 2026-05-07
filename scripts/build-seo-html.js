@@ -1,16 +1,25 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { ROUTES, SITE_URL } from "../shared/seo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "..", "dist");
+const ssrDir = path.resolve(__dirname, "..", "dist-ssr");
 const baseHtmlPath = path.join(distDir, "index.html");
 
 if (!fs.existsSync(baseHtmlPath)) {
   console.error(`[build-seo-html] missing ${baseHtmlPath} — run vite build first`);
   process.exit(1);
 }
+
+const ssrEntryPath = path.join(ssrDir, "entry-server.js");
+if (!fs.existsSync(ssrEntryPath)) {
+  console.error(`[build-seo-html] missing ${ssrEntryPath} — run vite build --ssr first`);
+  process.exit(1);
+}
+
+const { render } = await import(pathToFileURL(ssrEntryPath).href);
 
 const baseHtml = fs.readFileSync(baseHtmlPath, "utf8");
 
@@ -44,6 +53,14 @@ function injectFor(route) {
   html = replaceTag(html, /<meta\s+property="og:description"[^>]*\/>/, `<meta property="og:description" content="${desc}" />`);
   html = replaceTag(html, /<meta\s+name="twitter:title"[^>]*\/>/, `<meta name="twitter:title" content="${title}" />`);
   html = replaceTag(html, /<meta\s+name="twitter:description"[^>]*\/>/, `<meta name="twitter:description" content="${desc}" />`);
+
+  const appHtml = render(route.path);
+  html = replaceTag(
+    html,
+    /<div id="root"><\/div>/,
+    `<div id="root">${appHtml}</div>`
+  );
+
   return html;
 }
 
@@ -63,4 +80,4 @@ for (const route of ROUTES) {
   console.log(`  ✓ ${path.relative(path.resolve(__dirname, ".."), outPath)}`);
   written++;
 }
-console.log(`[build-seo-html] wrote ${written} per-route HTML file(s).`);
+console.log(`[build-seo-html] wrote ${written} per-route HTML file(s) with prerendered content.`);
