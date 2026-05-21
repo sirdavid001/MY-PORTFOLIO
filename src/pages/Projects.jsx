@@ -175,7 +175,7 @@ export default function Projects() {
   return (
     <motion.section
       variants={activeContainerVariants}
-      initial="hidden"
+      initial={false}
       animate="visible"
       className="space-y-12 py-12"
     >

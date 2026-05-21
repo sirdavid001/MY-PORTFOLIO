@@ -167,7 +167,7 @@ export default function Home() {
   return (
     <motion.div
       variants={activeContainerVariants}
-      initial="hidden"
+      initial={false}
       animate="visible"
       className="space-y-0"
     >

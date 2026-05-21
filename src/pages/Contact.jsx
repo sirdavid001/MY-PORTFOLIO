@@ -214,7 +214,7 @@ ${formData.features}`
   return (
     <motion.section
       variants={activeContainerVariants}
-      initial="hidden"
+      initial={false}
       animate="visible"
       className="py-12 sm:py-20"
     >
