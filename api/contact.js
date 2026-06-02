@@ -7,6 +7,7 @@ import { escapeHtml } from "../shared/utils.js";
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_TEXT_LENGTH = 3000;
 const MAX_SHORT_LENGTH = 180;
+const CONTACT_SENDER_NAME = "Sirdavid Portfolio";
 
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "https://sirdavid.site");
@@ -46,6 +47,10 @@ function formatSenderAddress(fromEmail, fromName) {
   if (!name) return email;
   if (email.includes("<") && email.includes(">")) return email;
   return `${name} <${email}>`;
+}
+
+export function buildContactFromEmail(fromEmail) {
+  return formatSenderAddress(fromEmail, CONTACT_SENDER_NAME);
 }
 
 async function readJsonBody(req) {
@@ -288,8 +293,7 @@ export default async function handler(req, res) {
       );
     }
 
-    const senderName = String(process.env.RESEND_FROM_NAME || "Sirdavid Portfolio").trim();
-    const fromEmail = formatSenderAddress(configuredFromEmail, senderName);
+    const fromEmail = buildContactFromEmail(configuredFromEmail);
     const { recipient, subject, text, html } = buildContactEmailPayload(normalized.data);
 
     if (!isValidEmail(recipient)) {

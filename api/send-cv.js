@@ -22,6 +22,8 @@ const CV_OPTIONS = {
   },
 };
 
+const CV_SENDER_NAME = CV_PROFILE.name;
+
 function setCors(res, methods) {
   res.setHeader("Access-Control-Allow-Origin", "https://sirdavid.site");
   res.setHeader("Access-Control-Allow-Methods", methods);
@@ -78,6 +80,10 @@ function formatSenderAddress(fromEmail, fromName) {
   if (!name) return email;
   if (email.includes("<") && email.includes(">")) return email;
   return `${name} <${email}>`;
+}
+
+export function buildCvFromEmail(fromEmail) {
+  return formatSenderAddress(fromEmail, CV_SENDER_NAME);
 }
 
 function encodeBase64(value) {
@@ -301,8 +307,7 @@ export default async function handler(req, res) {
     }
 
     const configuredFromEmail = String(process.env.RESEND_FROM_EMAIL || CV_PROFILE.email).trim();
-    const senderName = String(process.env.RESEND_FROM_NAME || "Chinedu David Nwadialo").trim();
-    const fromEmail = formatSenderAddress(configuredFromEmail, senderName);
+    const fromEmail = buildCvFromEmail(configuredFromEmail);
     const replyToEmail = isValidEmail(process.env.SUPPORT_EMAIL) ? process.env.SUPPORT_EMAIL : CV_PROFILE.email;
     if (!isValidEmail(configuredFromEmail)) {
       return json(

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { applyRateLimitAsync } from "../api/_lib/rate-limit.js";
-import { buildContactEmailPayload, normalizeContactPayload } from "../api/contact.js";
+import { buildContactEmailPayload, buildContactFromEmail, normalizeContactPayload } from "../api/contact.js";
+import { buildCvFromEmail } from "../api/send-cv.js";
 
 function validContactPayload(overrides = {}) {
   return {
@@ -52,6 +53,13 @@ test("contact email payload escapes HTML in rich content", () => {
   assert.match(email.html, /&lt;script&gt;alert/);
   assert.doesNotMatch(email.html, /<script>alert/);
   assert.match(email.text, /Use <b>bold<\/b> reports/);
+});
+
+test("email sender display names ignore stale environment names", () => {
+  process.env.RESEND_FROM_NAME = "sirdavid Gadgets";
+
+  assert.equal(buildCvFromEmail("hello@sirdavid.site"), "Nwadialo David Chinedu <hello@sirdavid.site>");
+  assert.equal(buildContactFromEmail("hello@sirdavid.site"), "Sirdavid Portfolio <hello@sirdavid.site>");
 });
 
 test("rate limiter blocks after the configured memory limit", async () => {
