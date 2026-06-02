@@ -1,0 +1,52 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { getCurrencyForCountry, getLocationFactor } from "../shared/budgeting.js";
+import {
+  normalizeCountryCode,
+  normalizeCurrencyCode,
+  normalizeLocationPayload,
+  isProbablyPublicIp,
+} from "../shared/location.js";
+import { buildCvPdf } from "../shared/cv/pdf.js";
+import { buildCvWordDocument } from "../shared/cv/word.js";
+
+test("budget helpers resolve common currencies and regional factors", () => {
+  assert.equal(getCurrencyForCountry("US", "NGN"), "USD");
+  assert.equal(getCurrencyForCountry("DE", "NGN"), "EUR");
+  assert.equal(getCurrencyForCountry("ZZ", "NGN"), "NGN");
+  assert.equal(getLocationFactor("FR"), 1.09);
+  assert.equal(getLocationFactor("US"), 1);
+});
+
+test("location helpers normalize trusted location data", () => {
+  assert.equal(normalizeCountryCode(" us "), "US");
+  assert.equal(normalizeCountryCode("XX"), "");
+  assert.equal(normalizeCurrencyCode(" usd "), "USD");
+  assert.equal(normalizeCurrencyCode("dollar"), "");
+
+  assert.deepEqual(normalizeLocationPayload({ countryCode: "ng", currency: "ngn" }), {
+    countryCode: "NG",
+    countryName: "Nigeria",
+    currency: "NGN",
+    source: "unknown",
+  });
+});
+
+test("public IP detection rejects private and loopback addresses", () => {
+  assert.equal(isProbablyPublicIp("8.8.8.8"), true);
+  assert.equal(isProbablyPublicIp("127.0.0.1"), false);
+  assert.equal(isProbablyPublicIp("192.168.1.4"), false);
+  assert.equal(isProbablyPublicIp("::1"), false);
+});
+
+test("CV builders generate downloadable document content", () => {
+  const pdf = buildCvPdf();
+  assert.ok(pdf instanceof Uint8Array);
+  assert.equal(Buffer.from(pdf.slice(0, 8)).toString("utf8"), "%PDF-1.4");
+
+  const word = buildCvWordDocument();
+  assert.match(word, /Nwadialo David Chinedu/);
+  assert.match(word, /Personal Information/);
+  assert.match(word, /4th March, 2003/);
+  assert.match(word, /Professional Summary/);
+});

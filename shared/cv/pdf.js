@@ -341,7 +341,24 @@ function createBuilder() {
     });
   }
 
+  function addPersonalDetails(items) {
+    items.forEach((item, index) => {
+      addParagraph(`${item.label}: ${item.value}`, {
+        size: 10.2,
+        color: COLORS.body,
+        leading: 12.5,
+        after: index === items.length - 1 ? 6 : 1,
+        wrap: {
+          continuationPrefix: "  ",
+        },
+      });
+    });
+  }
+
   newPage(true);
+
+  addSection("Personal Information");
+  addPersonalDetails(CV_PROFILE.personalDetails || []);
 
   addSection("Professional Summary");
   addParagraph(CV_PROFILE.summary, {

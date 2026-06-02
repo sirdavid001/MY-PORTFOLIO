@@ -1,4 +1,4 @@
-import { applyRateLimit } from "./_lib/rate-limit.js";
+import { applyRateLimitAsync } from "./_lib/rate-limit.js";
 import { getClientIp } from "./_lib/security.js";
 import { CV_PROFILE } from "../shared/cv/profile.js";
 import { buildCvPdf } from "../shared/cv/pdf.js";
@@ -254,7 +254,7 @@ ${CV_PROFILE.portfolio}`;
 export default async function handler(req, res) {
   const methods = "POST, OPTIONS";
   const clientIp = getClientIp(req);
-  const requestRateLimit = applyRateLimit(res, {
+  const requestRateLimit = await applyRateLimitAsync(res, {
     key: `cv-request:${clientIp}`,
     limit: 20,
     windowMs: 30 * 60 * 1000,

@@ -31,6 +31,12 @@ export const CV_RESUME_LINES = [
     : []),
   ...contactLines.map((text) => ({ style: "meta", text })),
   { style: "spacer" },
+  { style: "section", text: "Personal Information" },
+  ...(CV_PROFILE.personalDetails || []).map((item) => ({
+    style: "body",
+    text: `${item.label}: ${item.value}`,
+  })),
+  { style: "spacer" },
   { style: "section", text: "Professional Summary" },
   { style: "body", text: CV_PROFILE.summary },
   { style: "spacer" },

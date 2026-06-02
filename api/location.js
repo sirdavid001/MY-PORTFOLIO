@@ -1,4 +1,4 @@
-import { applyRateLimit } from "./_lib/rate-limit.js";
+import { applyRateLimitAsync } from "./_lib/rate-limit.js";
 import { getClientIp } from "./_lib/security.js";
 import { normalizeLocationPayload, isProbablyPublicIp } from "../shared/location.js";
 
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     return json(res, 200, { ok: true }, methods);
   }
 
-  const rateLimit = applyRateLimit(res, {
+  const rateLimit = await applyRateLimitAsync(res, {
     key: `location:${clientIp}`,
     limit: 120,
     windowMs: 10 * 60 * 1000,

@@ -6,7 +6,7 @@ import { ROUTE_BY_KEY } from "../../shared/seo.js";
 import Button from "../components/ui/Button";
 import { FiDownload, FiMail, FiArrowRight } from "react-icons/fi";
 import {
-  SiCss3,
+  SiCss,
   SiGit,
   SiHtml5,
   SiJavascript,
@@ -49,7 +49,7 @@ const tech = [
   { name: "Tailwind CSS", icon: SiTailwindcss, color: "#06B6D4" },
   { name: "JavaScript", icon: SiJavascript, color: "#F7DF1E" },
   { name: "HTML", icon: SiHtml5, color: "#E34F26" },
-  { name: "CSS", icon: SiCss3, color: "#1572B6" },
+  { name: "CSS", icon: SiCss, color: "#1572B6" },
   { name: "Python", icon: SiPython, color: "#3776AB" },
   { name: "Git", icon: SiGit, color: "#F05032" },
 ];

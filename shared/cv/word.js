@@ -70,6 +70,19 @@ function renderProjects() {
     .join("");
 }
 
+function renderPersonalDetails() {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 12px; border-collapse: collapse;">
+    ${(CV_PROFILE.personalDetails || [])
+      .map(
+        (item) => `<tr>
+          <td style="width: 190px; padding: 5px 16px 5px 0; color: #4b5563; font-size: 14px; font-weight: 700; text-transform: uppercase; vertical-align: top;">${escapeHtml(item.label)}</td>
+          <td style="padding: 5px 0; color: #1f2937; font-size: 14.5px; line-height: 1.5; vertical-align: top;">${escapeHtml(item.value)}</td>
+        </tr>`
+      )
+      .join("")}
+  </table>`;
+}
+
 function renderSection(title, body) {
   return `<div style="margin-top: 28px;">
     <div style="font-size: 18px; font-weight: 700; color: #1f2937; letter-spacing: 0.4px; text-transform: uppercase;">${escapeHtml(title)}</div>
@@ -119,6 +132,8 @@ export function buildCvWordDocument() {
         </div>
 
         <div style="padding: 26px 32px 32px;">
+          ${renderSection("Personal Information", renderPersonalDetails())}
+
           ${renderSection(
             "Professional Summary",
             `<div style="margin-top: 12px; color: #3f4d63; font-size: 14.5px; line-height: 1.6;">${escapeHtml(CV_PROFILE.summary)}</div>`
