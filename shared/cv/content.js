@@ -1,11 +1,8 @@
 import { CV_PROFILE } from "./profile.js";
 
-const contactLines = [
-  `Location: ${CV_PROFILE.location}`,
-  `Email: ${CV_PROFILE.email}`,
+const headingLinks = [
   `GitHub: ${CV_PROFILE.github}`,
   `LinkedIn: ${CV_PROFILE.linkedin}`,
-  `Phone: ${CV_PROFILE.phone}`,
   `Portfolio: ${CV_PROFILE.portfolio}`,
 ];
 
@@ -32,7 +29,7 @@ export const CV_RESUME_LINES = [
   ...(CV_PROFILE.classification
     ? [{ style: "subtitle", text: CV_PROFILE.classification }]
     : []),
-  ...contactLines.map((text) => ({ style: "meta", text })),
+  ...headingLinks.map((text) => ({ style: "meta", text })),
   { style: "spacer" },
   { style: "section", text: "Personal Information" },
   ...(CV_PROFILE.personalDetails || []).map((item) => ({

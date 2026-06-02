@@ -44,7 +44,9 @@ test("CV builders generate downloadable document content", () => {
   const pdf = buildCvPdf();
   assert.ok(pdf instanceof Uint8Array);
   assert.equal(Buffer.from(pdf.slice(0, 8)).toString("utf8"), "%PDF-1.4");
-  assert.doesNotMatch(Buffer.from(pdf).toString("latin1"), /Selected Projects/);
+  const pdfText = Buffer.from(pdf).toString("latin1");
+  assert.doesNotMatch(pdfText, /Selected Projects/);
+  assert.doesNotMatch(pdfText, /Location:|Email:|Phone:/);
 
   const word = buildCvWordDocument();
   assert.match(word, /Nwadialo David Chinedu/);
@@ -62,6 +64,7 @@ test("CV builders generate downloadable document content", () => {
   assert.doesNotMatch(word, />Education</);
   assert.doesNotMatch(word, /Selected Projects/);
   assert.doesNotMatch(word, /Technical Skills/);
+  assert.doesNotMatch(word, /Location:<\/span>|Email:<\/span>|Phone:<\/span>/);
   assert.ok(
     CV_RESUME_LINES.findIndex((line) => line.text === "Personal Information") <
       CV_RESUME_LINES.findIndex((line) => line.text === "Professional Summary")
@@ -76,4 +79,8 @@ test("CV builders generate downloadable document content", () => {
   );
   assert.equal(CV_RESUME_LINES.some((line) => line.text === "Selected Projects"), false);
   assert.equal(CV_RESUME_LINES.some((line) => line.text === "Technical Skills"), false);
+  assert.equal(
+    CV_RESUME_LINES.some((line) => ["Location:", "Email:", "Phone:"].some((prefix) => line.text?.startsWith(prefix))),
+    false
+  );
 });

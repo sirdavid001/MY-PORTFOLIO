@@ -27,17 +27,6 @@ function renderSkillColumns(items) {
   </table>`;
 }
 
-function renderSkillTags(items) {
-  return `<div style="margin-top: 14px;">
-    ${items
-      .map(
-        (item) =>
-          `<span style="display: inline-block; margin: 0 8px 9px 0; padding: 7px 11px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 14.5px; font-weight: 700;">${escapeHtml(item)}</span>`
-      )
-      .join("")}
-  </div>`;
-}
-
 function renderSchoolsAttended(entries) {
   return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; border-collapse: collapse; margin-top: 14px;">
     ${entries
@@ -121,12 +110,6 @@ function renderSection(title, body, options = {}) {
   </div>`;
 }
 
-function renderContactRow(label, value) {
-  return `<div style="font-size: 14.8px; line-height: 1.8;">
-    <span style="font-weight: 700; color: #bfdbfe;">${escapeHtml(label)}:</span> ${escapeHtml(value)}
-  </div>`;
-}
-
 export function buildCvWordDocument() {
   return `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="en">
@@ -148,30 +131,21 @@ export function buildCvWordDocument() {
   <body style="margin: 0; padding: 0; background: #eef2f7; font-family: Arial, Helvetica, sans-serif; color: #1f2937;">
     <div class="WordSection1" style="max-width: 794px; margin: 0 auto; padding: 20px; background: #eef2f7; box-sizing: border-box;">
       <div style="background: #ffffff; border: 1px solid #d1d5db;">
-        <div style="background: #0f2f6b; color: #ffffff; padding: 34px 38px 28px; border-bottom: 6px solid #2563eb;">
-          <div style="font-size: 34px; line-height: 1.16; font-weight: 700; letter-spacing: 0.2px;">${escapeHtml(CV_PROFILE.name)}</div>
+        <div style="background: #0f2f6b; color: #ffffff; padding: 22px 38px 18px; border-bottom: 5px solid #2563eb;">
+          <div style="font-size: 32px; line-height: 1.16; font-weight: 700; letter-spacing: 0.2px;">${escapeHtml(CV_PROFILE.name)}</div>
           ${
             CV_PROFILE.classification
-              ? `<div style="margin-top: 7px; font-size: 16px; font-weight: 600; color: #dbeafe; letter-spacing: 0.2px;">${escapeHtml(CV_PROFILE.classification)}</div>`
+              ? `<div style="margin-top: 5px; font-size: 15px; font-weight: 600; color: #dbeafe; letter-spacing: 0.2px;">${escapeHtml(CV_PROFILE.classification)}</div>`
               : ""
           }
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 21px; color: #ffffff;">
-            <tr>
-              <td style="width: 50%; vertical-align: top; padding-right: 24px;">
-                ${renderContactRow("Location", CV_PROFILE.location)}
-                ${renderContactRow("Email", CV_PROFILE.email)}
-                ${renderContactRow("GitHub", CV_PROFILE.github)}
-              </td>
-              <td style="width: 50%; vertical-align: top; padding-left: 24px;">
-                ${renderContactRow("Phone", CV_PROFILE.phone)}
-                ${renderContactRow("Portfolio", CV_PROFILE.portfolio)}
-                ${renderContactRow("LinkedIn", CV_PROFILE.linkedin)}
-              </td>
-            </tr>
-          </table>
+          <div style="margin-top: 10px; font-size: 13.5px; line-height: 1.5; color: #dbeafe;">
+            LinkedIn: ${escapeHtml(CV_PROFILE.linkedin)}
+            &nbsp;|&nbsp; GitHub: ${escapeHtml(CV_PROFILE.github)}
+            &nbsp;|&nbsp; Portfolio: ${escapeHtml(CV_PROFILE.portfolio)}
+          </div>
         </div>
 
-        <div style="padding: 30px 38px 38px;">
+        <div style="padding: 24px 38px 38px;">
           ${renderSection("Personal Information", renderPersonalDetails())}
 
           ${renderSection(

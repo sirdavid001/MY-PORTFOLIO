@@ -9,9 +9,9 @@ const PAGE = {
 };
 
 const HEADER = {
-  height: 158,
+  height: 84,
   paddingX: 30,
-  topInset: 30,
+  topInset: 23,
 };
 
 const COLORS = {
@@ -126,7 +126,7 @@ function createBuilder() {
         x: HEADER.paddingX,
         y: PAGE.height - HEADER.topInset,
         font: "F2",
-        size: 29,
+        size: 28,
         color: COLORS.white,
         text: CV_PROFILE.name,
       });
@@ -135,52 +135,25 @@ function createBuilder() {
         currentPage.push({
           kind: "text",
           x: HEADER.paddingX,
-          y: PAGE.height - HEADER.topInset - 22,
+          y: PAGE.height - HEADER.topInset - 21,
           font: "F1",
-          size: 12.7,
+          size: 12.5,
           color: COLORS.white,
           text: CV_PROFILE.classification,
         });
       }
 
-      const leftX = HEADER.paddingX;
-      const rightX = PAGE.width / 2 + 16;
-      const contactTop = PAGE.height - 92;
-      const contactGap = 19.5;
-
-      [
-        `Location: ${CV_PROFILE.location}`,
-        `Email: ${CV_PROFILE.email}`,
-        `GitHub: ${CV_PROFILE.github}`,
-      ].forEach((text, index) => {
-        currentPage.push({
-          kind: "text",
-          x: leftX,
-          y: contactTop - index * contactGap,
-          font: "F1",
-          size: 10.2,
-          color: COLORS.white,
-          text,
-        });
+      currentPage.push({
+        kind: "text",
+        x: HEADER.paddingX,
+        y: PAGE.height - HEADER.topInset - 43,
+        font: "F1",
+        size: 9.4,
+        color: COLORS.white,
+        text: `LinkedIn: ${CV_PROFILE.linkedin} | GitHub: ${CV_PROFILE.github} | Portfolio: ${CV_PROFILE.portfolio}`,
       });
 
-      [
-        `Phone: ${CV_PROFILE.phone}`,
-        `Portfolio: ${CV_PROFILE.portfolio}`,
-        `LinkedIn: ${CV_PROFILE.linkedin}`,
-      ].forEach((text, index) => {
-        currentPage.push({
-          kind: "text",
-          x: rightX,
-          y: contactTop - index * contactGap,
-          font: "F1",
-          size: 10.2,
-          color: COLORS.white,
-          text,
-        });
-      });
-
-      cursorY = PAGE.height - HEADER.height - 22;
+      cursorY = PAGE.height - HEADER.height - 18;
       return;
     }
 
