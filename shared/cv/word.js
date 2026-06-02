@@ -38,8 +38,8 @@ function renderSkillTags(items) {
   </div>`;
 }
 
-function renderEducation() {
-  return CV_PROFILE.education
+function renderDatedEntries(entries) {
+  return entries
     .map((entry) => {
       const detailLines = (entry.details || [])
         .map(
@@ -52,7 +52,7 @@ function renderEducation() {
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
           <tr>
             <td style="vertical-align: bottom; padding-right: 12px;">
-              <div style="font-size: 16px; font-weight: 700; color: #1f2937;">${escapeHtml(entry.title)}</div>
+              <div style="font-size: 16px; font-weight: 700; color: #1f2937;">${escapeHtml(entry.title || entry.name)}</div>
             </td>
             <td style="vertical-align: bottom; text-align: right; white-space: nowrap; color: #4b5563; font-size: 14px; font-weight: 600;">
               ${escapeHtml(entry.dateRange || "")}
@@ -174,7 +174,12 @@ export function buildCvWordDocument() {
             `<div style="padding: 14px 16px; border: 1px solid #dbeafe; background: #f8fbff; color: #334155; font-size: 14.5px; line-height: 1.62;">${escapeHtml(CV_PROFILE.summary)}</div>`
           )}
 
-          ${renderSection("Education", renderEducation())}
+          ${renderSection("Schools Attended With Dates", renderDatedEntries(CV_PROFILE.schoolsAttended))}
+
+          ${renderSection(
+            "Certificates / Qualifications Obtained",
+            renderDatedEntries(CV_PROFILE.qualifications)
+          )}
 
           ${renderSection(
             "Technical Skills",

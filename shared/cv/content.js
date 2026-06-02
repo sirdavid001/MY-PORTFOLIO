@@ -9,11 +9,13 @@ const contactLines = [
   `Portfolio: ${CV_PROFILE.portfolio}`,
 ];
 
-function flattenEducationEntry(entry) {
+function flattenDatedEntry(entry) {
   const lines = [
     {
       style: "subheading",
-      text: entry.dateRange ? `${entry.title}  -  ${entry.dateRange}` : entry.title,
+      text: entry.dateRange
+        ? `${entry.title || entry.name}  -  ${entry.dateRange}`
+        : entry.title || entry.name,
     },
   ];
   if (entry.institution) {
@@ -41,10 +43,16 @@ export const CV_RESUME_LINES = [
   { style: "section", text: "Professional Summary" },
   { style: "body", text: CV_PROFILE.summary },
   { style: "spacer" },
-  { style: "section", text: "Education" },
-  ...CV_PROFILE.education.flatMap((entry, index) => [
-    ...flattenEducationEntry(entry),
-    ...(index === CV_PROFILE.education.length - 1 ? [] : [{ style: "spacer" }]),
+  { style: "section", text: "Schools Attended With Dates" },
+  ...CV_PROFILE.schoolsAttended.flatMap((entry, index) => [
+    ...flattenDatedEntry(entry),
+    ...(index === CV_PROFILE.schoolsAttended.length - 1 ? [] : [{ style: "spacer" }]),
+  ]),
+  { style: "spacer" },
+  { style: "section", text: "Certificates / Qualifications Obtained" },
+  ...CV_PROFILE.qualifications.flatMap((entry, index) => [
+    ...flattenDatedEntry(entry),
+    ...(index === CV_PROFILE.qualifications.length - 1 ? [] : [{ style: "spacer" }]),
   ]),
   { style: "spacer" },
   { style: "section", text: "Technical Skills" },

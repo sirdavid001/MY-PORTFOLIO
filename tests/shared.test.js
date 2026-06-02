@@ -50,4 +50,9 @@ test("CV builders generate downloadable document content", () => {
   assert.match(word, /Personal Information/);
   assert.match(word, /4th March, 2003/);
   assert.match(word, /Professional Summary/);
+  assert.match(word, /Schools Attended With Dates/);
+  assert.match(word, /Certificates \/ Qualifications Obtained/);
+  assert.match(word, /West African Senior School Certificate Examination \(WAEC\)/);
+  assert.match(word, /National Examination Council Certificate \(NECO\)/);
+  assert.doesNotMatch(word, />Education</);
 });

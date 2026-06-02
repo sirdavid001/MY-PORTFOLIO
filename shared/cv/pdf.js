@@ -280,13 +280,13 @@ function createBuilder() {
     cursorY -= boxHeight + 10;
   }
 
-  function addEducationEntry(entry) {
+  function addDatedEntry(entry) {
     ensureSpace(50);
     const titleSize = 12.4;
     const dateSize = 10.6;
     const titleY = cursorY;
 
-    drawTextLine(entry.title, PAGE.marginX, titleY, {
+    drawTextLine(entry.title || entry.name, PAGE.marginX, titleY, {
       font: "F2",
       size: titleSize,
       color: COLORS.dark,
@@ -526,8 +526,11 @@ function createBuilder() {
     leading: 13,
   });
 
-  addSection("Education");
-  CV_PROFILE.education.forEach(addEducationEntry);
+  addSection("Schools Attended With Dates");
+  CV_PROFILE.schoolsAttended.forEach(addDatedEntry);
+
+  addSection("Certificates / Qualifications Obtained");
+  CV_PROFILE.qualifications.forEach(addDatedEntry);
 
   addSection("Technical Skills");
   addChipList(CV_PROFILE.technicalSkills);

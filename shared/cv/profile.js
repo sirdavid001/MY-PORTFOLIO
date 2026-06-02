@@ -36,18 +36,31 @@ export const CV_PROFILE = {
   ],
   summary:
     "Computer Science graduate with hands-on experience building web applications, organizing information, and solving problems using both technical and analytical skills. Strong attention to detail, communication, teamwork, and customer service abilities. Comfortable using office software, digital tools, and technology to support business operations. Open to entry-level opportunities in offshore operations, roustabout roles, IT support, administration, operations, and customer-facing positions where reliability, adaptability, and problem-solving are valued.",
-  education: [
+  schoolsAttended: [
     {
-      title: "Bachelor of Science (BSc), Computer Science",
+      name: "Dennis Osadebay University, Asaba, Nigeria",
       dateRange: "2021 - 2026",
-      institution: "Dennis Osadebay University, Asaba, Nigeria",
-      details: ["Faculty of Computing - Degree conferred February 18, 2026"],
     },
     {
-      title: "Senior Secondary School Certificate (SSCE)",
+      name: "Redeemers International High School, Asaba",
       dateRange: "2013 - 2019",
+    },
+  ],
+  qualifications: [
+    {
+      title: "Bachelor of Science (BSc), Computer Science",
+      dateRange: "2026",
+      institution: "Dennis Osadebay University, Asaba, Nigeria",
+    },
+    {
+      title: "West African Senior School Certificate Examination (WAEC)",
+      dateRange: "2019",
       institution: "Redeemers International High School, Asaba",
-      details: ["WAEC and NECO Certificates"],
+    },
+    {
+      title: "National Examination Council Certificate (NECO)",
+      dateRange: "2019",
+      institution: "Redeemers International High School, Asaba",
     },
   ],
   technicalSkills: [
