@@ -1,17 +1,17 @@
 import { CV_PROFILE } from "./profile.js";
 
 const PAGE = {
-  width: 612,
-  height: 792,
-  marginX: 32,
-  marginTop: 34,
-  marginBottom: 36,
+  width: 595.28,
+  height: 841.89,
+  marginX: 30,
+  marginTop: 32,
+  marginBottom: 34,
 };
 
 const HEADER = {
-  height: 144,
-  paddingX: 28,
-  topInset: 28,
+  height: 158,
+  paddingX: 30,
+  topInset: 30,
 };
 
 const COLORS = {
@@ -87,7 +87,7 @@ function wrapText(text, width, size, options = {}) {
 function createBuilder() {
   const pages = [];
   let currentPage = null;
-  let cursorY = PAGE.height - HEADER.height - 16;
+  let cursorY = PAGE.height - HEADER.height - 18;
 
   function newPage(includeHeader = false) {
     currentPage = [];
@@ -126,7 +126,7 @@ function createBuilder() {
         x: HEADER.paddingX,
         y: PAGE.height - HEADER.topInset,
         font: "F2",
-        size: 27,
+        size: 29,
         color: COLORS.white,
         text: CV_PROFILE.name,
       });
@@ -135,9 +135,9 @@ function createBuilder() {
         currentPage.push({
           kind: "text",
           x: HEADER.paddingX,
-          y: PAGE.height - HEADER.topInset - 20,
+          y: PAGE.height - HEADER.topInset - 22,
           font: "F1",
-          size: 11.5,
+          size: 12.7,
           color: COLORS.white,
           text: CV_PROFILE.classification,
         });
@@ -145,8 +145,8 @@ function createBuilder() {
 
       const leftX = HEADER.paddingX;
       const rightX = PAGE.width / 2 + 16;
-      const contactTop = PAGE.height - 84;
-      const contactGap = 18;
+      const contactTop = PAGE.height - 92;
+      const contactGap = 19.5;
 
       [
         `Location: ${CV_PROFILE.location}`,
@@ -158,7 +158,7 @@ function createBuilder() {
           x: leftX,
           y: contactTop - index * contactGap,
           font: "F1",
-          size: 9.4,
+          size: 10.2,
           color: COLORS.white,
           text,
         });
@@ -174,13 +174,13 @@ function createBuilder() {
           x: rightX,
           y: contactTop - index * contactGap,
           font: "F1",
-          size: 9.4,
+          size: 10.2,
           color: COLORS.white,
           text,
         });
       });
 
-      cursorY = PAGE.height - HEADER.height - 20;
+      cursorY = PAGE.height - HEADER.height - 22;
       return;
     }
 
@@ -223,21 +223,21 @@ function createBuilder() {
   }
 
   function addSection(title) {
-    ensureSpace(40);
+    ensureSpace(44);
     currentPage.push({
       kind: "rect",
       x: PAGE.marginX,
-      y: cursorY - 11,
+      y: cursorY - 12,
       width: 4,
-      height: 17,
+      height: 20,
       color: COLORS.blue,
     });
     drawTextLine(title.toUpperCase(), PAGE.marginX + 12, cursorY, {
       font: "F2",
-      size: 12.8,
+      size: 14,
       color: COLORS.dark,
     });
-    const ruleY = cursorY - 11;
+    const ruleY = cursorY - 13;
     currentPage.push({
       kind: "line",
       x1: PAGE.marginX,
@@ -246,16 +246,16 @@ function createBuilder() {
       width: 1,
       color: COLORS.line,
     });
-    cursorY = ruleY - 14;
+    cursorY = ruleY - 16;
   }
 
   function addBoxedParagraph(text, options = {}) {
     const x = options.x ?? PAGE.marginX;
     const width = options.width ?? PAGE.width - PAGE.marginX * 2;
-    const size = options.size ?? 10.6;
-    const leading = options.leading ?? 13;
-    const paddingX = 12;
-    const paddingY = 12;
+    const size = options.size ?? 11.8;
+    const leading = options.leading ?? 14.8;
+    const paddingX = 14;
+    const paddingY = 14;
     const lines = wrapText(text, width - paddingX * 2, size);
     const boxHeight = lines.length * leading + paddingY * 2 - 3;
 
@@ -282,13 +282,13 @@ function createBuilder() {
 
   function addSchoolsTimeline(entries) {
     const contentWidth = PAGE.width - PAGE.marginX * 2;
-    const dateWidth = 82;
+    const dateWidth = 88;
     const gap = 14;
     const schoolWidth = contentWidth - dateWidth - gap;
 
     for (const entry of entries) {
-      const schoolLines = wrapText(entry.name, schoolWidth - 18, 10.8);
-      const rowHeight = Math.max(36, schoolLines.length * 12 + 18);
+      const schoolLines = wrapText(entry.name, schoolWidth - 18, 11.8);
+      const rowHeight = Math.max(42, schoolLines.length * 14 + 20);
       ensureSpace(rowHeight + 8);
       const rowY = cursorY;
 
@@ -311,22 +311,22 @@ function createBuilder() {
       currentPage.push({
         kind: "rect",
         x: PAGE.marginX + 13,
-        y: rowY - 21,
+        y: rowY - 24,
         width: dateWidth,
-        height: 18,
+        height: 21,
         color: COLORS.bluePale,
       });
 
-      drawTextLine(entry.dateRange || "", PAGE.marginX + 21, rowY - 16, {
+      drawTextLine(entry.dateRange || "", PAGE.marginX + 20, rowY - 17.5, {
         font: "F2",
-        size: 9.4,
+        size: 10.4,
         color: COLORS.blueDark,
       });
 
       schoolLines.forEach((line, index) => {
-        drawTextLine(line, PAGE.marginX + dateWidth + gap + 12, rowY - 13 - index * 12, {
+        drawTextLine(line, PAGE.marginX + dateWidth + gap + 12, rowY - 14 - index * 14, {
           font: "F2",
-          size: 10.8,
+          size: 11.8,
           color: COLORS.dark,
         });
       });
@@ -337,11 +337,11 @@ function createBuilder() {
 
   function addQualificationsTable(entries) {
     const contentWidth = PAGE.width - PAGE.marginX * 2;
-    const yearWidth = 52;
-    const gap = 14;
-    const titleWidth = 252;
+    const yearWidth = 58;
+    const gap = 13;
+    const titleWidth = 242;
     const institutionWidth = contentWidth - yearWidth - titleWidth - gap * 2;
-    const headerHeight = 22;
+    const headerHeight = 25;
 
     ensureSpace(headerHeight + 44);
     currentPage.push({
@@ -355,26 +355,26 @@ function createBuilder() {
 
     drawTextLine("YEAR", PAGE.marginX + 9, cursorY - 10, {
       font: "F2",
-      size: 8.4,
+      size: 9.3,
       color: COLORS.white,
     });
     drawTextLine("CERTIFICATE / QUALIFICATION OBTAINED", PAGE.marginX + yearWidth + gap, cursorY - 10, {
       font: "F2",
-      size: 8.4,
+      size: 9.3,
       color: COLORS.white,
     });
     drawTextLine("INSTITUTION", PAGE.marginX + yearWidth + titleWidth + gap * 2, cursorY - 10, {
       font: "F2",
-      size: 8.4,
+      size: 9.3,
       color: COLORS.white,
     });
 
     cursorY -= headerHeight + 5;
 
     entries.forEach((entry, index) => {
-      const titleLines = wrapText(entry.title, titleWidth, 10);
-      const institutionLines = wrapText(entry.institution || "", institutionWidth, 9.7);
-      const rowHeight = Math.max(36, Math.max(titleLines.length, institutionLines.length) * 11.5 + 17);
+      const titleLines = wrapText(entry.title, titleWidth, 10.9);
+      const institutionLines = wrapText(entry.institution || "", institutionWidth, 10.5);
+      const rowHeight = Math.max(42, Math.max(titleLines.length, institutionLines.length) * 13 + 19);
       ensureSpace(rowHeight + 6);
       const rowY = cursorY;
 
@@ -397,20 +397,20 @@ function createBuilder() {
 
       drawTextLine(entry.dateRange || "", PAGE.marginX + 10, rowY - 15, {
         font: "F2",
-        size: 9.6,
+        size: 10.4,
         color: COLORS.blueDark,
       });
       titleLines.forEach((line, lineIndex) => {
-        drawTextLine(line, PAGE.marginX + yearWidth + gap, rowY - 13 - lineIndex * 11.5, {
+        drawTextLine(line, PAGE.marginX + yearWidth + gap, rowY - 14 - lineIndex * 13, {
           font: "F2",
-          size: 10,
+          size: 10.9,
           color: COLORS.dark,
         });
       });
       institutionLines.forEach((line, lineIndex) => {
-        drawTextLine(line, PAGE.marginX + yearWidth + titleWidth + gap * 2, rowY - 13 - lineIndex * 11.5, {
+        drawTextLine(line, PAGE.marginX + yearWidth + titleWidth + gap * 2, rowY - 14 - lineIndex * 13, {
           font: "F1",
-          size: 9.7,
+          size: 10.5,
           color: COLORS.body,
         });
       });
@@ -425,15 +425,15 @@ function createBuilder() {
     ensureSpace(52);
     addParagraph(project.title, {
       font: "F2",
-      size: 12.3,
+      size: 13.2,
       color: COLORS.dark,
-      leading: 14,
+      leading: 15.2,
       after: 2,
     });
     addParagraph(project.description, {
-      size: 10.6,
+      size: 11.5,
       color: COLORS.body,
-      leading: 13.4,
+      leading: 14.5,
       after: 5,
     });
   }
@@ -445,23 +445,23 @@ function createBuilder() {
     const leftX = PAGE.marginX;
     const rightX = PAGE.width / 2 + 6;
     const bulletWidth = PAGE.width / 2 - PAGE.marginX - 14;
-    const lineHeight = 13;
+    const lineHeight = 14.4;
     const startY = cursorY;
 
     const renderColumn = (columnItems, x) => {
       let localY = startY;
       columnItems.forEach((item) => {
-        const lines = wrapText(item, bulletWidth, 10.4, {
+        const lines = wrapText(item, bulletWidth, 11.1, {
           firstPrefix: "- ",
           continuationPrefix: "  ",
         });
         lines.forEach((line, lineIndex) => {
-          drawTextLine(line, x, localY - lineIndex * 11, {
-            size: 10.2,
+          drawTextLine(line, x, localY - lineIndex * 12.3, {
+            size: 10.9,
             color: COLORS.body,
           });
         });
-        localY -= Math.max(lineHeight, lines.length * 11 + 1);
+        localY -= Math.max(lineHeight, lines.length * 12.3 + 1);
       });
       return localY;
     };
@@ -483,7 +483,7 @@ function createBuilder() {
 
     for (const item of items) {
       const label = toAsciiSafe(item);
-      const chipWidth = Math.min(Math.max(estimateTextWidth(label, 9.7) + 18, 58), 156);
+      const chipWidth = Math.min(Math.max(estimateTextWidth(label, 10.5) + 20, 64), 166);
 
       if (x + chipWidth > contentRight) {
         cursorY -= rowHeight;
@@ -494,14 +494,14 @@ function createBuilder() {
       currentPage.push({
         kind: "rect",
         x,
-        y: cursorY - 15,
+        y: cursorY - 16,
         width: chipWidth,
-        height: 18,
+        height: 20,
         color: COLORS.bluePale,
       });
-      drawTextLine(label, x + 8, cursorY - 10, {
+      drawTextLine(label, x + 9, cursorY - 10.5, {
         font: "F2",
-        size: 9.3,
+        size: 10,
         color: COLORS.blueDark,
       });
       x += chipWidth + 7;
@@ -513,9 +513,9 @@ function createBuilder() {
   function addBulletList(items) {
     items.forEach((item, index) => {
       addParagraph(item, {
-        size: 10.2,
+        size: 11,
         color: COLORS.body,
-        leading: 12.6,
+        leading: 13.8,
         after: index === items.length - 1 ? 0 : 1,
         wrap: {
           firstPrefix: "- ",
@@ -534,27 +534,27 @@ function createBuilder() {
     const colWidth = (contentWidth - gap) / 2;
 
     function drawInfoItem(item, x, y, width) {
-      const lines = wrapText(item.value, width, 9.7);
+      const lines = wrapText(item.value, width, 10.5);
       drawTextLine(item.label.toUpperCase(), x, y, {
         font: "F2",
-        size: 7.8,
+        size: 8.5,
         color: COLORS.blueDark,
       });
       lines.forEach((line, index) => {
-        drawTextLine(line, x, y - 12 - index * 10.8, {
+        drawTextLine(line, x, y - 13 - index * 12, {
           font: "F1",
-          size: 9.7,
+          size: 10.5,
           color: COLORS.body,
         });
       });
-      return Math.max(28, 16 + lines.length * 10.8);
+      return Math.max(32, 18 + lines.length * 12);
     }
 
     for (let index = 0; index < compactItems.length; index += 2) {
       const row = compactItems.slice(index, index + 2);
       const heights = row.map((item) => {
-        const lines = wrapText(item.value, colWidth, 9.7);
-        return Math.max(30, 17 + lines.length * 10.8);
+        const lines = wrapText(item.value, colWidth, 10.5);
+        return Math.max(32, 18 + lines.length * 12);
       });
       const rowHeight = Math.max(...heights);
       ensureSpace(rowHeight + 5);
@@ -576,22 +576,22 @@ function createBuilder() {
     }
 
     for (const item of fullWidthItems) {
-      const labelWidth = 110;
+      const labelWidth = 118;
       const valueWidth = contentWidth - labelWidth - 12;
-      const lines = wrapText(item.value, valueWidth, 9.8);
-      const rowHeight = Math.max(30, 17 + lines.length * 10.8);
+      const lines = wrapText(item.value, valueWidth, 10.6);
+      const rowHeight = Math.max(32, 18 + lines.length * 12);
       ensureSpace(rowHeight + 5);
       const rowY = cursorY;
 
       drawTextLine(item.label.toUpperCase(), PAGE.marginX, rowY, {
         font: "F2",
-        size: 7.8,
+        size: 8.5,
         color: COLORS.blueDark,
       });
       lines.forEach((line, index) => {
-        drawTextLine(line, PAGE.marginX + labelWidth + 12, rowY - index * 10.8, {
+        drawTextLine(line, PAGE.marginX + labelWidth + 12, rowY - index * 12, {
           font: "F1",
-          size: 9.8,
+          size: 10.6,
           color: COLORS.body,
         });
       });
@@ -616,9 +616,9 @@ function createBuilder() {
 
   addSection("Professional Summary");
   addBoxedParagraph(CV_PROFILE.summary, {
-    size: 10.7,
+    size: 11.8,
     color: COLORS.body,
-    leading: 13,
+    leading: 14.8,
   });
 
   addSection("Schools Attended With Dates");
@@ -631,9 +631,9 @@ function createBuilder() {
   addChipList(CV_PROFILE.technicalSkills);
   if (CV_PROFILE.technicalSkillsNote) {
     addParagraph(CV_PROFILE.technicalSkillsNote, {
-      size: 10.4,
+      size: 11.2,
       color: COLORS.body,
-      leading: 13,
+      leading: 14.2,
       after: 8,
     });
   }
