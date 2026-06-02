@@ -17,10 +17,14 @@ const HEADER = {
 const COLORS = {
   blue: [0.145, 0.388, 0.922],
   blueDark: [0.118, 0.251, 0.686],
+  bluePale: [0.91, 0.947, 1],
   dark: [0.125, 0.161, 0.216],
   body: [0.247, 0.302, 0.388],
+  muted: [0.392, 0.455, 0.545],
   white: [1, 1, 1],
-  page: [0.957, 0.957, 0.961],
+  line: [0.82, 0.855, 0.914],
+  panel: [0.985, 0.988, 0.996],
+  page: [0.972, 0.976, 0.984],
 };
 
 function toAsciiSafe(value) {
@@ -105,6 +109,15 @@ function createBuilder() {
         y: PAGE.height - HEADER.height,
         width: PAGE.width,
         height: HEADER.height,
+        color: COLORS.blueDark,
+      });
+
+      currentPage.push({
+        kind: "rect",
+        x: 0,
+        y: PAGE.height - HEADER.height,
+        width: PAGE.width,
+        height: 7,
         color: COLORS.blue,
       });
 
@@ -113,7 +126,7 @@ function createBuilder() {
         x: HEADER.paddingX,
         y: PAGE.height - HEADER.topInset,
         font: "F2",
-        size: 24,
+        size: 27,
         color: COLORS.white,
         text: CV_PROFILE.name,
       });
@@ -122,9 +135,9 @@ function createBuilder() {
         currentPage.push({
           kind: "text",
           x: HEADER.paddingX,
-          y: PAGE.height - HEADER.topInset - 18,
+          y: PAGE.height - HEADER.topInset - 20,
           font: "F1",
-          size: 11,
+          size: 11.5,
           color: COLORS.white,
           text: CV_PROFILE.classification,
         });
@@ -145,7 +158,7 @@ function createBuilder() {
           x: leftX,
           y: contactTop - index * contactGap,
           font: "F1",
-          size: 9.8,
+          size: 9.4,
           color: COLORS.white,
           text,
         });
@@ -161,7 +174,7 @@ function createBuilder() {
           x: rightX,
           y: contactTop - index * contactGap,
           font: "F1",
-          size: 9.8,
+          size: 9.4,
           color: COLORS.white,
           text,
         });
@@ -211,21 +224,60 @@ function createBuilder() {
 
   function addSection(title) {
     ensureSpace(40);
-    drawTextLine(title, PAGE.marginX, cursorY, {
+    currentPage.push({
+      kind: "rect",
+      x: PAGE.marginX,
+      y: cursorY - 11,
+      width: 4,
+      height: 17,
+      color: COLORS.blue,
+    });
+    drawTextLine(title.toUpperCase(), PAGE.marginX + 12, cursorY, {
       font: "F2",
-      size: 14,
+      size: 12.8,
       color: COLORS.dark,
     });
-    const ruleY = cursorY - 16;
+    const ruleY = cursorY - 11;
     currentPage.push({
       kind: "line",
       x1: PAGE.marginX,
       x2: PAGE.width - PAGE.marginX,
       y: ruleY,
-      width: 1.6,
-      color: COLORS.blue,
+      width: 1,
+      color: COLORS.line,
     });
-    cursorY = ruleY - 16;
+    cursorY = ruleY - 14;
+  }
+
+  function addBoxedParagraph(text, options = {}) {
+    const x = options.x ?? PAGE.marginX;
+    const width = options.width ?? PAGE.width - PAGE.marginX * 2;
+    const size = options.size ?? 10.6;
+    const leading = options.leading ?? 13;
+    const paddingX = 12;
+    const paddingY = 12;
+    const lines = wrapText(text, width - paddingX * 2, size);
+    const boxHeight = lines.length * leading + paddingY * 2 - 3;
+
+    ensureSpace(boxHeight + 12);
+    currentPage.push({
+      kind: "rect",
+      x,
+      y: cursorY - boxHeight + 6,
+      width,
+      height: boxHeight,
+      color: COLORS.panel,
+    });
+
+    lines.forEach((line, index) => {
+      drawTextLine(line, x + paddingX, cursorY - paddingY - index * leading + 3, {
+        font: "F1",
+        size,
+        color: options.color || COLORS.body,
+      });
+    });
+
+    cursorY -= boxHeight + 10;
   }
 
   function addEducationEntry(entry) {
@@ -327,6 +379,42 @@ function createBuilder() {
     cursorY = Math.min(leftBottomY, rightBottomY);
   }
 
+  function addChipList(items) {
+    const contentRight = PAGE.width - PAGE.marginX;
+    let x = PAGE.marginX;
+    const rowHeight = 24;
+
+    ensureSpace(rowHeight + 8);
+
+    for (const item of items) {
+      const label = toAsciiSafe(item);
+      const chipWidth = Math.min(Math.max(estimateTextWidth(label, 9.7) + 18, 58), 156);
+
+      if (x + chipWidth > contentRight) {
+        cursorY -= rowHeight;
+        x = PAGE.marginX;
+        ensureSpace(rowHeight + 8);
+      }
+
+      currentPage.push({
+        kind: "rect",
+        x,
+        y: cursorY - 15,
+        width: chipWidth,
+        height: 18,
+        color: COLORS.bluePale,
+      });
+      drawTextLine(label, x + 8, cursorY - 10, {
+        font: "F2",
+        size: 9.3,
+        color: COLORS.blueDark,
+      });
+      x += chipWidth + 7;
+    }
+
+    cursorY -= rowHeight + 6;
+  }
+
   function addBulletList(items) {
     items.forEach((item, index) => {
       addParagraph(item, {
@@ -343,17 +431,87 @@ function createBuilder() {
   }
 
   function addPersonalDetails(items) {
-    items.forEach((item, index) => {
-      addParagraph(`${item.label}: ${item.value}`, {
-        size: 10.2,
-        color: COLORS.body,
-        leading: 12.5,
-        after: index === items.length - 1 ? 6 : 1,
-        wrap: {
-          continuationPrefix: "  ",
-        },
+    const longLabels = new Set(["GSM Phone", "Contact Address", "Email Address"]);
+    const compactItems = items.filter((item) => !longLabels.has(item.label));
+    const fullWidthItems = items.filter((item) => longLabels.has(item.label));
+    const gap = 18;
+    const contentWidth = PAGE.width - PAGE.marginX * 2;
+    const colWidth = (contentWidth - gap) / 2;
+
+    function drawInfoItem(item, x, y, width) {
+      const lines = wrapText(item.value, width, 9.7);
+      drawTextLine(item.label.toUpperCase(), x, y, {
+        font: "F2",
+        size: 7.8,
+        color: COLORS.blueDark,
       });
-    });
+      lines.forEach((line, index) => {
+        drawTextLine(line, x, y - 12 - index * 10.8, {
+          font: "F1",
+          size: 9.7,
+          color: COLORS.body,
+        });
+      });
+      return Math.max(28, 16 + lines.length * 10.8);
+    }
+
+    for (let index = 0; index < compactItems.length; index += 2) {
+      const row = compactItems.slice(index, index + 2);
+      const heights = row.map((item) => {
+        const lines = wrapText(item.value, colWidth, 9.7);
+        return Math.max(30, 17 + lines.length * 10.8);
+      });
+      const rowHeight = Math.max(...heights);
+      ensureSpace(rowHeight + 5);
+      const rowY = cursorY;
+
+      row.forEach((item, itemIndex) => {
+        drawInfoItem(item, PAGE.marginX + itemIndex * (colWidth + gap), rowY, colWidth);
+      });
+
+      currentPage.push({
+        kind: "line",
+        x1: PAGE.marginX,
+        x2: PAGE.width - PAGE.marginX,
+        y: rowY - rowHeight + 5,
+        width: 0.6,
+        color: COLORS.line,
+      });
+      cursorY -= rowHeight + 3;
+    }
+
+    for (const item of fullWidthItems) {
+      const labelWidth = 110;
+      const valueWidth = contentWidth - labelWidth - 12;
+      const lines = wrapText(item.value, valueWidth, 9.8);
+      const rowHeight = Math.max(30, 17 + lines.length * 10.8);
+      ensureSpace(rowHeight + 5);
+      const rowY = cursorY;
+
+      drawTextLine(item.label.toUpperCase(), PAGE.marginX, rowY, {
+        font: "F2",
+        size: 7.8,
+        color: COLORS.blueDark,
+      });
+      lines.forEach((line, index) => {
+        drawTextLine(line, PAGE.marginX + labelWidth + 12, rowY - index * 10.8, {
+          font: "F1",
+          size: 9.8,
+          color: COLORS.body,
+        });
+      });
+      currentPage.push({
+        kind: "line",
+        x1: PAGE.marginX,
+        x2: PAGE.width - PAGE.marginX,
+        y: rowY - rowHeight + 5,
+        width: 0.6,
+        color: COLORS.line,
+      });
+      cursorY -= rowHeight + 3;
+    }
+
+    cursorY -= 6;
   }
 
   newPage(true);
@@ -362,23 +520,17 @@ function createBuilder() {
   addPersonalDetails(CV_PROFILE.personalDetails || []);
 
   addSection("Professional Summary");
-  addParagraph(CV_PROFILE.summary, {
+  addBoxedParagraph(CV_PROFILE.summary, {
     size: 10.7,
     color: COLORS.body,
     leading: 13,
-    after: 8,
   });
 
   addSection("Education");
   CV_PROFILE.education.forEach(addEducationEntry);
 
   addSection("Technical Skills");
-  addParagraph(CV_PROFILE.technicalSkills.join("  -  "), {
-    size: 10.7,
-    color: COLORS.body,
-    leading: 13.2,
-    after: CV_PROFILE.technicalSkillsNote ? 4 : 8,
-  });
+  addChipList(CV_PROFILE.technicalSkills);
   if (CV_PROFILE.technicalSkillsNote) {
     addParagraph(CV_PROFILE.technicalSkillsNote, {
       size: 10.4,

@@ -5,7 +5,7 @@ function renderBulletList(items) {
   return items
     .map(
       (item) =>
-        `<li style="margin: 0 0 6px 18px; color: #3f4d63; font-size: 14.5px; line-height: 1.55;">${escapeHtml(item)}</li>`
+        `<li style="margin: 0 0 7px 18px; color: #334155; font-size: 14px; line-height: 1.55;">${escapeHtml(item)}</li>`
     )
     .join("");
 }
@@ -15,7 +15,7 @@ function renderSkillColumns(items) {
   const left = items.slice(0, midpoint);
   const right = items.slice(midpoint);
 
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 6px;">
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 12px;">
     <tr>
       <td style="width: 50%; vertical-align: top; padding-right: 18px;">
         <ul style="margin: 0; padding: 0;">${renderBulletList(left)}</ul>
@@ -25,6 +25,17 @@ function renderSkillColumns(items) {
       </td>
     </tr>
   </table>`;
+}
+
+function renderSkillTags(items) {
+  return `<div style="margin-top: 12px;">
+    ${items
+      .map(
+        (item) =>
+          `<span style="display: inline-block; margin: 0 7px 8px 0; padding: 6px 10px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 700;">${escapeHtml(item)}</span>`
+      )
+      .join("")}
+  </div>`;
 }
 
 function renderEducation() {
@@ -37,7 +48,7 @@ function renderEducation() {
         )
         .join("");
 
-      return `<div style="margin-top: 16px;">
+      return `<div style="margin-top: 16px; padding: 12px 14px; border: 1px solid #e5e7eb; background: #ffffff;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
           <tr>
             <td style="vertical-align: bottom; padding-right: 12px;">
@@ -62,7 +73,7 @@ function renderEducation() {
 function renderProjects() {
   return CV_PROFILE.projects
     .map(
-      (project) => `<div style="margin-top: 16px;">
+      (project) => `<div style="margin-top: 14px; padding-left: 12px; border-left: 3px solid #bfdbfe;">
         <div style="font-size: 16px; font-weight: 700; color: #1f2937;">${escapeHtml(project.title)}</div>
         <div style="margin-top: 4px; color: #3f4d63; font-size: 14.5px; line-height: 1.55;">${escapeHtml(project.description)}</div>
       </div>`
@@ -71,12 +82,31 @@ function renderProjects() {
 }
 
 function renderPersonalDetails() {
+  const longLabels = new Set(["GSM Phone", "Contact Address", "Email Address"]);
+  const compactItems = (CV_PROFILE.personalDetails || []).filter((item) => !longLabels.has(item.label));
+  const fullWidthItems = (CV_PROFILE.personalDetails || []).filter((item) => longLabels.has(item.label));
+
+  const renderCell = (item) => `<div style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb;">
+    <div style="font-size: 11px; line-height: 1.35; color: #1d4ed8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">${escapeHtml(item.label)}</div>
+    <div style="margin-top: 3px; color: #1f2937; font-size: 14px; line-height: 1.45;">${escapeHtml(item.value)}</div>
+  </div>`;
+
+  const rows = [];
+  for (let index = 0; index < compactItems.length; index += 2) {
+    const left = compactItems[index];
+    const right = compactItems[index + 1];
+    rows.push(`<tr>
+      <td style="width: 50%; vertical-align: top; padding-right: 8px;">${left ? renderCell(left) : ""}</td>
+      <td style="width: 50%; vertical-align: top; padding-left: 8px;">${right ? renderCell(right) : ""}</td>
+    </tr>`);
+  }
+
   return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 12px; border-collapse: collapse;">
-    ${(CV_PROFILE.personalDetails || [])
+    ${rows.join("")}
+    ${fullWidthItems
       .map(
         (item) => `<tr>
-          <td style="width: 190px; padding: 5px 16px 5px 0; color: #4b5563; font-size: 14px; font-weight: 700; text-transform: uppercase; vertical-align: top;">${escapeHtml(item.label)}</td>
-          <td style="padding: 5px 0; color: #1f2937; font-size: 14.5px; line-height: 1.5; vertical-align: top;">${escapeHtml(item.value)}</td>
+          <td colspan="2" style="padding: 0;">${renderCell(item)}</td>
         </tr>`
       )
       .join("")}
@@ -84,16 +114,20 @@ function renderPersonalDetails() {
 }
 
 function renderSection(title, body) {
-  return `<div style="margin-top: 28px;">
-    <div style="font-size: 18px; font-weight: 700; color: #1f2937; letter-spacing: 0.4px; text-transform: uppercase;">${escapeHtml(title)}</div>
-    <div style="height: 2px; margin-top: 6px; background: #2563eb;"></div>
+  return `<div style="margin-top: 24px;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-bottom: 10px;">
+      <tr>
+        <td style="width: 6px; background: #2563eb;"></td>
+        <td style="padding-left: 10px; color: #111827; font-size: 17px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">${escapeHtml(title)}</td>
+      </tr>
+    </table>
     ${body}
   </div>`;
 }
 
 function renderContactRow(label, value) {
-  return `<div style="font-size: 14.5px; line-height: 1.85;">
-    <span style="font-weight: 700;">${escapeHtml(label)}:</span> ${escapeHtml(value)}
+  return `<div style="font-size: 13.5px; line-height: 1.75;">
+    <span style="font-weight: 700; color: #bfdbfe;">${escapeHtml(label)}:</span> ${escapeHtml(value)}
   </div>`;
 }
 
@@ -106,14 +140,14 @@ export function buildCvWordDocument() {
     <meta name="Generator" content="sirdavid.site" />
     <title>${escapeHtml(CV_PROFILE.name)} - CV</title>
   </head>
-  <body style="margin: 0; padding: 0; background: #e5e7eb; font-family: Arial, Helvetica, sans-serif; color: #1f2937;">
-    <div style="max-width: 980px; margin: 0 auto; padding: 18px; background: #e5e7eb;">
+  <body style="margin: 0; padding: 0; background: #eef2f7; font-family: Arial, Helvetica, sans-serif; color: #1f2937;">
+    <div style="max-width: 980px; margin: 0 auto; padding: 18px; background: #eef2f7;">
       <div style="background: #ffffff; border: 1px solid #d1d5db;">
-        <div style="background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 55%, #1e40af 100%); color: #ffffff; padding: 30px 34px 26px;">
-          <div style="font-size: 30px; line-height: 1.18; font-weight: 700;">${escapeHtml(CV_PROFILE.name)}</div>
+        <div style="background: #0f2f6b; color: #ffffff; padding: 30px 34px 24px; border-bottom: 6px solid #2563eb;">
+          <div style="font-size: 31px; line-height: 1.16; font-weight: 700; letter-spacing: 0.2px;">${escapeHtml(CV_PROFILE.name)}</div>
           ${
             CV_PROFILE.classification
-              ? `<div style="margin-top: 6px; font-size: 14px; font-weight: 500; color: #dbeafe; letter-spacing: 0.2px;">${escapeHtml(CV_PROFILE.classification)}</div>`
+              ? `<div style="margin-top: 6px; font-size: 14px; font-weight: 600; color: #dbeafe; letter-spacing: 0.2px;">${escapeHtml(CV_PROFILE.classification)}</div>`
               : ""
           }
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-top: 18px; color: #ffffff;">
@@ -132,21 +166,19 @@ export function buildCvWordDocument() {
           </table>
         </div>
 
-        <div style="padding: 26px 32px 32px;">
+        <div style="padding: 26px 34px 34px;">
           ${renderSection("Personal Information", renderPersonalDetails())}
 
           ${renderSection(
             "Professional Summary",
-            `<div style="margin-top: 12px; color: #3f4d63; font-size: 14.5px; line-height: 1.6;">${escapeHtml(CV_PROFILE.summary)}</div>`
+            `<div style="padding: 14px 16px; border: 1px solid #dbeafe; background: #f8fbff; color: #334155; font-size: 14.5px; line-height: 1.62;">${escapeHtml(CV_PROFILE.summary)}</div>`
           )}
 
           ${renderSection("Education", renderEducation())}
 
           ${renderSection(
             "Technical Skills",
-            `<div style="margin-top: 12px; color: #3f4d63; font-size: 14.5px; line-height: 1.6;">${escapeHtml(
-              CV_PROFILE.technicalSkills.join("  •  ")
-            )}</div>${
+            `${renderSkillTags(CV_PROFILE.technicalSkills)}${
               CV_PROFILE.technicalSkillsNote
                 ? `<div style="margin-top: 8px; color: #4b5563; font-size: 13.5px; line-height: 1.55; font-style: italic;">${escapeHtml(CV_PROFILE.technicalSkillsNote)}</div>`
                 : ""
