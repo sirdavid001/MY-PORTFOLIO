@@ -2,7 +2,7 @@ export const CV_PROFILE = {
   name: "Nwadialo David Chinedu",
   displayName: "Nwadialo David",
   role: "Computer Science Graduate and Web Developer",
-  classification: "BSc Computer Science - Second Class Honours (Lower Division)",
+  classification: "BSc Computer Science",
   location: "Asaba, Delta State, Nigeria",
   phone: "+234 704 134 2391",
   alternatePhones: ["+234 803 899 0115", "+234 705 759 4655"],
@@ -39,10 +39,7 @@ export const CV_PROFILE = {
       title: "Bachelor of Science (BSc), Computer Science",
       dateRange: "2021 - 2026",
       institution: "Dennis Osadebay University, Asaba, Nigeria",
-      details: [
-        "Classification: Second Class Honours (Lower Division)",
-        "Faculty of Computing - Degree conferred February 18, 2026",
-      ],
+      details: ["Faculty of Computing - Degree conferred February 18, 2026"],
     },
     {
       title: "Senior Secondary School Certificate (SSCE)",
