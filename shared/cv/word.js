@@ -38,36 +38,42 @@ function renderSkillTags(items) {
   </div>`;
 }
 
-function renderDatedEntries(entries) {
-  return entries
-    .map((entry) => {
-      const detailLines = (entry.details || [])
-        .map(
-          (detail) =>
-            `<div style="margin-top: 2px; color: #4b5563; font-size: 14px; line-height: 1.5;">${escapeHtml(detail)}</div>`
-        )
-        .join("");
+function renderSchoolsAttended(entries) {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+    ${entries
+      .map(
+        (entry) => `<tr>
+          <td style="width: 112px; vertical-align: top; padding: 10px 12px; border-left: 4px solid #2563eb; border-bottom: 1px solid #e5e7eb; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 700; white-space: nowrap;">${escapeHtml(entry.dateRange || "")}</td>
+          <td style="vertical-align: top; padding: 10px 14px; border-bottom: 1px solid #e5e7eb; background: #ffffff; color: #1f2937; font-size: 15px; line-height: 1.45; font-weight: 700;">${escapeHtml(entry.name)}</td>
+        </tr>`
+      )
+      .join("")}
+  </table>`;
+}
 
-      return `<div style="margin-top: 16px; padding: 12px 14px; border: 1px solid #e5e7eb; background: #ffffff;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
-          <tr>
-            <td style="vertical-align: bottom; padding-right: 12px;">
-              <div style="font-size: 16px; font-weight: 700; color: #1f2937;">${escapeHtml(entry.title || entry.name)}</div>
-            </td>
-            <td style="vertical-align: bottom; text-align: right; white-space: nowrap; color: #4b5563; font-size: 14px; font-weight: 600;">
-              ${escapeHtml(entry.dateRange || "")}
-            </td>
-          </tr>
-        </table>
-        ${
-          entry.institution
-            ? `<div style="margin-top: 4px; color: #374151; font-size: 14.5px; font-style: italic;">${escapeHtml(entry.institution)}</div>`
-            : ""
-        }
-        ${detailLines}
-      </div>`;
-    })
-    .join("");
+function renderQualificationsTable(entries) {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; border-collapse: collapse; margin-top: 12px; border: 1px solid #dbe3ef;">
+    <tr>
+      <td style="width: 78px; padding: 9px 10px; background: #0f2f6b; color: #ffffff; font-size: 12px; font-weight: 700; text-transform: uppercase;">Year</td>
+      <td style="padding: 9px 12px; background: #0f2f6b; color: #ffffff; font-size: 12px; font-weight: 700; text-transform: uppercase;">Certificate / Qualification Obtained</td>
+      <td style="width: 245px; padding: 9px 12px; background: #0f2f6b; color: #ffffff; font-size: 12px; font-weight: 700; text-transform: uppercase;">Institution</td>
+    </tr>
+    ${entries
+      .map(
+        (entry, index) => `<tr>
+          <td style="vertical-align: top; padding: 10px; border-top: 1px solid #e5e7eb; background: ${
+            index % 2 === 0 ? "#f8fbff" : "#ffffff"
+          }; color: #1d4ed8; font-size: 13.5px; font-weight: 700;">${escapeHtml(entry.dateRange || "")}</td>
+          <td style="vertical-align: top; padding: 10px 12px; border-top: 1px solid #e5e7eb; background: ${
+            index % 2 === 0 ? "#f8fbff" : "#ffffff"
+          }; color: #1f2937; font-size: 14.5px; line-height: 1.45; font-weight: 700;">${escapeHtml(entry.title)}</td>
+          <td style="vertical-align: top; padding: 10px 12px; border-top: 1px solid #e5e7eb; background: ${
+            index % 2 === 0 ? "#f8fbff" : "#ffffff"
+          }; color: #475569; font-size: 14px; line-height: 1.45;">${escapeHtml(entry.institution || "")}</td>
+        </tr>`
+      )
+      .join("")}
+  </table>`;
 }
 
 function renderProjects() {
@@ -174,11 +180,11 @@ export function buildCvWordDocument() {
             `<div style="padding: 14px 16px; border: 1px solid #dbeafe; background: #f8fbff; color: #334155; font-size: 14.5px; line-height: 1.62;">${escapeHtml(CV_PROFILE.summary)}</div>`
           )}
 
-          ${renderSection("Schools Attended With Dates", renderDatedEntries(CV_PROFILE.schoolsAttended))}
+          ${renderSection("Schools Attended With Dates", renderSchoolsAttended(CV_PROFILE.schoolsAttended))}
 
           ${renderSection(
             "Certificates / Qualifications Obtained",
-            renderDatedEntries(CV_PROFILE.qualifications)
+            renderQualificationsTable(CV_PROFILE.qualifications)
           )}
 
           ${renderSection(

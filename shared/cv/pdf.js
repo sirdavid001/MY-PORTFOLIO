@@ -280,50 +280,145 @@ function createBuilder() {
     cursorY -= boxHeight + 10;
   }
 
-  function addDatedEntry(entry) {
-    ensureSpace(50);
-    const titleSize = 12.4;
-    const dateSize = 10.6;
-    const titleY = cursorY;
+  function addSchoolsTimeline(entries) {
+    const contentWidth = PAGE.width - PAGE.marginX * 2;
+    const dateWidth = 82;
+    const gap = 14;
+    const schoolWidth = contentWidth - dateWidth - gap;
 
-    drawTextLine(entry.title || entry.name, PAGE.marginX, titleY, {
+    for (const entry of entries) {
+      const schoolLines = wrapText(entry.name, schoolWidth - 18, 10.8);
+      const rowHeight = Math.max(36, schoolLines.length * 12 + 18);
+      ensureSpace(rowHeight + 8);
+      const rowY = cursorY;
+
+      currentPage.push({
+        kind: "rect",
+        x: PAGE.marginX,
+        y: rowY - rowHeight + 7,
+        width: contentWidth,
+        height: rowHeight,
+        color: COLORS.panel,
+      });
+      currentPage.push({
+        kind: "rect",
+        x: PAGE.marginX,
+        y: rowY - rowHeight + 7,
+        width: 4,
+        height: rowHeight,
+        color: COLORS.blue,
+      });
+      currentPage.push({
+        kind: "rect",
+        x: PAGE.marginX + 13,
+        y: rowY - 21,
+        width: dateWidth,
+        height: 18,
+        color: COLORS.bluePale,
+      });
+
+      drawTextLine(entry.dateRange || "", PAGE.marginX + 21, rowY - 16, {
+        font: "F2",
+        size: 9.4,
+        color: COLORS.blueDark,
+      });
+
+      schoolLines.forEach((line, index) => {
+        drawTextLine(line, PAGE.marginX + dateWidth + gap + 12, rowY - 13 - index * 12, {
+          font: "F2",
+          size: 10.8,
+          color: COLORS.dark,
+        });
+      });
+
+      cursorY -= rowHeight + 7;
+    }
+  }
+
+  function addQualificationsTable(entries) {
+    const contentWidth = PAGE.width - PAGE.marginX * 2;
+    const yearWidth = 52;
+    const gap = 14;
+    const titleWidth = 252;
+    const institutionWidth = contentWidth - yearWidth - titleWidth - gap * 2;
+    const headerHeight = 22;
+
+    ensureSpace(headerHeight + 44);
+    currentPage.push({
+      kind: "rect",
+      x: PAGE.marginX,
+      y: cursorY - headerHeight + 5,
+      width: contentWidth,
+      height: headerHeight,
+      color: COLORS.blueDark,
+    });
+
+    drawTextLine("YEAR", PAGE.marginX + 9, cursorY - 10, {
       font: "F2",
-      size: titleSize,
-      color: COLORS.dark,
+      size: 8.4,
+      color: COLORS.white,
+    });
+    drawTextLine("CERTIFICATE / QUALIFICATION OBTAINED", PAGE.marginX + yearWidth + gap, cursorY - 10, {
+      font: "F2",
+      size: 8.4,
+      color: COLORS.white,
+    });
+    drawTextLine("INSTITUTION", PAGE.marginX + yearWidth + titleWidth + gap * 2, cursorY - 10, {
+      font: "F2",
+      size: 8.4,
+      color: COLORS.white,
     });
 
-    if (entry.dateRange) {
-      const safeDate = toAsciiSafe(entry.dateRange);
-      const dateWidth = estimateTextWidth(safeDate, dateSize);
-      drawTextLine(
-        safeDate,
-        PAGE.width - PAGE.marginX - dateWidth,
-        titleY + 1,
-        { font: "F1", size: dateSize, color: COLORS.body }
-      );
-    }
+    cursorY -= headerHeight + 5;
 
-    cursorY -= 14;
+    entries.forEach((entry, index) => {
+      const titleLines = wrapText(entry.title, titleWidth, 10);
+      const institutionLines = wrapText(entry.institution || "", institutionWidth, 9.7);
+      const rowHeight = Math.max(36, Math.max(titleLines.length, institutionLines.length) * 11.5 + 17);
+      ensureSpace(rowHeight + 6);
+      const rowY = cursorY;
 
-    if (entry.institution) {
-      addParagraph(entry.institution, {
-        font: "F1",
-        size: 10.8,
-        color: COLORS.body,
-        leading: 13,
-        after: 1,
+      currentPage.push({
+        kind: "rect",
+        x: PAGE.marginX,
+        y: rowY - rowHeight + 5,
+        width: contentWidth,
+        height: rowHeight,
+        color: index % 2 === 0 ? COLORS.panel : COLORS.white,
       });
-    }
-
-    const details = entry.details || [];
-    details.forEach((detail, index) => {
-      addParagraph(detail, {
-        size: 10.4,
-        color: COLORS.body,
-        leading: 13,
-        after: index === details.length - 1 ? 8 : 1,
+      currentPage.push({
+        kind: "line",
+        x1: PAGE.marginX,
+        x2: PAGE.width - PAGE.marginX,
+        y: rowY - rowHeight + 5,
+        width: 0.6,
+        color: COLORS.line,
       });
+
+      drawTextLine(entry.dateRange || "", PAGE.marginX + 10, rowY - 15, {
+        font: "F2",
+        size: 9.6,
+        color: COLORS.blueDark,
+      });
+      titleLines.forEach((line, lineIndex) => {
+        drawTextLine(line, PAGE.marginX + yearWidth + gap, rowY - 13 - lineIndex * 11.5, {
+          font: "F2",
+          size: 10,
+          color: COLORS.dark,
+        });
+      });
+      institutionLines.forEach((line, lineIndex) => {
+        drawTextLine(line, PAGE.marginX + yearWidth + titleWidth + gap * 2, rowY - 13 - lineIndex * 11.5, {
+          font: "F1",
+          size: 9.7,
+          color: COLORS.body,
+        });
+      });
+
+      cursorY -= rowHeight + 4;
     });
+
+    cursorY -= 4;
   }
 
   function addProject(project) {
@@ -527,10 +622,10 @@ function createBuilder() {
   });
 
   addSection("Schools Attended With Dates");
-  CV_PROFILE.schoolsAttended.forEach(addDatedEntry);
+  addSchoolsTimeline(CV_PROFILE.schoolsAttended);
 
   addSection("Certificates / Qualifications Obtained");
-  CV_PROFILE.qualifications.forEach(addDatedEntry);
+  addQualificationsTable(CV_PROFILE.qualifications);
 
   addSection("Technical Skills");
   addChipList(CV_PROFILE.technicalSkills);
