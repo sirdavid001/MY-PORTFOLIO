@@ -65,6 +65,7 @@ const defaultForm = {
   timeline: "",
   budget: "",
   customBudget: "",
+  website: "",
 };
 
 const containerVariants = {
@@ -100,6 +101,7 @@ export default function Contact() {
   const [formData, setFormData] = useState(defaultForm);
   const [budgetError, setBudgetError] = useState("");
   const [submitStatus, setSubmitStatus] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [countryOptions, setCountryOptions] = useState([
     { code: "US", name: "United States", flag: countryCodeToFlag("US") },
   ]);
@@ -160,7 +162,11 @@ export default function Contact() {
     setFormData((prev) => ({ ...prev, clientType: type }));
   }
 
-  function handleSubmit(event) {
+  function buildMailtoHref(subject, body) {
+    return `mailto:${CV_PROFILE.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault();
     setBudgetError("");
     setSubmitStatus("");
@@ -179,8 +185,8 @@ export default function Contact() {
     const budgetValue =
       formData.budget === "custom" ? formData.customBudget : pickedBudget?.label || "Not specified";
 
-    const subject = encodeURIComponent(`Project Request - ${formData.projectType || "New Inquiry"}`);
-    const body = encodeURIComponent(
+    const subject = `Project Request - ${formData.projectType || "New Inquiry"}`;
+    const body =
       `Client Type: ${formData.clientType}
 Full Name: ${formData.fullName}
 Email: ${formData.email}
@@ -196,11 +202,49 @@ What do you want to build:
 ${formData.goals}
 
 Specific requirements:
-${formData.features}`
-    );
+${formData.features}`;
 
-    setSubmitStatus("Request prepared. Your email app will open so you can send your project brief.");
-    window.location.href = `mailto:${CV_PROFILE.email}?subject=${subject}&body=${body}`;
+    const requestPayload = {
+      ...formData,
+      countryName: selectedCountry.name,
+      currency: selectedCurrencyCode,
+      budgetLabel: budgetValue,
+    };
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(requestPayload),
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (response.ok && result?.ok) {
+        setSubmitStatus("Project request sent. I will get back to you as soon as possible.");
+        setFormData((prev) => ({
+          ...defaultForm,
+          countryCode: prev.countryCode,
+        }));
+        return;
+      }
+
+      if (result?.fallback === "mailto") {
+        setSubmitStatus("Email delivery is not configured yet. Your email app will open with the prepared brief.");
+        window.location.href = buildMailtoHref(subject, body);
+        return;
+      }
+
+      throw new Error(result?.error || "Could not send your request right now.");
+    } catch (error) {
+      setSubmitStatus(
+        error?.message || "Could not send your request right now. Please try again in a moment."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function SelectArrow() {
@@ -301,6 +345,17 @@ ${formData.features}`
           <h2 className="text-3xl font-bold text-foreground mb-8">Project Request Form</h2>
 
           <div className="space-y-6">
+            <input
+              type="text"
+              name="website"
+              value={formData.website}
+              onChange={handleChange}
+              tabIndex="-1"
+              autoComplete="off"
+              aria-hidden="true"
+              className="hidden"
+            />
+
             <div>
               <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">I am a/an</p>
               <div className="grid grid-cols-2 gap-4">
@@ -512,10 +567,11 @@ ${formData.features}`
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="group relative flex w-full items-center justify-center gap-3 rounded-[2rem] bg-foreground px-8 py-5 text-xl font-bold text-background transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-95"
             >
               <FiSend className="h-6 w-6 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-              Send Project Request
+              {isSubmitting ? "Sending Request..." : "Send Project Request"}
             </button>
           </div>
         </motion.form>

@@ -154,6 +154,7 @@ function createBuilder() {
       [
         `Phone: ${CV_PROFILE.phone}`,
         `Portfolio: ${CV_PROFILE.portfolio}`,
+        `LinkedIn: ${CV_PROFILE.linkedin}`,
       ].forEach((text, index) => {
         currentPage.push({
           kind: "text",
@@ -341,7 +342,24 @@ function createBuilder() {
     });
   }
 
+  function addPersonalDetails(items) {
+    items.forEach((item, index) => {
+      addParagraph(`${item.label}: ${item.value}`, {
+        size: 10.2,
+        color: COLORS.body,
+        leading: 12.5,
+        after: index === items.length - 1 ? 6 : 1,
+        wrap: {
+          continuationPrefix: "  ",
+        },
+      });
+    });
+  }
+
   newPage(true);
+
+  addSection("Personal Information");
+  addPersonalDetails(CV_PROFILE.personalDetails || []);
 
   addSection("Professional Summary");
   addParagraph(CV_PROFILE.summary, {

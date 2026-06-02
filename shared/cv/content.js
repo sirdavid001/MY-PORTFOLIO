@@ -4,6 +4,7 @@ const contactLines = [
   `Location: ${CV_PROFILE.location}`,
   `Email: ${CV_PROFILE.email}`,
   `GitHub: ${CV_PROFILE.github}`,
+  `LinkedIn: ${CV_PROFILE.linkedin}`,
   `Phone: ${CV_PROFILE.phone}`,
   `Portfolio: ${CV_PROFILE.portfolio}`,
 ];
@@ -30,6 +31,12 @@ export const CV_RESUME_LINES = [
     ? [{ style: "subtitle", text: CV_PROFILE.classification }]
     : []),
   ...contactLines.map((text) => ({ style: "meta", text })),
+  { style: "spacer" },
+  { style: "section", text: "Personal Information" },
+  ...(CV_PROFILE.personalDetails || []).map((item) => ({
+    style: "body",
+    text: `${item.label}: ${item.value}`,
+  })),
   { style: "spacer" },
   { style: "section", text: "Professional Summary" },
   { style: "body", text: CV_PROFILE.summary },
