@@ -56,6 +56,9 @@ test("CV builders generate downloadable document content", () => {
   assert.match(word, /Certificates \/ Qualifications Obtained/);
   assert.match(word, /West African Senior School Certificate Examination \(WAEC\)/);
   assert.match(word, /National Examination Council Certificate \(NECO\)/);
+  assert.match(word, /Jasmine Children&#39;s School, Asaba/);
+  assert.match(word, /Basic Education Certificate Examination \(BECE\)/);
+  assert.match(word, /First School Leaving Certificate \(FSLC\)/);
   assert.doesNotMatch(word, />Education</);
   assert.doesNotMatch(word, /Selected Projects/);
   assert.equal(CV_RESUME_LINES.some((line) => line.text === "Selected Projects"), false);

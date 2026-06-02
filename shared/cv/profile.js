@@ -45,6 +45,10 @@ export const CV_PROFILE = {
       name: "Redeemers International High School, Asaba",
       dateRange: "2013 - 2019",
     },
+    {
+      name: "Jasmine Children's School, Asaba",
+      dateRange: "Completed 2013",
+    },
   ],
   qualifications: [
     {
@@ -61,6 +65,16 @@ export const CV_PROFILE = {
       title: "National Examination Council Certificate (NECO)",
       dateRange: "2019",
       institution: "Redeemers International High School, Asaba",
+    },
+    {
+      title: "Basic Education Certificate Examination (BECE)",
+      dateRange: "2016",
+      institution: "Redeemers International High School, Asaba",
+    },
+    {
+      title: "First School Leaving Certificate (FSLC)",
+      dateRange: "2013",
+      institution: "Jasmine Children's School, Asaba",
     },
   ],
   technicalSkills: [
