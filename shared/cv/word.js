@@ -172,21 +172,18 @@ export function buildCvWordDocument() {
         </div>
 
         <div style="padding: 30px 38px 38px;">
-          ${renderSection("Schools Attended With Dates", renderSchoolsAttended(CV_PROFILE.schoolsAttended))}
-
-          ${renderSection(
-            "Certificates / Qualifications Obtained",
-            renderQualificationsTable(CV_PROFILE.qualifications),
-            {
-              pageBreakBefore: true,
-            }
-          )}
-
           ${renderSection("Personal Information", renderPersonalDetails())}
 
           ${renderSection(
             "Professional Summary",
             `<div style="padding: 16px 18px; border: 1px solid #dbeafe; background: #f8fbff; color: #334155; font-size: 15.8px; line-height: 1.65;">${escapeHtml(CV_PROFILE.summary)}</div>`
+          )}
+
+          ${renderSection("Schools Attended With Dates", renderSchoolsAttended(CV_PROFILE.schoolsAttended))}
+
+          ${renderSection(
+            "Certificates / Qualifications Obtained",
+            renderQualificationsTable(CV_PROFILE.qualifications)
           )}
 
           ${renderSection(

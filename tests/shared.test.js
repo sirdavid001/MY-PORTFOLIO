@@ -62,12 +62,16 @@ test("CV builders generate downloadable document content", () => {
   assert.doesNotMatch(word, />Education</);
   assert.doesNotMatch(word, /Selected Projects/);
   assert.ok(
-    CV_RESUME_LINES.findIndex((line) => line.text === "Schools Attended With Dates") <
-      CV_RESUME_LINES.findIndex((line) => line.text === "Certificates / Qualifications Obtained")
+    CV_RESUME_LINES.findIndex((line) => line.text === "Personal Information") <
+      CV_RESUME_LINES.findIndex((line) => line.text === "Professional Summary")
   );
   assert.ok(
-    CV_RESUME_LINES.findIndex((line) => line.text === "Certificates / Qualifications Obtained") <
-      CV_RESUME_LINES.findIndex((line) => line.text === "Personal Information")
+    CV_RESUME_LINES.findIndex((line) => line.text === "Professional Summary") <
+      CV_RESUME_LINES.findIndex((line) => line.text === "Schools Attended With Dates")
+  );
+  assert.ok(
+    CV_RESUME_LINES.findIndex((line) => line.text === "Schools Attended With Dates") <
+      CV_RESUME_LINES.findIndex((line) => line.text === "Certificates / Qualifications Obtained")
   );
   assert.equal(CV_RESUME_LINES.some((line) => line.text === "Selected Projects"), false);
 });

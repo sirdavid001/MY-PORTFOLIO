@@ -297,9 +297,8 @@ function createBuilder() {
     };
   }
 
-  function estimateFirstSchoolBlockHeight(entries) {
-    if (!entries?.length) return 0;
-    return getSchoolRowLayout(entries[0]).rowHeight + 8;
+  function estimateSchoolsBlockHeight(entries) {
+    return (entries || []).reduce((total, entry) => total + getSchoolRowLayout(entry).rowHeight + 7, 0);
   }
 
   function addSchoolsTimeline(entries) {
@@ -610,15 +609,6 @@ function createBuilder() {
 
   newPage(true);
 
-  addSection("Schools Attended With Dates", {
-    keepWith: estimateFirstSchoolBlockHeight(CV_PROFILE.schoolsAttended),
-  });
-  addSchoolsTimeline(CV_PROFILE.schoolsAttended);
-
-  newPage(false);
-  addSection("Certificates / Qualifications Obtained");
-  addQualificationsTable(CV_PROFILE.qualifications);
-
   addSection("Personal Information");
   addPersonalDetails(CV_PROFILE.personalDetails || []);
 
@@ -628,6 +618,14 @@ function createBuilder() {
     color: COLORS.body,
     leading: 14.8,
   });
+
+  addSection("Schools Attended With Dates", {
+    keepWith: estimateSchoolsBlockHeight(CV_PROFILE.schoolsAttended),
+  });
+  addSchoolsTimeline(CV_PROFILE.schoolsAttended);
+
+  addSection("Certificates / Qualifications Obtained");
+  addQualificationsTable(CV_PROFILE.qualifications);
 
   addSection("Technical Skills");
   addChipList(CV_PROFILE.technicalSkills);
