@@ -67,6 +67,16 @@ export const CV_PROFILE = {
       institution: "Redeemers International High School, Asaba",
     },
     {
+      title: "Leadership Conference Certificate of Attendance (Leadership Development Training)",
+      dateRange: "2018",
+      institution: "",
+    },
+    {
+      title: "Executive Certificate in Leadership and Entrepreneurship (S.O.L.E.)",
+      dateRange: "2017",
+      institution: "",
+    },
+    {
       title: "Basic Education Certificate Examination (BECE)",
       dateRange: "2016",
       institution: "Redeemers International High School, Asaba",
