@@ -46,6 +46,7 @@ test("CV builders generate downloadable document content", () => {
 
   const word = buildCvWordDocument();
   assert.match(word, /Nwadialo David Chinedu/);
+  assert.match(word, /linkedin\.com\/in\/sirdaviddev/);
   assert.match(word, /Personal Information/);
   assert.match(word, /4th March, 2003/);
   assert.match(word, /Professional Summary/);

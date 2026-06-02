@@ -126,6 +126,7 @@ export function buildCvWordDocument() {
               <td style="width: 50%; vertical-align: top; padding-left: 22px;">
                 ${renderContactRow("Phone", CV_PROFILE.phone)}
                 ${renderContactRow("Portfolio", CV_PROFILE.portfolio)}
+                ${renderContactRow("LinkedIn", CV_PROFILE.linkedin)}
               </td>
             </tr>
           </table>

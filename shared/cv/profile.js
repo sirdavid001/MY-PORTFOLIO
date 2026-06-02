@@ -12,6 +12,8 @@ export const CV_PROFILE = {
   portfolioUrl: "https://sirdavid.site",
   github: "github.com/sirdavid001",
   githubUrl: "https://github.com/sirdavid001",
+  linkedin: "linkedin.com/in/sirdaviddev",
+  linkedinUrl: "https://www.linkedin.com/in/sirdaviddev",
   contactAddress:
     "No. 3 Ike Okonji Close, back of Ibori Golf Court, Asaba, Delta State, Nigeria",
   personalDetails: [

@@ -216,7 +216,8 @@ Kind regards,
 ${CV_PROFILE.name}
 ${CV_PROFILE.phone}
 ${CV_PROFILE.email}
-${CV_PROFILE.portfolio}`;
+${CV_PROFILE.portfolio}
+${CV_PROFILE.linkedin}`;
 
   const html = `<div style="font-family: Arial, Helvetica, sans-serif; color: #1f2937; line-height: 1.65;">
 <p>Dear Hiring Manager,</p>
@@ -243,7 +244,8 @@ ${CV_PROFILE.portfolio}`;
   ${escapeHtml(CV_PROFILE.name)}<br/>
   ${escapeHtml(CV_PROFILE.phone)}<br/>
   <a href="mailto:${escapeHtml(CV_PROFILE.email)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(CV_PROFILE.email)}</a><br/>
-  <a href="${escapeHtml(CV_PROFILE.portfolioUrl)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(CV_PROFILE.portfolio)}</a>
+  <a href="${escapeHtml(CV_PROFILE.portfolioUrl)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(CV_PROFILE.portfolio)}</a><br/>
+  <a href="${escapeHtml(CV_PROFILE.linkedinUrl)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(CV_PROFILE.linkedin)}</a>
 </p>
 <p style="font-size: 13px; color: #64748b;">If you need anything else, you can also reply to <a href="mailto:${escapeHtml(supportEmail)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(supportEmail)}</a>.</p>
 </div>`;

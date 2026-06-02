@@ -4,6 +4,7 @@ const contactLines = [
   `Location: ${CV_PROFILE.location}`,
   `Email: ${CV_PROFILE.email}`,
   `GitHub: ${CV_PROFILE.github}`,
+  `LinkedIn: ${CV_PROFILE.linkedin}`,
   `Phone: ${CV_PROFILE.phone}`,
   `Portfolio: ${CV_PROFILE.portfolio}`,
 ];

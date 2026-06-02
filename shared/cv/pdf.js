@@ -154,6 +154,7 @@ function createBuilder() {
       [
         `Phone: ${CV_PROFILE.phone}`,
         `Portfolio: ${CV_PROFILE.portfolio}`,
+        `LinkedIn: ${CV_PROFILE.linkedin}`,
       ].forEach((text, index) => {
         currentPage.push({
           kind: "text",
