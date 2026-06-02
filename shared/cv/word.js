@@ -187,15 +187,6 @@ export function buildCvWordDocument() {
           )}
 
           ${renderSection(
-            "Technical Skills",
-            `${renderSkillTags(CV_PROFILE.technicalSkills)}${
-              CV_PROFILE.technicalSkillsNote
-                ? `<div style="margin-top: 9px; color: #4b5563; font-size: 15px; line-height: 1.58; font-style: italic;">${escapeHtml(CV_PROFILE.technicalSkillsNote)}</div>`
-                : ""
-            }`
-          )}
-
-          ${renderSection(
             "Workplace Skills",
             renderSkillColumns(CV_PROFILE.workplaceSkills)
           )}

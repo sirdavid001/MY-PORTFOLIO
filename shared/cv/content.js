@@ -55,12 +55,6 @@ export const CV_RESUME_LINES = [
     ...(index === CV_PROFILE.qualifications.length - 1 ? [] : [{ style: "spacer" }]),
   ]),
   { style: "spacer" },
-  { style: "section", text: "Technical Skills" },
-  { style: "body", text: CV_PROFILE.technicalSkills.join(" | ") },
-  ...(CV_PROFILE.technicalSkillsNote
-    ? [{ style: "body", text: CV_PROFILE.technicalSkillsNote }]
-    : []),
-  { style: "spacer" },
   { style: "section", text: "Workplace Skills" },
   ...CV_PROFILE.workplaceSkills.map((text) => ({ style: "bullet", text })),
   { style: "spacer" },

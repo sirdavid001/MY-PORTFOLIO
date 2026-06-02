@@ -627,17 +627,6 @@ function createBuilder() {
   addSection("Certificates / Qualifications Obtained");
   addQualificationsTable(CV_PROFILE.qualifications);
 
-  addSection("Technical Skills");
-  addChipList(CV_PROFILE.technicalSkills);
-  if (CV_PROFILE.technicalSkillsNote) {
-    addParagraph(CV_PROFILE.technicalSkillsNote, {
-      size: 11.2,
-      color: COLORS.body,
-      leading: 14.2,
-      after: 8,
-    });
-  }
-
   addSection("Workplace Skills");
   addSkillColumns(CV_PROFILE.workplaceSkills);
   cursorY -= 8;

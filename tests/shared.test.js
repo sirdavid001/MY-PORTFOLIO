@@ -61,6 +61,7 @@ test("CV builders generate downloadable document content", () => {
   assert.match(word, /First School Leaving Certificate \(FSLC\)/);
   assert.doesNotMatch(word, />Education</);
   assert.doesNotMatch(word, /Selected Projects/);
+  assert.doesNotMatch(word, /Technical Skills/);
   assert.ok(
     CV_RESUME_LINES.findIndex((line) => line.text === "Personal Information") <
       CV_RESUME_LINES.findIndex((line) => line.text === "Professional Summary")
@@ -74,4 +75,5 @@ test("CV builders generate downloadable document content", () => {
       CV_RESUME_LINES.findIndex((line) => line.text === "Certificates / Qualifications Obtained")
   );
   assert.equal(CV_RESUME_LINES.some((line) => line.text === "Selected Projects"), false);
+  assert.equal(CV_RESUME_LINES.some((line) => line.text === "Technical Skills"), false);
 });
