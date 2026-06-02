@@ -76,17 +76,6 @@ function renderQualificationsTable(entries) {
   </table>`;
 }
 
-function renderProjects() {
-  return CV_PROFILE.projects
-    .map(
-      (project) => `<div style="margin-top: 16px; padding-left: 13px; border-left: 3px solid #bfdbfe;">
-        <div style="font-size: 17px; font-weight: 700; color: #1f2937;">${escapeHtml(project.title)}</div>
-        <div style="margin-top: 5px; color: #3f4d63; font-size: 15.5px; line-height: 1.6;">${escapeHtml(project.description)}</div>
-      </div>`
-    )
-    .join("");
-}
-
 function renderPersonalDetails() {
   const longLabels = new Set(["GSM Phone", "Contact Address", "Email Address"]);
   const compactItems = (CV_PROFILE.personalDetails || []).filter((item) => !longLabels.has(item.label));
@@ -119,8 +108,9 @@ function renderPersonalDetails() {
   </table>`;
 }
 
-function renderSection(title, body) {
-  return `<div style="margin-top: 28px;">
+function renderSection(title, body, options = {}) {
+  const pageBreakStyle = options.pageBreakBefore ? "page-break-before: always; break-before: page; " : "";
+  return `<div style="${pageBreakStyle}margin-top: 28px;">
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin-bottom: 12px;">
       <tr>
         <td style="width: 6px; background: #2563eb;"></td>
@@ -189,7 +179,9 @@ export function buildCvWordDocument() {
             `<div style="padding: 16px 18px; border: 1px solid #dbeafe; background: #f8fbff; color: #334155; font-size: 15.8px; line-height: 1.65;">${escapeHtml(CV_PROFILE.summary)}</div>`
           )}
 
-          ${renderSection("Schools Attended With Dates", renderSchoolsAttended(CV_PROFILE.schoolsAttended))}
+          ${renderSection("Schools Attended With Dates", renderSchoolsAttended(CV_PROFILE.schoolsAttended), {
+            pageBreakBefore: true,
+          })}
 
           ${renderSection(
             "Certificates / Qualifications Obtained",
@@ -204,8 +196,6 @@ export function buildCvWordDocument() {
                 : ""
             }`
           )}
-
-          ${renderSection("Selected Projects", renderProjects())}
 
           ${renderSection(
             "Workplace Skills",

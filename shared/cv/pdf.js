@@ -222,8 +222,8 @@ function createBuilder() {
     cursorY -= after;
   }
 
-  function addSection(title) {
-    ensureSpace(44);
+  function addSection(title, options = {}) {
+    ensureSpace(44 + (options.keepWith || 0));
     currentPage.push({
       kind: "rect",
       x: PAGE.marginX,
@@ -280,15 +280,31 @@ function createBuilder() {
     cursorY -= boxHeight + 10;
   }
 
-  function addSchoolsTimeline(entries) {
+  function getSchoolRowLayout(entry) {
     const contentWidth = PAGE.width - PAGE.marginX * 2;
     const dateWidth = 88;
     const gap = 14;
     const schoolWidth = contentWidth - dateWidth - gap;
+    const schoolLines = wrapText(entry.name, schoolWidth - 18, 11.8);
+    const rowHeight = Math.max(42, schoolLines.length * 14 + 20);
 
+    return {
+      contentWidth,
+      dateWidth,
+      gap,
+      schoolLines,
+      rowHeight,
+    };
+  }
+
+  function estimateFirstSchoolBlockHeight(entries) {
+    if (!entries?.length) return 0;
+    return getSchoolRowLayout(entries[0]).rowHeight + 8;
+  }
+
+  function addSchoolsTimeline(entries) {
     for (const entry of entries) {
-      const schoolLines = wrapText(entry.name, schoolWidth - 18, 11.8);
-      const rowHeight = Math.max(42, schoolLines.length * 14 + 20);
+      const { contentWidth, dateWidth, gap, schoolLines, rowHeight } = getSchoolRowLayout(entry);
       ensureSpace(rowHeight + 8);
       const rowY = cursorY;
 
@@ -419,23 +435,6 @@ function createBuilder() {
     });
 
     cursorY -= 4;
-  }
-
-  function addProject(project) {
-    ensureSpace(52);
-    addParagraph(project.title, {
-      font: "F2",
-      size: 13.2,
-      color: COLORS.dark,
-      leading: 15.2,
-      after: 2,
-    });
-    addParagraph(project.description, {
-      size: 11.5,
-      color: COLORS.body,
-      leading: 14.5,
-      after: 5,
-    });
   }
 
   function addSkillColumns(items) {
@@ -621,7 +620,10 @@ function createBuilder() {
     leading: 14.8,
   });
 
-  addSection("Schools Attended With Dates");
+  newPage(false);
+  addSection("Schools Attended With Dates", {
+    keepWith: estimateFirstSchoolBlockHeight(CV_PROFILE.schoolsAttended),
+  });
   addSchoolsTimeline(CV_PROFILE.schoolsAttended);
 
   addSection("Certificates / Qualifications Obtained");
@@ -637,9 +639,6 @@ function createBuilder() {
       after: 8,
     });
   }
-
-  addSection("Selected Projects");
-  CV_PROFILE.projects.forEach(addProject);
 
   addSection("Workplace Skills");
   addSkillColumns(CV_PROFILE.workplaceSkills);

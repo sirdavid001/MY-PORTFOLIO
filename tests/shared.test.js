@@ -7,6 +7,7 @@ import {
   normalizeLocationPayload,
   isProbablyPublicIp,
 } from "../shared/location.js";
+import { CV_RESUME_LINES } from "../shared/cv/content.js";
 import { buildCvPdf } from "../shared/cv/pdf.js";
 import { buildCvWordDocument } from "../shared/cv/word.js";
 
@@ -43,6 +44,7 @@ test("CV builders generate downloadable document content", () => {
   const pdf = buildCvPdf();
   assert.ok(pdf instanceof Uint8Array);
   assert.equal(Buffer.from(pdf.slice(0, 8)).toString("utf8"), "%PDF-1.4");
+  assert.doesNotMatch(Buffer.from(pdf).toString("latin1"), /Selected Projects/);
 
   const word = buildCvWordDocument();
   assert.match(word, /Nwadialo David Chinedu/);
@@ -55,4 +57,6 @@ test("CV builders generate downloadable document content", () => {
   assert.match(word, /West African Senior School Certificate Examination \(WAEC\)/);
   assert.match(word, /National Examination Council Certificate \(NECO\)/);
   assert.doesNotMatch(word, />Education</);
+  assert.doesNotMatch(word, /Selected Projects/);
+  assert.equal(CV_RESUME_LINES.some((line) => line.text === "Selected Projects"), false);
 });

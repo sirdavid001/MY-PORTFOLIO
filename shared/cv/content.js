@@ -61,13 +61,6 @@ export const CV_RESUME_LINES = [
     ? [{ style: "body", text: CV_PROFILE.technicalSkillsNote }]
     : []),
   { style: "spacer" },
-  { style: "section", text: "Selected Projects" },
-  ...CV_PROFILE.projects.flatMap((project, index) => [
-    { style: "subheading", text: project.title },
-    { style: "body", text: project.description },
-    ...(index === CV_PROFILE.projects.length - 1 ? [] : [{ style: "spacer" }]),
-  ]),
-  { style: "spacer" },
   { style: "section", text: "Workplace Skills" },
   ...CV_PROFILE.workplaceSkills.map((text) => ({ style: "bullet", text })),
   { style: "spacer" },
