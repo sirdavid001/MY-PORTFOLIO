@@ -610,6 +610,15 @@ function createBuilder() {
 
   newPage(true);
 
+  addSection("Schools Attended With Dates", {
+    keepWith: estimateFirstSchoolBlockHeight(CV_PROFILE.schoolsAttended),
+  });
+  addSchoolsTimeline(CV_PROFILE.schoolsAttended);
+
+  newPage(false);
+  addSection("Certificates / Qualifications Obtained");
+  addQualificationsTable(CV_PROFILE.qualifications);
+
   addSection("Personal Information");
   addPersonalDetails(CV_PROFILE.personalDetails || []);
 
@@ -619,15 +628,6 @@ function createBuilder() {
     color: COLORS.body,
     leading: 14.8,
   });
-
-  newPage(false);
-  addSection("Schools Attended With Dates", {
-    keepWith: estimateFirstSchoolBlockHeight(CV_PROFILE.schoolsAttended),
-  });
-  addSchoolsTimeline(CV_PROFILE.schoolsAttended);
-
-  addSection("Certificates / Qualifications Obtained");
-  addQualificationsTable(CV_PROFILE.qualifications);
 
   addSection("Technical Skills");
   addChipList(CV_PROFILE.technicalSkills);
