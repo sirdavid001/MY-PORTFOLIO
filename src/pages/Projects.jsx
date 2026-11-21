@@ -4,41 +4,116 @@ import { ImageWithFallback } from "../components/ui/ImageWithFallback";
 import { projects } from "../data/projects";
 import useSEO from "../hooks/useSEO";
 
-function ProjectCard({ project, eager }) {
-  return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card">
-      <div className="aspect-video overflow-hidden border-b border-border bg-muted">
-        <ImageWithFallback
-          {...project.image}
-          sizes="(min-width: 72rem) 33rem, (min-width: 48rem) calc((100vw - 6rem) / 2), calc(100vw - 2rem)"
-          loading={eager ? "eager" : "lazy"}
-          decoding="async"
-          className="h-full w-full object-cover object-top"
-        />
-      </div>
+const featured = projects.filter((project) => project.featured);
+const more = projects.filter((project) => !project.featured);
 
-      <div className="flex flex-1 flex-col items-start gap-4 p-5 sm:p-7">
-        <p className="text-sm font-medium text-muted-foreground">{project.status}</p>
-        <h2 className="text-2xl font-bold text-foreground">{project.title}</h2>
-        <p className="leading-relaxed text-muted-foreground">{project.description}</p>
-        <ul className="flex flex-wrap gap-2" aria-label="Technologies">
-          {project.stack.map((tag) => (
-            <li key={tag} className="rounded-lg bg-muted px-2.5 py-1 text-sm text-muted-foreground">
-              {tag}
-            </li>
-          ))}
-        </ul>
-        <div className="mt-auto flex flex-wrap gap-x-5 gap-y-1 pt-3">
-          <a
-            href={project.link}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-11 items-center gap-2 font-semibold text-primary underline-offset-4 hover:underline"
-            aria-label={`Live demo for ${project.title}`}
-          >
-            Live demo <FiExternalLink aria-hidden="true" />
-          </a>
+function headingId(project) {
+  return `project-${project.domain.replace(/[^a-z0-9]+/gi, "-")}`;
+}
+
+// Duplicate of each project's visible link for pointer users; kept out of the tab order.
+function Screenshot({ project, sizes, eager = false }) {
+  return (
+    <a
+      href={project.link}
+      target="_blank"
+      rel="noreferrer"
+      tabIndex={-1}
+      aria-hidden="true"
+      className="group block aspect-video min-w-0 overflow-hidden rounded-2xl border border-border bg-muted"
+    >
+      <ImageWithFallback
+        {...project.image}
+        sizes={sizes}
+        loading={eager ? "eager" : "lazy"}
+        fetchPriority={eager ? "high" : undefined}
+        decoding="async"
+        className="h-full w-full object-cover object-top motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-[1.015]"
+      />
+    </a>
+  );
+}
+
+function ProjectFacts({ project }) {
+  return (
+    <dl className="grid w-full grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-2.5 text-sm">
+      <dt className="text-muted-foreground">Sector</dt>
+      <dd className="font-medium text-foreground">{project.sector}</dd>
+      <dt className="text-muted-foreground">Status</dt>
+      <dd className="font-medium text-foreground">{project.status}</dd>
+      <dt className="text-muted-foreground">Built with</dt>
+      <dd className="text-foreground">{project.stack.join(", ")}</dd>
+    </dl>
+  );
+}
+
+function VisitLabel({ project }) {
+  return (
+    <>
+      <span className="min-w-0 [overflow-wrap:anywhere]">Visit {project.domain}</span>
+      <FiExternalLink aria-hidden="true" className="shrink-0" />
+      <span className="sr-only"> (live {project.title} site, opens in a new tab)</span>
+    </>
+  );
+}
+
+function FeaturedProject({ project, first }) {
+  return (
+    <article
+      aria-labelledby={headingId(project)}
+      className="grid gap-6 py-10 first:pt-8 sm:py-12 sm:first:pt-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-12 lg:py-14 lg:first:pt-10"
+    >
+      <Screenshot
+        project={project}
+        eager={first}
+        sizes="(min-width: 72rem) 38rem, (min-width: 64rem) 55vw, calc(100vw - 2rem)"
+      />
+
+      <div className="flex min-w-0 flex-col items-start">
+        <h3 id={headingId(project)} className="text-2xl font-bold text-foreground sm:text-3xl">
+          {project.title}
+        </h3>
+        <p className="mt-3 max-w-prose leading-relaxed text-muted-foreground">{project.description}</p>
+        <div className="mt-6 w-full border-t border-border pt-5">
+          <ProjectFacts project={project} />
         </div>
+        <a
+          href={project.link}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-7 inline-flex min-h-11 max-w-full items-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <VisitLabel project={project} />
+        </a>
+      </div>
+    </article>
+  );
+}
+
+function MoreProject({ project }) {
+  return (
+    // Subgrid: cards in the same grid row share track heights, so titles, facts, and links line up.
+    <article aria-labelledby={headingId(project)} className="row-span-5 grid min-w-0 grid-rows-subgrid gap-y-0">
+      <Screenshot
+        project={project}
+        sizes="(min-width: 72rem) 21rem, (min-width: 64rem) calc((100vw - 8rem) / 3), (min-width: 48rem) calc((100vw - 5rem) / 2), calc(100vw - 2rem)"
+      />
+      <h3 id={headingId(project)} className="mt-5 text-xl font-bold text-foreground">
+        {project.title}
+      </h3>
+      <p className="mt-2 leading-relaxed text-muted-foreground">{project.description}</p>
+      <div className="mt-5 border-t border-border pt-4">
+        <ProjectFacts project={project} />
+      </div>
+      <div className="pt-4">
+        <a
+          href={project.link}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-h-11 max-w-full items-center gap-2 font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          <VisitLabel project={project} />
+        </a>
       </div>
     </article>
   );
@@ -48,18 +123,32 @@ export default function Projects() {
   useSEO(ROUTE_BY_KEY.projects);
 
   return (
-    <section className="space-y-9 pb-16 pt-8 sm:pt-12">
+    <div className="pb-16 pt-8 sm:pt-12">
       <div className="max-w-2xl">
         <h1 className="text-4xl font-extrabold text-foreground sm:text-6xl">Projects</h1>
         <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-          Four applications for messaging, retail, and education. Explore the live demos.
+          Applications for booking, careers, retail, messaging, entertainment, property, trade, and education. Each
+          one is live and open to use.
         </p>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
-        {projects.map((project, index) => (
-          <ProjectCard key={project.title} project={project} eager={index === 0} />
-        ))}
-      </div>
-    </section>
+
+      <section aria-labelledby="featured-projects" className="mt-10 border-t border-border pt-10 sm:mt-12 sm:pt-12">
+        <h2 id="featured-projects" className="text-xl font-bold text-foreground">Featured projects</h2>
+        <div className="divide-y divide-border">
+          {featured.map((project, index) => (
+            <FeaturedProject key={project.title} project={project} first={index === 0} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="more-projects" className="border-t border-border pt-10 sm:pt-12 lg:pt-14">
+        <h2 id="more-projects" className="text-xl font-bold text-foreground">More projects</h2>
+        <div className="mt-8 grid gap-x-8 gap-y-14 md:grid-cols-2 lg:grid-cols-3">
+          {more.map((project) => (
+            <MoreProject key={project.title} project={project} />
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }

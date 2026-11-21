@@ -75,7 +75,7 @@ export default function Home() {
         <figure className="min-w-0 overflow-hidden rounded-3xl border border-border bg-card">
           <a
             href={featuredProject.link}
-            aria-label={`Open the ${featuredProject.title} demo`}
+            aria-label={`Visit the live ${featuredProject.title} site at ${featuredProject.domain}`}
             className="group block aspect-video overflow-hidden border-b border-border bg-muted focus-visible:outline-offset-[-3px]"
           >
             <ImageWithFallback

@@ -16,7 +16,7 @@ export const ROUTES = [
     path: "/projects",
     title: "Projects — Chinedu David Nwadialo",
     description:
-      "Featured engineering projects by Chinedu David Nwadialo — UKM (uKnowMe), Sirdavid Multi-Store, QuickPOS, and OEMS.",
+      "Live web applications by Chinedu David Nwadialo, including Bookdara, CorperLink, QuickPOS, UKM, Streamora, and Sirdavid Estates, with their sectors, status, and technology.",
   },
   {
     key: "contact",
