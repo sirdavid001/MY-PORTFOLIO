@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { applyRateLimitAsync } from "../api/_lib/rate-limit.js";
-import { buildContactEmailPayload, buildContactFromEmail, normalizeContactPayload } from "../api/contact.js";
+import { getClientIp } from "../api/_lib/security.js";
+import contactHandler, { buildContactEmailPayload, buildContactFromEmail, normalizeContactPayload } from "../api/contact.js";
 import downloadCv from "../api/cv-download.js";
 import { CV_FORMATS } from "../shared/cv/formats.js";
 import { buildCvFromEmail } from "../api/send-cv.js";
@@ -86,6 +87,33 @@ test("rate limiter blocks after the configured memory limit", async () => {
 
   assert.equal(blocked.ok, false);
   assert.equal(headers.get("Retry-After"), "1");
+});
+
+test("client IP comes from the Vercel-set forwarding header, not client-controlled headers", () => {
+  const ip = "198.51.100.7";
+  assert.equal(getClientIp({ headers: { "cf-connecting-ip": "203.0.113.9", "x-forwarded-for": ip } }), ip);
+  assert.equal(getClientIp({ headers: { "x-forwarded-for": `${ip}, 10.0.0.1` } }), ip);
+  assert.equal(getClientIp({ headers: { "x-real-ip": ip } }), ip);
+  assert.equal(getClientIp({ headers: {}, socket: { remoteAddress: `::ffff:${ip}` } }), ip);
+});
+
+test("rotating cf-connecting-ip does not reset the contact rate limit", async () => {
+  const ip = `198.51.100.${1 + Math.floor(Math.random() * 250)}`;
+  let status;
+  const res = {
+    setHeader() {},
+    status(code) { status = code; return this; },
+    json() {},
+  };
+
+  for (let attempt = 0; attempt <= 12; attempt++) {
+    await contactHandler(
+      { method: "GET", headers: { "x-forwarded-for": ip, "cf-connecting-ip": `203.0.113.${attempt}` } },
+      res
+    );
+  }
+
+  assert.equal(status, 429);
 });
 
 

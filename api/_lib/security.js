@@ -10,19 +10,21 @@ function normalizeIp(rawIp) {
   const first = ip.split(",")[0].trim();
   if (!first) return "unknown";
 
+  // Unwrap IPv4-mapped IPv6 before port stripping, which would otherwise reduce it to "".
+  const unmapped = first.toLowerCase().startsWith("::ffff:") ? first.slice(7) : first;
+
   // Strip IPv4 port if present.
-  const noPort = first.includes(":") && first.includes(".") ? first.split(":")[0] : first;
+  const noPort = unmapped.includes(":") && unmapped.includes(".") ? unmapped.split(":")[0] : unmapped;
 
-  if (noPort.startsWith("::ffff:")) {
-    return noPort.slice(7);
-  }
-
-  return noPort;
+  return noPort || "unknown";
 }
 
+// Vercel overwrites x-forwarded-for with the caller's address, so clients cannot forge it.
+// Do not read headers Vercel passes through unchanged (such as cf-connecting-ip): a client
+// could send a new value with each request and get a fresh rate-limit bucket every time.
 export function getClientIp(req) {
   return normalizeIp(
-    req.headers["cf-connecting-ip"] || req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.socket?.remoteAddress
+    req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.socket?.remoteAddress
   );
 }
 
