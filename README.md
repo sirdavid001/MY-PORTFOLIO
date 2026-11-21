@@ -9,12 +9,16 @@ npm install
 npm run dev
 ```
 
+Use `vercel dev` when testing the API routes locally. The Vite dev server serves the frontend.
+
 ## Production build
 
 ```bash
 npm run build
 npm run preview
 ```
+
+The build prerenders Home, Projects, Contact, and the static 404 page.
 
 ## Project structure
 
@@ -38,18 +42,19 @@ src/pages/        Route-level page components
 
 ## Environment variables
 
-Optional variables used by the portfolio API routes:
+Use `.env.example` as the template for local settings. Vercel uses the same variable names.
 
-- `RESEND_API_KEY` for CV email delivery
-- `RESEND_FROM_EMAIL` verified sender address for outgoing CV emails
-- `RESEND_FROM_NAME` sender display name
+- `RESEND_API_KEY` enables CV and contact email delivery
+- `RESEND_FROM_EMAIL` verified sender address for CV and contact emails
 - `SUPPORT_EMAIL` reply-to contact address
 - `CONTACT_TO_EMAIL` inbox for project requests. Defaults to `SUPPORT_EMAIL`, then the profile email.
 - `RATE_LIMIT_REDIS_REST_URL` and `RATE_LIMIT_REDIS_REST_TOKEN` for persistent API rate limiting. Vercel KV/Upstash `KV_REST_API_*` or `UPSTASH_REDIS_REST_*` names are also supported.
 
 ## Portfolio API routes
 
-- `GET /api/cv-download`
+- `GET /api/cv-download` serves PDF by default. Use `?format=word` for DOCX or `?format=doc` for legacy Word-compatible HTML.
 - `POST /api/send-cv`
 - `POST /api/contact`
 - `GET /api/location`
+
+Country currencies use [Unicode CLDR 48.2 supplemental currency data](https://github.com/unicode-org/cldr-json/blob/48.2.0/cldr-json/cldr-core/supplemental/currencyData.json). The form shows USD if a local exchange rate is unavailable.

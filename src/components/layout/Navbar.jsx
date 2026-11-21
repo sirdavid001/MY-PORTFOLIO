@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { FiSun, FiMoon, FiMenu, FiX } from "react-icons/fi";
+import { useEffect, useRef, useState } from "react";
+import { FiMenu, FiMoon, FiSun, FiX } from "react-icons/fi";
+import { NavLink, useLocation } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
 import Logo from "./Logo";
 
@@ -11,99 +10,92 @@ const links = [
   { to: "/contact", label: "Contact" },
 ];
 
+function navClass({ isActive }) {
+  return `inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold transition-colors ${
+    isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+  }`;
+}
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const toggle = useRef(null);
+  const { pathname } = useLocation();
   const { theme, toggleTheme } = useTheme();
 
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+  useEffect(() => setOpen(false), [pathname]);
 
-  const navClass = ({ isActive }) =>
-    `relative px-3 py-1.5 text-sm font-medium transition-colors ${
-      isActive
-        ? "text-primary"
-        : "text-muted-foreground hover:text-foreground"
-    }`;
+  useEffect(() => {
+    const desktop = matchMedia("(min-width: 48rem)");
+    function closeOnDesktop(event) {
+      if (event.matches) setOpen(false);
+    }
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  function handleEscape(event) {
+    if (event.key !== "Escape" || !open) return;
+    event.preventDefault();
+    setOpen(false);
+    toggle.current?.focus();
+  }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 glass border-b border-border/40">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+    <header onKeyDown={handleEscape} className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95">
+      <div className="mx-auto flex min-h-[4.5rem] w-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
         <Logo />
-
-        <div className="flex items-center gap-2">
-          <nav className="hidden items-center gap-1 md:flex">
+        <div className="flex shrink-0 items-center gap-2">
+          <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
             {links.map((link) => (
-              <NavLink key={link.to} to={link.to} className={navClass}>
-                {({ isActive }) => (
-                  <>
-                    {link.label}
-                    {isActive && (
-                      <motion.div
-                        layoutId="nav-underline"
-                        className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-primary"
-                      />
-                    )}
-                  </>
-                )}
+              <NavLink end={link.to === "/"} key={link.to} to={link.to} className={navClass}>
+                {link.label}
               </NavLink>
             ))}
           </nav>
 
-          <div className="h-6 w-[1px] bg-border/60 mx-2 hidden md:block" />
-
           <button
+            type="button"
             onClick={toggleTheme}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-background/50 text-foreground transition-all hover:bg-accent hover:border-accent"
-            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-border text-foreground transition-colors hover:bg-accent"
+            aria-label="Dark mode"
+            aria-pressed={theme === "dark"}
           >
-            {theme === "light" ? <FiMoon className="h-4 w-4" /> : <FiSun className="h-4 w-4" />}
+            <FiMoon aria-hidden="true" className="h-4 w-4 dark:hidden" />
+            <FiSun aria-hidden="true" className="hidden h-4 w-4 dark:block" />
           </button>
 
           <button
+            ref={toggle}
             type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-background/50 text-foreground md:hidden"
+            onClick={() => setOpen((current) => !current)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border text-foreground md:hidden"
             aria-label="Toggle navigation"
+            aria-controls="mobile-navigation"
+            aria-expanded={open}
           >
-            {open ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
+            {open ? <FiX aria-hidden="true" className="h-5 w-5" /> : <FiMenu aria-hidden="true" className="h-5 w-5" />}
           </button>
         </div>
       </div>
 
-      <AnimatePresence>
-        {open && (
-          <motion.nav
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="border-t border-border/40 bg-background/80 backdrop-blur-lg px-4 pb-4 pt-2 md:hidden overflow-hidden"
-          >
-            <div className="mx-auto flex max-w-6xl flex-col gap-2">
-              {links.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    `rounded-xl px-4 py-3 text-base font-medium transition-colors ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent"
-                    }`
-                  }
-                  onClick={() => setOpen(false)}
-                >
-                  {link.label}
-                </NavLink>
-              ))}
-            </div>
-          </motion.nav>
-        )}
-      </AnimatePresence>
+      <nav id="mobile-navigation" aria-label="Mobile" hidden={!open} className="border-t border-border px-4 py-2 md:hidden">
+        <div className="mx-auto flex max-w-6xl flex-col gap-1">
+          {links.map((link) => (
+            <NavLink
+              end={link.to === "/"}
+              key={link.to}
+              to={link.to}
+              className={navClass}
+              onClick={() => {
+                setOpen(false);
+                if (link.to === pathname) toggle.current?.focus();
+              }}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </header>
   );
 }

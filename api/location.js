@@ -31,7 +31,7 @@ function getPlatformLocation(req) {
 
 async function lookupIpApi(ip) {
   const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(1800),
   });
   if (!response.ok) return null;
 
@@ -49,7 +49,7 @@ async function lookupIpApi(ip) {
 
 async function lookupIpWho(ip) {
   const response = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(1800),
   });
   if (!response.ok) return null;
 
@@ -88,20 +88,15 @@ export default async function handler(req, res) {
     return json(res, 405, { ok: false, error: "Method not allowed." }, methods);
   }
 
-  try {
-    const platformLocation = getPlatformLocation(req);
+  const platformLocation = getPlatformLocation(req);
+  if (platformLocation) return json(res, 200, { ok: true, ...platformLocation }, methods);
 
-    if (isProbablyPublicIp(clientIp)) {
-      const detectedLocation = (await lookupIpApi(clientIp)) || (await lookupIpWho(clientIp)) || platformLocation;
-      if (detectedLocation) {
-        return json(res, 200, { ok: true, ...detectedLocation }, methods);
-      }
-    } else if (platformLocation) {
-      return json(res, 200, { ok: true, ...platformLocation }, methods);
+  if (isProbablyPublicIp(clientIp)) {
+    for (const lookup of [lookupIpApi, lookupIpWho]) {
+      const location = await lookup(clientIp).catch(() => null);
+      if (location) return json(res, 200, { ok: true, ...location }, methods);
     }
-
-    return json(res, 404, { ok: false, error: "Location could not be determined." }, methods);
-  } catch {
-    return json(res, 502, { ok: false, error: "Location lookup failed." }, methods);
   }
+
+  return json(res, 404, { ok: false, error: "Location could not be determined." }, methods);
 }

@@ -2,25 +2,10 @@ import { applyRateLimitAsync } from "./_lib/rate-limit.js";
 import { getClientIp } from "./_lib/security.js";
 import { CV_PROFILE } from "../shared/cv/profile.js";
 import { buildCvPdf } from "../shared/cv/pdf.js";
-import { buildCvWordDocument } from "../shared/cv/word.js";
+import { buildCvDocx } from "../shared/cv/docx.js";
+import { CV_FORMATS } from "../shared/cv/formats.js";
+import { SITE_URL } from "../shared/seo.js";
 import { escapeHtml } from "../shared/utils.js";
-
-const CV_OPTIONS = {
-  pdf: {
-    value: "pdf",
-    label: "PDF",
-    href: "/api/cv-download?format=pdf",
-    fileName: "chineduDavidNwadialoCv.pdf",
-    note: "The requested CV is attached as a PDF.",
-  },
-  word: {
-    value: "word",
-    label: "Word",
-    href: "/api/cv-download?format=word",
-    fileName: "chineduDavidNwadialoCv.doc",
-    note: "The requested CV is attached as a Word-compatible document.",
-  },
-};
 
 const CV_SENDER_NAME = CV_PROFILE.name;
 
@@ -36,34 +21,13 @@ function json(res, status, data, methods) {
   res.status(status).json(data);
 }
 
-function firstHeaderValue(value) {
-  if (Array.isArray(value)) return String(value[0] || "").trim();
-  return String(value || "").trim();
-}
-
-function resolveRequestOrigin(req) {
-  const rawProto = firstHeaderValue(req.headers["x-forwarded-proto"]) || "https";
-  const protoCandidate = rawProto.split(",")[0].trim().toLowerCase();
-  const proto = protoCandidate === "http" || protoCandidate === "https" ? protoCandidate : "https";
-  const rawHost = firstHeaderValue(req.headers["x-forwarded-host"]) || firstHeaderValue(req.headers.host);
-  const hostCandidate = rawHost.split(",")[0].trim();
-  // Only accept valid hostname characters to prevent header injection.
-  const host = /^[a-zA-Z0-9.\-:]+$/.test(hostCandidate) ? hostCandidate : "";
-  if (!host) return "";
-  return `${proto}://${host}`;
-}
-
-function normalizeBaseUrl(url) {
-  return String(url || "").trim().replace(/\/+$/, "");
-}
-
 function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(String(email || ""));
 }
 
 function normalizeFormat(value) {
   const normalized = String(value || "").trim().toLowerCase();
-  return normalized === "word" ? "word" : "pdf";
+  return normalized === "word" || normalized === "docx" ? "word" : "pdf";
 }
 
 function normalizeSenderName(name) {
@@ -86,32 +50,11 @@ export function buildCvFromEmail(fromEmail) {
   return formatSenderAddress(fromEmail, CV_SENDER_NAME);
 }
 
-function encodeBase64(value) {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(value).toString("base64");
-  }
-
-  const bytes = value instanceof Uint8Array ? value : new TextEncoder().encode(String(value || ""));
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-  }
-  return btoa(binary);
-}
-
-function buildCvAttachment(option) {
-  if (option.value === "word") {
-    const document = buildCvWordDocument();
-    return {
-      filename: option.fileName,
-      content: encodeBase64(new TextEncoder().encode(document)),
-    };
-  }
-
+async function buildCvAttachment(option) {
+  const document = option.value === "word" ? await buildCvDocx() : buildCvPdf();
   return {
     filename: option.fileName,
-    content: encodeBase64(buildCvPdf()),
+    content: Buffer.from(document).toString("base64"),
   };
 }
 
@@ -198,12 +141,9 @@ async function sendResendEmail(resendKey, payload) {
   }
 }
 
-function buildCvPayload({ email, format, request }) {
-  const option = CV_OPTIONS[format] || CV_OPTIONS.pdf;
+async function buildCvPayload({ email, option }) {
   const supportEmail = String(process.env.SUPPORT_EMAIL || CV_PROFILE.email).trim();
-  const origin = normalizeBaseUrl(resolveRequestOrigin(request));
-  const href = option.href;
-  const absoluteHref = origin ? `${origin}${href}` : href;
+  const absoluteHref = `${SITE_URL}${option.href}`;
   const subject = `${CV_PROFILE.name} - CV for Consideration`;
   const text = `Dear Hiring Manager,
 
@@ -239,7 +179,7 @@ ${CV_PROFILE.linkedin}`;
 </p>
 <div style="margin: 20px 0; padding: 14px 16px; border: 1px solid #dbeafe; background: #f8fbff; border-radius: 10px;">
   <p style="margin: 0 0 8px; font-weight: 600; color: #1d4ed8;">CV access</p>
-  <p style="margin: 0; color: #475569;">${escapeHtml(option.note)}</p>
+  <p style="margin: 0; color: #475569;">The requested ${option.label} CV is attached.</p>
   <p style="margin: 10px 0 0;">
     <a href="${escapeHtml(absoluteHref)}" style="font-weight: 600; color: #1d4ed8; text-decoration: none;">Download backup copy</a>
   </p>
@@ -256,7 +196,7 @@ ${CV_PROFILE.linkedin}`;
 <p style="font-size: 13px; color: #64748b;">If you need anything else, you can also reply to <a href="mailto:${escapeHtml(supportEmail)}" style="color: #1d4ed8; text-decoration: none;">${escapeHtml(supportEmail)}</a>.</p>
 </div>`;
 
-  return { option, absoluteHref, subject, text, html, attachments: [buildCvAttachment(option)] };
+  return { subject, text, html, attachments: [await buildCvAttachment(option)] };
 }
 
 export default async function handler(req, res) {
@@ -286,7 +226,7 @@ export default async function handler(req, res) {
     }
     const email = String(payload?.email || "").trim();
     const format = normalizeFormat(payload?.format);
-    const option = CV_OPTIONS[format];
+    const option = CV_FORMATS[format];
 
     if (!isValidEmail(email)) {
       return json(res, 400, { ok: false, error: "Valid email is required." }, methods);
@@ -318,7 +258,7 @@ export default async function handler(req, res) {
       );
     }
 
-    const { subject, text, html, attachments } = buildCvPayload({ email, format, request: req });
+    const { subject, text, html, attachments } = await buildCvPayload({ email, option });
 
     const emailResult = await sendResendEmail(resendKey, {
       from: fromEmail,

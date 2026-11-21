@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-const SITE_URL = "https://sirdavid.site";
+import { SITE_NAME, SITE_URL } from "../../shared/seo.js";
 
 function upsertMeta(name, content, prop = false) {
   const attr = prop ? "property" : "name";
@@ -29,13 +29,14 @@ export default function useSEO({ title, description, path = "", noindex = false 
     const url = `${SITE_URL}${path}`;
 
     upsertMeta("description", description);
-    upsertCanonical(url);
+    if (noindex) document.querySelector('link[rel="canonical"]')?.remove();
+    else upsertCanonical(url);
 
     upsertMeta("og:title", title, true);
     upsertMeta("og:description", description, true);
     upsertMeta("og:url", url, true);
     upsertMeta("og:type", "website", true);
-    upsertMeta("og:site_name", "Chinedu David Nwadialo", true);
+    upsertMeta("og:site_name", SITE_NAME, true);
 
     upsertMeta("twitter:card", "summary_large_image");
     upsertMeta("twitter:title", title);

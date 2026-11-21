@@ -1,6 +1,6 @@
 import Logo from "./Logo";
 import { Link } from "react-router-dom";
-import { CV_PROFILE } from "../../../shared/cv/profile.js";
+import { PUBLIC_PROFILE } from "../../../shared/profile.js";
 
 export default function Footer() {
   return (
@@ -16,7 +16,7 @@ export default function Footer() {
           </div>
 
           <div className="space-y-4">
-            <h4 className="text-xl font-bold text-foreground">Quick Links</h4>
+            <h2 className="text-xl font-bold text-foreground">Quick Links</h2>
             <div className="grid gap-3 text-lg text-muted-foreground">
               <Link to="/" className="hover:text-primary transition-colors">Home</Link>
               <Link to="/projects" className="hover:text-primary transition-colors">Projects</Link>
@@ -25,27 +25,27 @@ export default function Footer() {
           </div>
 
           <div className="space-y-4">
-            <h4 className="text-xl font-bold text-foreground">Connect</h4>
+            <h2 className="text-xl font-bold text-foreground">Connect</h2>
             <div className="flex flex-wrap gap-2">
-              <a 
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground transition-all hover:border-primary/50 hover:bg-primary/5" 
-                href={CV_PROFILE.githubUrl} 
-                target="_blank" 
+              <a
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+                href={PUBLIC_PROFILE.githubUrl}
+                target="_blank"
                 rel="noreferrer"
               >
                 GitHub
               </a>
-              <a 
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground transition-all hover:border-primary/50 hover:bg-primary/5" 
-                href={CV_PROFILE.portfolioUrl} 
-                target="_blank" 
+              <a
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+                href={PUBLIC_PROFILE.portfolioUrl}
+                target="_blank"
                 rel="noreferrer"
               >
                 Portfolio
               </a>
-              <a 
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground transition-all hover:border-primary/50 hover:bg-primary/5" 
-                href={`mailto:${CV_PROFILE.email}`}
+              <a
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+                href={`mailto:${PUBLIC_PROFILE.email}`}
               >
                 Email
               </a>
@@ -54,7 +54,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-16 border-t border-border/40 pt-8 text-center text-sm font-medium text-muted-foreground">
-          &copy; {new Date().getFullYear()} {CV_PROFILE.name}. Crafted with precision.
+          &copy; {PUBLIC_PROFILE.name}.
         </div>
       </div>
     </footer>

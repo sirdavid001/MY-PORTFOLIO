@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { applyRateLimitAsync } from "../api/_lib/rate-limit.js";
 import { buildContactEmailPayload, buildContactFromEmail, normalizeContactPayload } from "../api/contact.js";
+import downloadCv from "../api/cv-download.js";
+import { CV_FORMATS } from "../shared/cv/formats.js";
 import { buildCvFromEmail } from "../api/send-cv.js";
 
 function validContactPayload(overrides = {}) {
@@ -84,4 +86,26 @@ test("rate limiter blocks after the configured memory limit", async () => {
 
   assert.equal(blocked.ok, false);
   assert.equal(headers.get("Retry-After"), "1");
+});
+
+
+test("CV downloads use native Word and preserve the legacy DOC alias", async () => {
+  for (const [format, contentType, extension, signature] of [
+    ["pdf", CV_FORMATS.pdf.contentType, ".pdf", "%PDF-"],
+    ["word", CV_FORMATS.word.contentType, ".docx", "PK"],
+    ["doc", "application/msword; charset=utf-8", ".doc", "<!doctype html>"],
+  ]) {
+    const headers = new Map();
+    const response = {
+      setHeader(name, value) { headers.set(name, value); },
+      status(code) { this.statusCode = code; return this; },
+      end(buffer) { this.body = buffer; },
+    };
+
+    await downloadCv({ method: "GET", url: `/api/cv-download?format=${format}` }, response);
+    assert.equal(response.statusCode, 200);
+    assert.equal(headers.get("Content-Type"), contentType);
+    assert.ok(headers.get("Content-Disposition").endsWith(`${extension}"`));
+    assert.ok(response.body.toString("utf8").toLowerCase().startsWith(signature.toLowerCase()));
+  }
 });

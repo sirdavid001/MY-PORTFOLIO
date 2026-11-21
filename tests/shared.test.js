@@ -8,12 +8,17 @@ import {
   isProbablyPublicIp,
 } from "../shared/location.js";
 import { CV_RESUME_LINES } from "../shared/cv/content.js";
+import { buildCvDocx } from "../shared/cv/docx.js";
+import { PUBLIC_PROFILE } from "../shared/profile.js";
 import { buildCvPdf } from "../shared/cv/pdf.js";
 import { buildCvWordDocument } from "../shared/cv/word.js";
 
 test("budget helpers resolve common currencies and regional factors", () => {
   assert.equal(getCurrencyForCountry("US", "NGN"), "USD");
   assert.equal(getCurrencyForCountry("DE", "NGN"), "EUR");
+  assert.equal(getCurrencyForCountry("JP", "USD"), "JPY");
+  assert.equal(getCurrencyForCountry("BG", "USD"), "EUR");
+  assert.equal(getCurrencyForCountry("AQ", "USD"), "USD");
   assert.equal(getCurrencyForCountry("ZZ", "NGN"), "NGN");
   assert.equal(getLocationFactor("FR"), 1.09);
   assert.equal(getLocationFactor("US"), 1);
@@ -40,19 +45,28 @@ test("public IP detection rejects private and loopback addresses", () => {
   assert.equal(isProbablyPublicIp("::1"), false);
 });
 
-test("CV builders generate downloadable document content", () => {
+test("CV builders generate tagged PDF and native Word with a public contact profile", async () => {
   const pdf = buildCvPdf();
   assert.ok(pdf instanceof Uint8Array);
-  assert.equal(Buffer.from(pdf.slice(0, 8)).toString("utf8"), "%PDF-1.4");
+  assert.equal(Buffer.from(pdf.slice(0, 8)).toString("utf8"), "%PDF-1.7");
   const pdfText = Buffer.from(pdf).toString("latin1");
-  assert.doesNotMatch(pdfText, /Selected Projects/);
+  assert.match(pdfText, /\/MarkInfo << \/Marked true >>/);
+  assert.match(pdfText, /\/StructTreeRoot/);
+  assert.match(pdfText, /\/S \/H1/);
+  assert.match(pdfText, /\/S \/Table/);
+  assert.match(pdfText, /\/S \/LBody/);
+  assert.doesNotMatch(pdfText, /Date of Birth|Contact Address|Selected Projects/i);
+  const docx = await buildCvDocx();
+  assert.deepEqual([...docx.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.ok(docx.includes(Buffer.from("word/document.xml")));
   assert.doesNotMatch(pdfText, /Location:|Email:|Phone:/);
 
   const word = buildCvWordDocument();
   assert.match(word, /Nwadialo David Chinedu/);
   assert.match(word, /linkedin\.com\/in\/sirdaviddev/);
   assert.match(word, /Personal Information/);
-  assert.match(word, /4th March, 2003/);
+  assert.ok(word.includes(PUBLIC_PROFILE.email));
+  assert.doesNotMatch(word, /Date of Birth|Contact Address|Marital Status/i);
   assert.match(word, /Professional Summary/);
   assert.match(word, /Schools Attended With Dates/);
   assert.match(word, /Certificates \/ Qualifications Obtained/);
@@ -81,8 +95,6 @@ test("CV builders generate downloadable document content", () => {
   );
   assert.equal(CV_RESUME_LINES.some((line) => line.text === "Selected Projects"), false);
   assert.equal(CV_RESUME_LINES.some((line) => line.text === "Technical Skills"), false);
-  assert.equal(
-    CV_RESUME_LINES.some((line) => ["Location:", "Email:", "Phone:"].some((prefix) => line.text?.startsWith(prefix))),
-    false
-  );
+  assert.ok(CV_RESUME_LINES.some((line) => line.text?.includes(PUBLIC_PROFILE.location)));
+  assert.equal(CV_RESUME_LINES.some((line) => /Date of Birth|Contact Address/i.test(line.text)), false);
 });

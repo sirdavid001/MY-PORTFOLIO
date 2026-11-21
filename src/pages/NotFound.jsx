@@ -1,33 +1,22 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { NOT_FOUND_ROUTE } from "../../shared/seo.js";
 import useSEO from "../hooks/useSEO";
 
 export default function NotFound() {
-  useSEO({
-    title: "Page not found — Chinedu David Nwadialo",
-    description: "The page you're looking for doesn't exist or has been moved.",
-    path: "/404",
-    noindex: true,
-  });
+  useSEO(NOT_FOUND_ROUTE);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 100 }}
-      className="flex min-h-[60vh] flex-col items-center justify-center py-20 text-center"
-    >
-      <p className="text-8xl font-extrabold text-primary">404</p>
-      <h1 className="mt-6 text-3xl font-bold text-foreground sm:text-4xl">Page not found</h1>
-      <p className="mt-4 max-w-sm text-lg text-muted-foreground">
-        The page you&apos;re looking for doesn&apos;t exist or has been moved.
+    <section className="max-w-xl py-16 sm:py-24">
+      <h1 className="text-4xl font-extrabold text-foreground sm:text-5xl">Page not found</h1>
+      <p className="mt-4 text-lg text-muted-foreground">
+        The page you&apos;re looking for may have moved or been removed.
       </p>
       <Link
         to="/"
-        className="mt-10 rounded-2xl bg-primary px-8 py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95"
+        className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
       >
-        Back to Home
+        Go to homepage
       </Link>
-    </motion.div>
+    </section>
   );
 }

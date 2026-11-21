@@ -1,271 +1,104 @@
 import { useEffect, useState } from "react";
-import { getCurrencyForCountry, getLocationFactor } from "../../shared/budgeting.js";
-import { normalizeCountryCode, normalizeCurrencyCode, normalizeLocationPayload, resolveCountryName } from "../../shared/location.js";
+import { normalizeCountryCode, normalizeCurrencyCode } from "../../shared/location.js";
 
-const BUDGET_CONTEXT_STORAGE_KEY = "sd_budget_context";
-const LEGACY_PRICING_CONTEXT_STORAGE_KEY = "sd_pricing_context";
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-const defaultContext = {
-  countryCode: "NG",
-  countryName: "Nigeria",
-  currency: "NGN",
-  exchangeRate: 1600,
-  rates: { USD: 1, NGN: 1600 },
-  factor: getLocationFactor("NG"),
-};
-
-function toFiniteNumber(value, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
+const STORAGE_KEY = "sd_budget_context";
+const LEGACY_KEY = "sd_pricing_context";
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_CONTEXT = { countryCode: "NG", rates: { USD: 1 } };
 
 function normalizeRates(rawRates) {
-  if (!rawRates || typeof rawRates !== "object") return {};
-
-  return Object.fromEntries(
-    Object.entries(rawRates)
-      .map(([currency, value]) => [normalizeCurrencyCode(currency), toFiniteNumber(value, 0)])
-      .filter(([currency, value]) => currency && value > 0)
-  );
+  const rates = Object.entries(rawRates ?? {})
+    .map(([currency, value]) => [normalizeCurrencyCode(currency), Number(value)])
+    .filter(([currency, value]) => currency && Number.isFinite(value) && value > 0);
+  return { ...Object.fromEntries(rates), USD: 1 };
 }
 
-function resolveExchangeRate(currency, rates, fallbackExchangeRate = 1) {
-  const normalizedCurrency = normalizeCurrencyCode(currency) || defaultContext.currency;
-  const rateFromTable = toFiniteNumber(rates?.[normalizedCurrency], 0);
-  if (rateFromTable > 0) return rateFromTable;
-  if (normalizedCurrency === "USD") return 1;
-  return Math.max(0.0001, toFiniteNumber(fallbackExchangeRate, 1));
-}
-
-function buildBudgetContext({
-  countryCode,
-  countryName,
-  currency,
-  exchangeRate,
-  rates,
-}) {
-  const normalizedCountryCode = normalizeCountryCode(countryCode) || defaultContext.countryCode;
-  const resolvedCurrency = getCurrencyForCountry(
-    normalizedCountryCode,
-    normalizeCurrencyCode(currency) || defaultContext.currency
-  );
-  const normalizedRates = {
-    USD: 1,
-    ...normalizeRates(rates),
-  };
-  const resolvedExchangeRate = resolveExchangeRate(
-    resolvedCurrency,
-    normalizedRates,
-    toFiniteNumber(
-      exchangeRate,
-      resolvedCurrency === "NGN" ? defaultContext.exchangeRate : 1
-    )
-  );
-
-  return {
-    countryCode: normalizedCountryCode,
-    countryName: String(countryName || "").trim() || resolveCountryName(normalizedCountryCode),
-    currency: resolvedCurrency,
-    exchangeRate: resolvedExchangeRate,
-    rates: {
-      ...normalizedRates,
-      [resolvedCurrency]: resolveExchangeRate(resolvedCurrency, normalizedRates, resolvedExchangeRate),
-    },
-    factor: getLocationFactor(normalizedCountryCode),
-  };
-}
-
-function loadStoredBudgetContext() {
-  if (typeof window === "undefined") return null;
-
+function readCachedContext() {
   try {
-    const raw =
-      window.localStorage.getItem(BUDGET_CONTEXT_STORAGE_KEY) ||
-      window.localStorage.getItem(LEGACY_PRICING_CONTEXT_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_KEY);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw);
-    return buildBudgetContext(parsed || {});
+    const stored = JSON.parse(raw);
+    const rates = normalizeRates(stored.rates);
+    if (stored.exchangeRate === 1 && stored.currency !== "USD" && rates[stored.currency] === 1) {
+      delete rates[stored.currency];
+    }
+
+    return {
+      countryCode: normalizeCountryCode(stored.countryCode) || DEFAULT_CONTEXT.countryCode,
+      rates,
+      cachedAt: "exchangeRate" in stored ? 0 : Number(stored.cachedAt) || 0,
+    };
   } catch {
     return null;
   }
 }
 
-function isCacheFresh() {
-  if (typeof window === "undefined") return false;
-  try {
-    const raw = window.localStorage.getItem(BUDGET_CONTEXT_STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    const cachedAt = Number(parsed?.cachedAt || 0);
-    return cachedAt > 0 && Date.now() - cachedAt < CACHE_TTL_MS;
-  } catch {
-    return false;
-  }
+async function readJson(url, signal) {
+  const response = await fetch(url, { signal });
+  return response.ok ? response.json() : null;
 }
 
-function persistBudgetContext(budgetContext) {
-  if (typeof window === "undefined") return;
-
+async function detectCountry(signal) {
   try {
-    window.localStorage.setItem(
-      BUDGET_CONTEXT_STORAGE_KEY,
-      JSON.stringify({
-        countryCode: budgetContext.countryCode,
-        countryName: budgetContext.countryName,
-        currency: budgetContext.currency,
-        exchangeRate: budgetContext.exchangeRate,
-        rates: budgetContext.rates,
-        cachedAt: Date.now(),
-      })
-    );
-    window.localStorage.removeItem(LEGACY_PRICING_CONTEXT_STORAGE_KEY);
+    const location = await readJson("/api/location", signal);
+    const country = location?.ok && normalizeCountryCode(location.countryCode);
+    if (country) return country;
   } catch {
-    // Ignore storage failures and keep the in-memory budget context.
+    // Use the browser's locale when the server cannot determine the country.
+  }
+
+  const locale = navigator.languages?.find((value) => value.includes("-")) || navigator.language;
+  return normalizeCountryCode(locale?.match(/-([a-z]{2})(?:-|$)/i)?.[1]) || DEFAULT_CONTEXT.countryCode;
+}
+
+async function fetchRates(signal) {
+  try {
+    const data = await readJson("https://open.er-api.com/v6/latest/USD", signal);
+    return data?.rates ? normalizeRates(data.rates) : null;
+  } catch {
+    return null;
   }
 }
 
 export default function useBudgetContext() {
-  const [budgetContext, setBudgetContext] = useState(() => loadStoredBudgetContext() || defaultContext);
+  const [context, setContext] = useState(DEFAULT_CONTEXT);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const cached = readCachedContext();
+    if (cached) setContext(cached);
+    if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) return;
+
     let active = true;
-    const cachedContext = loadStoredBudgetContext();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const { signal } = controller;
+    const countryRequest = detectCountry(signal).then((countryCode) => {
+      if (active) setContext((prev) => ({ ...prev, countryCode }));
+      return countryCode;
+    });
+    const rateRequest = fetchRates(signal).then((rates) => {
+      if (rates && active) setContext((prev) => ({ ...prev, rates }));
+      return rates;
+    });
 
-    function localeFallback() {
-      const locales = Array.isArray(navigator.languages) && navigator.languages.length > 0
-        ? navigator.languages
-        : [navigator.language || "en-US"];
-      const localeWithRegion =
-        locales.find((locale) => /[-_]/.test(String(locale || ""))) || locales[0] || "en-US";
-      const countryCode = normalizeCountryCode(String(localeWithRegion).split(/[-_]/)[1]) || "NG";
-      const currency = getCurrencyForCountry(countryCode, cachedContext?.currency || "NGN");
-      return {
-        countryCode,
-        countryName: resolveCountryName(countryCode),
-        currency,
-      };
-    }
-
-    async function detectLocation() {
-      // Same-origin server endpoint sees platform geo headers and avoids client-side IP lookup failures.
+    Promise.all([countryRequest, rateRequest]).then(([countryCode, rates]) => {
+      clearTimeout(timeout);
+      if (!rates || !active) return;
       try {
-        const response = await fetch("/api/location");
-        if (response.ok) {
-          const data = await response.json();
-          const normalized = normalizeLocationPayload(data, navigator.language || "en");
-          if (data?.ok && normalized) {
-            return normalized;
-          }
-        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ countryCode, rates, cachedAt: Date.now() }));
+        localStorage.removeItem(LEGACY_KEY);
       } catch {
-        // Fall through to client-side providers.
+        // The in-memory context remains available when storage is disabled.
       }
+    });
 
-      // Primary source
-      try {
-        const response = await fetch("https://ipapi.co/json/");
-        if (response.ok) {
-          const data = await response.json();
-          const normalized = normalizeLocationPayload(
-            {
-              countryCode: data?.country_code,
-              countryName: data?.country_name,
-              currency: data?.currency,
-              source: "ipapi",
-            },
-            navigator.language || "en"
-          );
-          if (normalized) {
-            return normalized;
-          }
-        }
-      } catch {
-        // Try next source
-      }
-
-      // Secondary source
-      try {
-        const response = await fetch("https://ipwho.is/");
-        if (response.ok) {
-          const data = await response.json();
-          const normalized = normalizeLocationPayload(
-            {
-              countryCode: data?.country_code,
-              countryName: data?.country,
-              currency: data?.currency?.code,
-              source: "ipwho",
-            },
-            navigator.language || "en"
-          );
-          if (data?.success && normalized) {
-            return normalized;
-          }
-        }
-      } catch {
-        // Fallback below
-      }
-
-      return localeFallback();
-    }
-
-    async function resolveBudgetContext() {
-      if (isCacheFresh()) return;
-
-      try {
-        const detected = await detectLocation();
-        const provisionalContext = buildBudgetContext({
-          countryCode: detected.countryCode || cachedContext?.countryCode || defaultContext.countryCode,
-          countryName: detected.countryName || cachedContext?.countryName || defaultContext.countryName,
-          currency: detected.currency || cachedContext?.currency || defaultContext.currency,
-          exchangeRate:
-            cachedContext?.currency ===
-            getCurrencyForCountry(
-              detected.countryCode || cachedContext?.countryCode || defaultContext.countryCode,
-              detected.currency || cachedContext?.currency || defaultContext.currency
-            )
-              ? cachedContext?.exchangeRate
-              : undefined,
-          rates: cachedContext?.rates || defaultContext.rates,
-        });
-
-        if (!active) return;
-        setBudgetContext(provisionalContext);
-        persistBudgetContext(provisionalContext);
-
-        try {
-          const fxResponse = await fetch("https://open.er-api.com/v6/latest/USD");
-          if (!fxResponse.ok) return;
-
-          const fx = await fxResponse.json();
-          const resolvedContext = buildBudgetContext({
-            countryCode: provisionalContext.countryCode,
-            countryName: provisionalContext.countryName,
-            currency: provisionalContext.currency,
-            exchangeRate: fx?.rates?.[provisionalContext.currency],
-            rates: fx?.rates,
-          });
-
-          if (!active) return;
-          setBudgetContext(resolvedContext);
-          persistBudgetContext(resolvedContext);
-        } catch {
-          // Keep the detected currency and cached rates when the exchange-rate service is unavailable.
-        }
-      } catch {
-        const fallbackContext = buildBudgetContext(cachedContext || defaultContext);
-        if (!active) return;
-        setBudgetContext(fallbackContext);
-        persistBudgetContext(fallbackContext);
-      }
-    }
-
-    resolveBudgetContext();
     return () => {
       active = false;
+      clearTimeout(timeout);
+      controller.abort();
     };
   }, []);
 
-  return budgetContext;
+  return context;
 }

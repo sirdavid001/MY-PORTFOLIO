@@ -1,48 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-function normalizeImageSrc(src) {
-  if (typeof src !== "string") return undefined;
-  const trimmed = src.trim();
-  return trimmed || undefined;
+export function ImageWithFallback({ src, alt, className, onError, ...rest }) {
+  return <ImageAttempt key={src} src={src} alt={alt} className={className} onError={onError} {...rest} />;
 }
 
-export function ImageWithFallback({ src, alt, className, style, onError, ...rest }) {
-  const normalizedSrc = normalizeImageSrc(src);
-  const [didError, setDidError] = useState(false);
+function ImageAttempt({ src, alt, className, onError, ...rest }) {
+  const [failed, setFailed] = useState(false);
+  const image = useRef(null);
 
   useEffect(() => {
-    setDidError(false);
-  }, [normalizedSrc]);
+    if (image.current?.complete && image.current.naturalWidth === 0) {
+      setFailed(true);
+    }
+  }, []);
 
-  function handleError(event) {
-    setDidError(true);
-    onError?.(event);
-  }
-
-  if (!normalizedSrc || didError) {
-    const fallbackLabel = alt || (normalizedSrc ? "Image unavailable" : "No image available");
-
+  if (!src || failed) {
     return (
       <div
-        className={`flex items-center justify-center bg-muted text-muted-foreground ${className || ""}`.trim()}
-        style={style}
+        className={`flex items-center justify-center bg-muted px-4 text-center text-sm text-muted-foreground ${className || ""}`}
         role="img"
-        aria-label={fallbackLabel}
-        data-original-url={normalizedSrc}
+        aria-label={`${alt}. Preview unavailable.`}
       >
-        <span aria-hidden="true" className="text-lg leading-none">□</span>
-        <span className="sr-only">{fallbackLabel}</span>
+        Preview unavailable
       </div>
     );
   }
 
   return (
     <img
-      src={normalizedSrc}
+      ref={image}
+      src={src}
       alt={alt}
       className={className}
-      style={style}
-      onError={handleError}
+      onError={(event) => {
+        setFailed(true);
+        onError?.(event);
+      }}
       {...rest}
     />
   );

@@ -9,9 +9,9 @@ const PAGE = {
 };
 
 const HEADER = {
-  height: 84,
+  height: 92,
   paddingX: 30,
-  topInset: 23,
+  topInset: 31,
 };
 
 const COLORS = {
@@ -52,10 +52,6 @@ function estimateChars(width, size) {
   return Math.max(12, Math.floor(width / averageCharWidth));
 }
 
-function estimateTextWidth(text, size) {
-  return String(text || "").length * Number(size || 12) * 0.52;
-}
-
 function wrapText(text, width, size, options = {}) {
   const safeText = toAsciiSafe(text || "").replace(/\s+/g, " ").trim();
   const firstPrefix = toAsciiSafe(options.firstPrefix || "");
@@ -87,6 +83,11 @@ function wrapText(text, width, size, options = {}) {
 function createBuilder() {
   const pages = [];
   let currentPage = null;
+  let section = null;
+
+  function tag(role = "P", parent = section) {
+    return { role, parent };
+  }
   let cursorY = PAGE.height - HEADER.height - 18;
 
   function newPage(includeHeader = false) {
@@ -129,6 +130,7 @@ function createBuilder() {
         size: 28,
         color: COLORS.white,
         text: CV_PROFILE.name,
+        tag: tag("H1"),
       });
 
       if (CV_PROFILE.classification) {
@@ -140,6 +142,7 @@ function createBuilder() {
           size: 12.5,
           color: COLORS.white,
           text: CV_PROFILE.classification,
+          tag: tag(),
         });
       }
 
@@ -151,6 +154,7 @@ function createBuilder() {
         size: 9.4,
         color: COLORS.white,
         text: `LinkedIn: ${CV_PROFILE.linkedin} | GitHub: ${CV_PROFILE.github} | Portfolio: ${CV_PROFILE.portfolio}`,
+        tag: tag(),
       });
 
       cursorY = PAGE.height - HEADER.height - 18;
@@ -175,6 +179,7 @@ function createBuilder() {
       size: options.size || 12,
       color: options.color || COLORS.body,
       text,
+      tag: options.tag || tag(),
     });
   }
 
@@ -186,9 +191,10 @@ function createBuilder() {
     const after = options.after ?? 10;
     const lines = wrapText(text, width, size, options.wrap || {});
 
+    const paragraphTag = options.tag || tag();
     for (const line of lines) {
       ensureSpace(leading + after);
-      drawTextLine(line, x, cursorY, options);
+      drawTextLine(line, x, cursorY, { ...options, tag: paragraphTag });
       cursorY -= leading;
     }
 
@@ -196,6 +202,7 @@ function createBuilder() {
   }
 
   function addSection(title, options = {}) {
+    section = tag("Sect", null);
     ensureSpace(44 + (options.keepWith || 0));
     currentPage.push({
       kind: "rect",
@@ -209,6 +216,7 @@ function createBuilder() {
       font: "F2",
       size: 14,
       color: COLORS.dark,
+      tag: tag("H2"),
     });
     const ruleY = cursorY - 13;
     currentPage.push({
@@ -242,11 +250,13 @@ function createBuilder() {
       color: COLORS.panel,
     });
 
+    const paragraphTag = tag();
     lines.forEach((line, index) => {
       drawTextLine(line, x + paddingX, cursorY - paddingY - index * leading + 3, {
         font: "F1",
         size,
         color: options.color || COLORS.body,
+        tag: paragraphTag,
       });
     });
 
@@ -305,10 +315,12 @@ function createBuilder() {
         color: COLORS.bluePale,
       });
 
+      const schoolTag = tag();
       drawTextLine(entry.dateRange || "", PAGE.marginX + 20, rowY - 17.5, {
         font: "F2",
         size: 10.4,
         color: COLORS.blueDark,
+        tag: schoolTag,
       });
 
       schoolLines.forEach((line, index) => {
@@ -316,6 +328,7 @@ function createBuilder() {
           font: "F2",
           size: 11.8,
           color: COLORS.dark,
+          tag: schoolTag,
         });
       });
 
@@ -330,6 +343,8 @@ function createBuilder() {
     const titleWidth = 242;
     const institutionWidth = contentWidth - yearWidth - titleWidth - gap * 2;
     const headerHeight = 25;
+    const tableTag = tag("Table");
+    const headerTag = tag("TR", tableTag);
 
     ensureSpace(headerHeight + 44);
     currentPage.push({
@@ -345,16 +360,19 @@ function createBuilder() {
       font: "F2",
       size: 9.3,
       color: COLORS.white,
+      tag: tag("TH", headerTag),
     });
     drawTextLine("CERTIFICATE / QUALIFICATION OBTAINED", PAGE.marginX + yearWidth + gap, cursorY - 10, {
       font: "F2",
       size: 9.3,
       color: COLORS.white,
+      tag: tag("TH", headerTag),
     });
     drawTextLine("INSTITUTION", PAGE.marginX + yearWidth + titleWidth + gap * 2, cursorY - 10, {
       font: "F2",
       size: 9.3,
       color: COLORS.white,
+      tag: tag("TH", headerTag),
     });
 
     cursorY -= headerHeight + 5;
@@ -383,16 +401,21 @@ function createBuilder() {
         color: COLORS.line,
       });
 
+      const rowTag = tag("TR", tableTag);
+      const titleTag = tag("TD", rowTag);
+      const institutionTag = tag("TD", rowTag);
       drawTextLine(entry.dateRange || "", PAGE.marginX + 10, rowY - 15, {
         font: "F2",
         size: 10.4,
         color: COLORS.blueDark,
+        tag: tag("TD", rowTag),
       });
       titleLines.forEach((line, lineIndex) => {
         drawTextLine(line, PAGE.marginX + yearWidth + gap, rowY - 14 - lineIndex * 13, {
           font: "F2",
           size: 10.9,
           color: COLORS.dark,
+          tag: titleTag,
         });
       });
       institutionLines.forEach((line, lineIndex) => {
@@ -400,6 +423,7 @@ function createBuilder() {
           font: "F1",
           size: 10.5,
           color: COLORS.body,
+          tag: institutionTag,
         });
       });
 
@@ -417,6 +441,9 @@ function createBuilder() {
     const rightX = PAGE.width / 2 + 6;
     const bulletWidth = PAGE.width / 2 - PAGE.marginX - 14;
     const lineHeight = 14.4;
+    const listTag = tag("L");
+    const estimatedRows = Math.max(leftItems.length, rightItems.length);
+    ensureSpace(estimatedRows * lineHeight + 6);
     const startY = cursorY;
 
     const renderColumn = (columnItems, x) => {
@@ -426,10 +453,12 @@ function createBuilder() {
           firstPrefix: "- ",
           continuationPrefix: "  ",
         });
+        const itemTag = tag("LBody", tag("LI", listTag));
         lines.forEach((line, lineIndex) => {
           drawTextLine(line, x, localY - lineIndex * 12.3, {
             size: 10.9,
             color: COLORS.body,
+            tag: itemTag,
           });
         });
         localY -= Math.max(lineHeight, lines.length * 12.3 + 1);
@@ -437,53 +466,16 @@ function createBuilder() {
       return localY;
     };
 
-    const estimatedRows = Math.max(leftItems.length, rightItems.length);
-    ensureSpace(estimatedRows * lineHeight + 6);
-
     const leftBottomY = renderColumn(leftItems, leftX);
     const rightBottomY = renderColumn(rightItems, rightX);
     cursorY = Math.min(leftBottomY, rightBottomY);
   }
 
-  function addChipList(items) {
-    const contentRight = PAGE.width - PAGE.marginX;
-    let x = PAGE.marginX;
-    const rowHeight = 24;
-
-    ensureSpace(rowHeight + 8);
-
-    for (const item of items) {
-      const label = toAsciiSafe(item);
-      const chipWidth = Math.min(Math.max(estimateTextWidth(label, 10.5) + 20, 64), 166);
-
-      if (x + chipWidth > contentRight) {
-        cursorY -= rowHeight;
-        x = PAGE.marginX;
-        ensureSpace(rowHeight + 8);
-      }
-
-      currentPage.push({
-        kind: "rect",
-        x,
-        y: cursorY - 16,
-        width: chipWidth,
-        height: 20,
-        color: COLORS.bluePale,
-      });
-      drawTextLine(label, x + 9, cursorY - 10.5, {
-        font: "F2",
-        size: 10,
-        color: COLORS.blueDark,
-      });
-      x += chipWidth + 7;
-    }
-
-    cursorY -= rowHeight + 6;
-  }
-
   function addBulletList(items) {
+    const listTag = tag("L");
     items.forEach((item, index) => {
       addParagraph(item, {
+        tag: tag("LBody", tag("LI", listTag)),
         size: 11,
         color: COLORS.body,
         leading: 13.8,
@@ -497,7 +489,7 @@ function createBuilder() {
   }
 
   function addPersonalDetails(items) {
-    const longLabels = new Set(["GSM Phone", "Contact Address", "Email Address"]);
+    const longLabels = new Set(["Email Address"]);
     const compactItems = items.filter((item) => !longLabels.has(item.label));
     const fullWidthItems = items.filter((item) => longLabels.has(item.label));
     const gap = 18;
@@ -506,16 +498,19 @@ function createBuilder() {
 
     function drawInfoItem(item, x, y, width) {
       const lines = wrapText(item.value, width, 10.5);
+      const detailTag = tag();
       drawTextLine(item.label.toUpperCase(), x, y, {
         font: "F2",
         size: 8.5,
         color: COLORS.blueDark,
+        tag: detailTag,
       });
       lines.forEach((line, index) => {
         drawTextLine(line, x, y - 13 - index * 12, {
           font: "F1",
           size: 10.5,
           color: COLORS.body,
+          tag: detailTag,
         });
       });
       return Math.max(32, 18 + lines.length * 12);
@@ -553,17 +548,20 @@ function createBuilder() {
       const rowHeight = Math.max(32, 18 + lines.length * 12);
       ensureSpace(rowHeight + 5);
       const rowY = cursorY;
+      const detailTag = tag();
 
       drawTextLine(item.label.toUpperCase(), PAGE.marginX, rowY, {
         font: "F2",
         size: 8.5,
         color: COLORS.blueDark,
+        tag: detailTag,
       });
       lines.forEach((line, index) => {
         drawTextLine(line, PAGE.marginX + labelWidth + 12, rowY - index * 12, {
           font: "F1",
           size: 10.6,
           color: COLORS.body,
+          tag: detailTag,
         });
       });
       currentPage.push({
@@ -597,6 +595,7 @@ function createBuilder() {
   });
   addSchoolsTimeline(CV_PROFILE.schoolsAttended);
 
+  newPage(false);
   addSection("Certificates / Qualifications Obtained");
   addQualificationsTable(CV_PROFILE.qualifications);
 
@@ -610,105 +609,114 @@ function createBuilder() {
   return pages;
 }
 
-function buildContentForPage(operations) {
+function buildContentForPage(operations, registerText) {
   const output = [];
-  let inTextObject = false;
-
-  const beginText = () => {
-    if (!inTextObject) {
-      output.push("BT");
-      inTextObject = true;
-    }
-  };
-
-  const endText = () => {
-    if (inTextObject) {
-      output.push("ET");
-      inTextObject = false;
-    }
-  };
 
   for (const operation of operations) {
+    const color = operation.color.map((value) => value.toFixed(3)).join(" ");
     if (operation.kind === "rect") {
-      endText();
-      output.push("q");
-      output.push(`${operation.color[0].toFixed(3)} ${operation.color[1].toFixed(3)} ${operation.color[2].toFixed(3)} rg`);
-      output.push(`${operation.x.toFixed(2)} ${operation.y.toFixed(2)} ${operation.width.toFixed(2)} ${operation.height.toFixed(2)} re`);
-      output.push("f");
-      output.push("Q");
-      continue;
-    }
-
-    if (operation.kind === "line") {
-      endText();
-      output.push("q");
-      output.push(`${operation.width.toFixed(2)} w`);
-      output.push(`${operation.color[0].toFixed(3)} ${operation.color[1].toFixed(3)} ${operation.color[2].toFixed(3)} RG`);
-      output.push(`${operation.x1.toFixed(2)} ${operation.y.toFixed(2)} m`);
-      output.push(`${operation.x2.toFixed(2)} ${operation.y.toFixed(2)} l`);
-      output.push("S");
-      output.push("Q");
-      continue;
-    }
-
-    if (operation.kind === "text" && operation.text) {
-      beginText();
-      output.push(`${operation.color[0].toFixed(3)} ${operation.color[1].toFixed(3)} ${operation.color[2].toFixed(3)} rg`);
-      output.push(`1 0 0 1 ${operation.x.toFixed(2)} ${operation.y.toFixed(2)} Tm`);
-      output.push(`/${operation.font} ${operation.size.toFixed(2)} Tf`);
-      output.push(`(${escapePdfText(toAsciiSafe(operation.text))}) Tj`);
+      output.push(
+        "/Artifact BMC", "q", `${color} rg`,
+        `${operation.x.toFixed(2)} ${operation.y.toFixed(2)} ${operation.width.toFixed(2)} ${operation.height.toFixed(2)} re`,
+        "f", "Q", "EMC",
+      );
+    } else if (operation.kind === "line") {
+      output.push(
+        "/Artifact BMC", "q", `${operation.width.toFixed(2)} w`, `${color} RG`,
+        `${operation.x1.toFixed(2)} ${operation.y.toFixed(2)} m`,
+        `${operation.x2.toFixed(2)} ${operation.y.toFixed(2)} l`,
+        "S", "Q", "EMC",
+      );
+    } else {
+      const mcid = registerText(operation.tag);
+      output.push(
+        `/Span << /MCID ${mcid} >> BDC`, "BT", `${color} rg`,
+        `1 0 0 1 ${operation.x.toFixed(2)} ${operation.y.toFixed(2)} Tm`,
+        `/${operation.font} ${operation.size.toFixed(2)} Tf`,
+        `(${escapePdfText(toAsciiSafe(operation.text))}) Tj`,
+        "ET", "EMC",
+      );
     }
   }
 
-  endText();
   return output.join("\n");
+}
+
+function reference(id) {
+  return `${id} 0 R`;
 }
 
 export function buildCvPdf() {
   const pages = createBuilder();
-  const pageObjectIds = [];
-  const contentObjectIds = [];
   const objects = [];
-  let nextObjectId = 5;
+  const pageIds = [];
+  const parentTreeEntries = [];
+  const structure = new Map();
+  const documentChildren = [];
+  let nextObjectId = 9;
 
-  for (let index = 0; index < pages.length; index += 1) {
-    pageObjectIds.push(nextObjectId);
-    contentObjectIds.push(nextObjectId + 1);
-    nextObjectId += 2;
+  function getStructureElement(tag) {
+    if (structure.has(tag)) return structure.get(tag);
+
+    const parent = tag.parent ? getStructureElement(tag.parent) : null;
+    const element = { id: nextObjectId++, parent: parent?.id || 6, role: tag.role, children: [] };
+    (parent?.children || documentChildren).push(reference(element.id));
+    structure.set(tag, element);
+    return element;
   }
 
-  const children = [];
-
-  for (let index = 0; index < pages.length; index += 1) {
-    const pageId = pageObjectIds[index];
-    const contentId = contentObjectIds[index];
-    const content = buildContentForPage(pages[index]);
-    const contentLength = bytesLength(content);
+  for (const [pageIndex, operations] of pages.entries()) {
+    const pageId = nextObjectId++;
+    const contentId = nextObjectId++;
+    const pageParents = [];
+    const content = buildContentForPage(operations, (tag) => {
+      const element = getStructureElement(tag);
+      const mcid = pageParents.length;
+      pageParents.push(reference(element.id));
+      element.children.push(`<< /Type /MCR /Pg ${reference(pageId)} /MCID ${mcid} >>`);
+      return mcid;
+    });
 
     objects.push({
       id: pageId,
-      content: `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE.width} ${PAGE.height}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`,
+      content: `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE.width} ${PAGE.height}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${reference(contentId)} /StructParents ${pageIndex} /Tabs /S >>`,
     });
     objects.push({
       id: contentId,
-      content: `<< /Length ${contentLength} >>\nstream\n${content}\nendstream`,
+      content: `<< /Length ${bytesLength(content)} >>\nstream\n${content}\nendstream`,
     });
-    children.push(pageId);
+    pageIds.push(reference(pageId));
+    parentTreeEntries.push(`${pageIndex} [${pageParents.join(" ")}]`);
   }
 
-  const catalog = { id: 1, content: "<< /Type /Catalog /Pages 2 0 R >>" };
+  for (const { id, parent, role, children } of structure.values()) {
+    const attributes = role === "TH" ? " /A << /O /Table /Scope /Column >>" : "";
+    objects.push({
+      id,
+      content: `<< /Type /StructElem /S /${role} /P ${reference(parent)} /K [${children.join(" ")}]${attributes} >>`,
+    });
+  }
+
+  const catalog = {
+    id: 1,
+    content: "<< /Type /Catalog /Pages 2 0 R /Lang (en-NG) /MarkInfo << /Marked true >> /StructTreeRoot 5 0 R /ViewerPreferences << /DisplayDocTitle true >> >>",
+  };
   const pagesObj = {
     id: 2,
-    content: `<< /Type /Pages /Kids [${children.map((id) => `${id} 0 R`).join(" ")}] /Count ${children.length} >>`,
+    content: `<< /Type /Pages /Kids [${pageIds.join(" ")}] /Count ${pageIds.length} >>`,
   };
   const font1 = { id: 3, content: "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>" };
   const font2 = { id: 4, content: "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>" };
+  const root = { id: 5, content: `<< /Type /StructTreeRoot /K [6 0 R] /ParentTree 7 0 R /ParentTreeNextKey ${pages.length} >>` };
+  const document = { id: 6, content: `<< /Type /StructElem /S /Document /P 5 0 R /K [${documentChildren.join(" ")}] >>` };
+  const parentTree = { id: 7, content: `<< /Nums [${parentTreeEntries.join(" ")}] >>` };
+  const info = { id: 8, content: `<< /Title (${escapePdfText(`${CV_PROFILE.name} CV`)}) >>` };
 
-  const allObjects = [catalog, pagesObj, font1, font2, ...objects];
+  const allObjects = [catalog, pagesObj, font1, font2, root, document, parentTree, info, ...objects];
   const objectMap = new Map(allObjects.map((entry) => [entry.id, entry.content]));
   const maxId = allObjects.reduce((max, entry) => Math.max(max, entry.id), 0);
 
-  let pdf = "%PDF-1.4\n";
+  let pdf = "%PDF-1.7\n";
   const offsets = new Array(maxId + 1).fill(0);
   offsets[0] = 0;
 
@@ -727,7 +735,7 @@ export function buildCvPdf() {
   }
 
   pdf += "trailer\n";
-  pdf += `<< /Size ${maxId + 1} /Root 1 0 R >>\n`;
+  pdf += `<< /Size ${maxId + 1} /Root 1 0 R /Info 8 0 R >>\n`;
   pdf += `startxref\n${xrefOffset}\n%%EOF`;
 
   return new TextEncoder().encode(pdf);

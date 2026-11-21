@@ -1,201 +1,74 @@
-import { useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
-import useSEO from "../hooks/useSEO";
+import { FiExternalLink, FiGithub } from "react-icons/fi";
 import { ROUTE_BY_KEY } from "../../shared/seo.js";
-import { FiGithub, FiExternalLink } from "react-icons/fi";
 import { ImageWithFallback } from "../components/ui/ImageWithFallback";
+import { projects } from "../data/projects";
+import useSEO from "../hooks/useSEO";
 
-const projects = [
-  {
-    title: "UKM (uKnowMe)",
-    description:
-      "A premium anonymous inbox application focused on meaningful interactions. Unlike generic anonymous apps, UKM uses a 'Prompt-first' approach to spark community engagement.",
-    stack: ["Expo Router", "TypeScript", "NativeWind", "Supabase", "Zustand"],
-    code: "https://github.com/sirdavid001/ukm",
-    link: "http://www.uknowme.sbs",
-    image: "/projects/ukm.png",
-    status: "Production Ready",
-  },
-  {
-    title: "Sirdavid Multi-Store",
-    description:
-      "A comprehensive full-stack e-commerce solution for managing online stores. Features end-to-end integration of a high-performance storefront and a backend management API.",
-    stack: ["JavaScript", "Python", "Django", "PostgreSQL", "Tailwind CSS"],
-    code: "https://github.com/sirdavid001/Store",
-    link: "https://sirdavidshop.sirdavid.site",
-    image: "/projects/store.png",
-    status: "MVP Stage",
-  },
-  {
-    title: "QuickPOS",
-    description:
-      "A high-performance Point of Sale system designed for retail efficiency. It supports offline-first usage and real-time inventory management.",
-    stack: ["JavaScript", "CSS", "Chart.js", "Docker", "PWA"],
-    code: "https://github.com/sirdavid001/QuickPOS",
-    link: "https://pos-client-ruddy.vercel.app",
-    image: "/projects/quickpos.png",
-    status: "Production Ready",
-  },
-  {
-    title: "OEMS (Online Exam Management System)",
-    description:
-      "An end-to-end academic portal for university examinations. Manages the full lifecycle from question creation to automated grading, with specialized workflows for Students, Teachers, and Admins.",
-    stack: ["TypeScript", "React", "NestJS", "Prisma", "PostgreSQL"],
-    code: "https://github.com/sirdavid001/OEMS",
-    link: "https://oems-tau.vercel.app/login",
-    image: "/projects/exam_system.png",
-    status: "MVP Stage",
-  },
-];
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.15,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: {
-      type: "spring",
-      stiffness: 100,
-    },
-  },
-};
-
-function ProjectCard({ project, variants }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-
+function ProjectCard({ project, eager }) {
   return (
-    <motion.article
-      variants={variants}
-      whileHover={{ y: -8 }}
-      className="group glass-card overflow-hidden rounded-[2.5rem] bg-card/40 transition-all hover:shadow-2xl hover:shadow-primary/10 border-border/40 flex flex-col"
-    >
-      <div className="relative aspect-video overflow-hidden bg-slate-200 dark:bg-slate-700">
-        {!imageLoaded && (
-          <div className="absolute inset-0 animate-pulse bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
-        )}
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card">
+      <div className="aspect-video overflow-hidden border-b border-border bg-muted">
         <ImageWithFallback
-          src={project.image}
-          alt={project.title}
-          className={`h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 ${
-            imageLoaded ? "opacity-100" : "opacity-0"
-          }`}
-          onLoad={() => setImageLoaded(true)}
+          {...project.image}
+          sizes="(min-width: 72rem) 33rem, (min-width: 48rem) calc((100vw - 6rem) / 2), calc(100vw - 2rem)"
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+          className="h-full w-full object-cover object-top"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-60" />
-        {project.status && (
-          <div className="absolute top-4 right-4">
-            <span className="rounded-full bg-primary/20 backdrop-blur-md px-4 py-1.5 text-xs font-bold text-primary border border-primary/20">
-              {project.status}
-            </span>
-          </div>
-        )}
       </div>
 
-      <div className="flex-1 space-y-5 p-8">
-        <div className="flex justify-between items-start">
-          <h2 className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors">{project.title}</h2>
-          <div className="flex gap-2">
-            <a
-              href={project.code}
-              target="_blank"
-              rel="noreferrer"
-              className="p-3 rounded-2xl bg-accent/50 text-foreground transition-all hover:bg-primary hover:text-white"
-              title="View Source"
-              aria-label={`View ${project.title} source on GitHub`}
-            >
-              <FiGithub className="h-5 w-5" />
-            </a>
-            {project.link && (
-              <a
-                href={project.link}
-                target="_blank"
-                rel="noreferrer"
-                className="p-3 rounded-2xl bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white"
-                title="Live Demo"
-                aria-label={`Open ${project.title} live demo`}
-              >
-                <FiExternalLink className="h-5 w-5" />
-              </a>
-            )}
-          </div>
-        </div>
-
-        <p className="text-lg leading-relaxed text-muted-foreground">
-          {project.description}
-        </p>
-
-        <div className="flex flex-wrap gap-2 pt-2">
+      <div className="flex flex-1 flex-col items-start gap-4 p-5 sm:p-7">
+        <p className="text-sm font-medium text-muted-foreground">{project.status}</p>
+        <h2 className="text-2xl font-bold text-foreground">{project.title}</h2>
+        <p className="leading-relaxed text-muted-foreground">{project.description}</p>
+        <ul className="flex flex-wrap gap-2" aria-label="Technologies">
           {project.stack.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-xl border border-border bg-background/50 px-3 py-1 text-xs font-bold text-foreground/80 hover:border-primary/30 hover:bg-primary/5 transition-colors"
-            >
+            <li key={tag} className="rounded-lg bg-muted px-2.5 py-1 text-sm text-muted-foreground">
               {tag}
-            </span>
+            </li>
           ))}
-        </div>
-
-        <div className="pt-4 mt-auto">
+        </ul>
+        <div className="mt-auto flex flex-wrap gap-x-5 gap-y-1 pt-3">
           <a
-            href={project.link || project.code}
+            href={project.link}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 text-sm font-bold text-primary group-hover:gap-3 transition-all underline-offset-4 hover:underline"
+            className="inline-flex min-h-11 items-center gap-2 font-semibold text-primary underline-offset-4 hover:underline"
+            aria-label={`Live demo for ${project.title}`}
           >
-            Explore Project
-            <FiExternalLink className="h-4 w-4" />
+            Live demo <FiExternalLink aria-hidden="true" />
+          </a>
+          <a
+            href={project.code}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center gap-2 font-semibold text-foreground underline-offset-4 hover:underline"
+            aria-label={`View ${project.title} source on GitHub`}
+          >
+            GitHub <FiGithub aria-hidden="true" />
           </a>
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }
 
 export default function Projects() {
   useSEO(ROUTE_BY_KEY.projects);
 
-  const prefersReducedMotion = useReducedMotion();
-  const activeContainerVariants = prefersReducedMotion
-    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
-    : containerVariants;
-  const activeItemVariants = prefersReducedMotion
-    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
-    : itemVariants;
-
   return (
-    <motion.section
-      variants={activeContainerVariants}
-      initial={false}
-      animate="visible"
-      className="space-y-12 py-12"
-    >
-      <div className="max-w-3xl">
-        <motion.p variants={activeItemVariants} className="text-sm font-bold uppercase tracking-widest text-primary mb-3">
-          Featured Engineering
-        </motion.p>
-        <motion.h1 variants={activeItemVariants} className="text-4xl font-extrabold text-foreground sm:text-6xl tracking-tight">
-          Real-World <span className="text-gradient">Projects</span>
-        </motion.h1>
-        <motion.p variants={activeItemVariants} className="mt-4 text-lg text-muted-foreground sm:text-xl leading-relaxed">
-          A selection of my public and private engineering work, focusing on MVP and production-stage applications with unique value propositions.
-        </motion.p>
+    <section className="space-y-9 pb-16 pt-8 sm:pt-12">
+      <div className="max-w-2xl">
+        <h1 className="text-4xl font-extrabold text-foreground sm:text-6xl">Projects</h1>
+        <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+          Four applications for messaging, retail, and education. Explore the demos and source code.
+        </p>
       </div>
-
-      <div className="grid gap-10 md:grid-cols-2">
-        {projects.map((project) => (
-          <ProjectCard key={project.title} project={project} variants={activeItemVariants} />
+      <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
+        {projects.map((project, index) => (
+          <ProjectCard key={project.title} project={project} eager={index === 0} />
         ))}
       </div>
-    </motion.section>
+    </section>
   );
 }

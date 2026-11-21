@@ -4,3 +4,6 @@ dist-ssr
 .DS_Store
 .vercel
 .claude/
+.env
+.env.*
+!.env.example

@@ -1,44 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useMemo, useRef, useState } from "react";
 import useSEO from "../hooks/useSEO";
 import { ROUTE_BY_KEY } from "../../shared/seo.js";
-import { FiMail, FiMapPin, FiPhone, FiGithub, FiGlobe, FiSend } from "react-icons/fi";
+import { FiMail, FiMapPin, FiPhone, FiGithub, FiLinkedin, FiSend } from "react-icons/fi";
 import useBudgetContext from "../hooks/useBudgetContext";
 import { formatMoney, getCurrencyForCountry, getLocationFactor } from "../../shared/budgeting.js";
-import { CV_PROFILE } from "../../shared/cv/profile.js";
+import { countryNames } from "../data/countries";
+import { PUBLIC_PROFILE } from "../../shared/profile.js";
 
 const inputClass =
-  "mt-2 w-full rounded-2xl border border-border bg-background px-4 py-4 text-foreground outline-none ring-primary/20 placeholder:text-muted-foreground transition focus:ring-4 focus:border-primary";
+  "mt-2 w-full rounded-2xl border border-border bg-background px-4 py-4 text-foreground placeholder:text-muted-foreground transition focus:border-primary";
 const selectClass =
-  "mt-2 w-full appearance-none rounded-2xl border border-border bg-background px-4 py-4 pr-10 text-foreground outline-none ring-primary/20 transition focus:ring-4 focus:border-primary cursor-pointer";
-
-const COUNTRY_CODES = [
-  "AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ",
-  "BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ",
-  "CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ",
-  "DE","DJ","DK","DM","DO","DZ",
-  "EC","EE","EG","EH","ER","ES","ET",
-  "FI","FJ","FK","FM","FO","FR",
-  "GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY",
-  "HK","HM","HN","HR","HT","HU",
-  "ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT",
-  "JE","JM","JO","JP",
-  "KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ",
-  "LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY",
-  "MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ",
-  "NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ",
-  "OM",
-  "PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY",
-  "QA",
-  "RE","RO","RS","RU","RW",
-  "SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ",
-  "TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ",
-  "UA","UG","UM","US","UY","UZ",
-  "VA","VC","VE","VG","VI","VN","VU",
-  "WF","WS",
-  "YE","YT",
-  "ZA","ZM","ZW",
-];
+  "mt-2 w-full appearance-none rounded-2xl border border-border bg-background px-4 py-4 pr-10 text-foreground  transition focus:border-primary cursor-pointer";
 
 function countryCodeToFlag(code) {
   return code
@@ -55,7 +27,7 @@ function roundMoney(value) {
 
 const defaultForm = {
   clientType: "Individual",
-  countryCode: "US",
+  countryCode: "",
   fullName: "",
   email: "",
   phone: "",
@@ -68,73 +40,42 @@ const defaultForm = {
   website: "",
 };
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
+const countryOptions = countryNames.map(([code, name]) => ({
+  code,
+  name,
+  flag: countryCodeToFlag(code),
+}));
 
-const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: {
-    y: 0,
-    opacity: 1,
-  },
-};
+function SelectArrow() {
+  return (
+    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-muted-foreground">
+      ▾
+    </span>
+  );
+}
 
 export default function Contact() {
   useSEO(ROUTE_BY_KEY.contact);
 
-  const prefersReducedMotion = useReducedMotion();
-  const activeContainerVariants = prefersReducedMotion
-    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
-    : containerVariants;
-  const activeItemVariants = prefersReducedMotion
-    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
-    : itemVariants;
-
   const budgetContext = useBudgetContext();
   const [formData, setFormData] = useState(defaultForm);
+  const [budgetPricing, setBudgetPricing] = useState(null);
   const [budgetError, setBudgetError] = useState("");
-  const [submitStatus, setSubmitStatus] = useState("");
+  const [submitStatus, setSubmitStatus] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [countryOptions, setCountryOptions] = useState([
-    { code: "US", name: "United States", flag: countryCodeToFlag("US") },
-  ]);
+  const customBudgetInput = useRef(null);
 
-  const selectedCountry =
-    countryOptions.find((country) => country.code === formData.countryCode) || countryOptions[0];
-  const selectedCurrencyCode = getCurrencyForCountry(formData.countryCode, budgetContext.currency);
-  const selectedUsdRate = budgetContext.rates[selectedCurrencyCode] || 1;
-  const selectedCountryFactor = getLocationFactor(formData.countryCode);
-
-  useEffect(() => {
-    const locale = navigator.language || "en";
-    const displayNames = new Intl.DisplayNames([locale], { type: "region" });
-    const regions = [...COUNTRY_CODES].sort((a, b) =>
-      (displayNames.of(a) || a).localeCompare(displayNames.of(b) || b)
-    );
-
-    const countries = regions.map((code) => ({
-      code,
-      name: displayNames.of(code) || code,
-      flag: countryCodeToFlag(code),
-    }));
-
-    setCountryOptions(countries);
-
-    const detectedRegion = budgetContext.countryCode || (locale.includes("-") ? locale.split("-")[1]?.toUpperCase() : "");
-    if (detectedRegion && countries.some((country) => country.code === detectedRegion)) {
-      setFormData((prev) => ({ ...prev, countryCode: detectedRegion }));
-    }
-  }, [budgetContext.countryCode]);
+  const detectedCountry = countryOptions.find((country) => country.code === budgetContext.countryCode);
+  const countryCode = budgetPricing?.countryCode || formData.countryCode || detectedCountry?.code || "NG";
+  const selectedCountry = countryOptions.find((country) => country.code === countryCode);
+  const localCurrency = getCurrencyForCountry(countryCode, "USD");
+  const selectedCurrencyCode = budgetPricing?.currency || (budgetContext.rates[localCurrency] ? localCurrency : "USD");
+  const selectedUsdRate = budgetPricing?.rate || budgetContext.rates[selectedCurrencyCode] || 1;
+  const selectedCountryFactor = getLocationFactor(countryCode);
+  const minBudget = roundMoney(250 * selectedUsdRate * selectedCountryFactor);
 
   const budgetOptions = useMemo(() => {
-    const baseMin = roundMoney(250 * selectedUsdRate * selectedCountryFactor);
+    const baseMin = minBudget;
     const tier2 = roundMoney(baseMin * 2);
     const tier3 = roundMoney(baseMin * 4);
     const tier4 = roundMoney(baseMin * 8);
@@ -146,44 +87,49 @@ export default function Contact() {
       { value: "tier4", label: `${formatMoney(tier4, selectedCurrencyCode)}+` },
       { value: "custom", label: "Custom" },
     ];
-  }, [selectedCountryFactor, selectedCurrencyCode, selectedUsdRate]);
+  }, [minBudget, selectedCurrencyCode]);
 
   function handleChange(event) {
     const { name, value } = event.target;
-    setFormData((prev) => {
-      if (name === "countryCode") {
-        return { ...prev, countryCode: value, budget: "", customBudget: "" };
-      }
-      return { ...prev, [name]: value };
-    });
-  }
+    if (name === "countryCode") {
+      setBudgetPricing(null);
+      setBudgetError("");
+      setFormData((prev) => ({ ...prev, countryCode: value, budget: "", customBudget: "" }));
+      return;
+    }
 
-  function setClientType(type) {
-    setFormData((prev) => ({ ...prev, clientType: type }));
+    if (name === "budget") {
+      setBudgetPricing((prev) => value ? prev || { countryCode, currency: selectedCurrencyCode, rate: selectedUsdRate } : null);
+      setBudgetError("");
+    }
+    if (name === "customBudget") setBudgetError("");
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   }
 
   function buildMailtoHref(subject, body) {
-    return `mailto:${CV_PROFILE.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return `mailto:${PUBLIC_PROFILE.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setBudgetError("");
-    setSubmitStatus("");
+    setSubmitStatus(null);
 
-    const minBudget = roundMoney(250 * selectedUsdRate * selectedCountryFactor);
-    const customBudgetAmount = Number(String(formData.customBudget).replace(/[^0-9.]/g, ""));
-
-    if (formData.budget === "custom" && (!customBudgetAmount || customBudgetAmount < minBudget)) {
-      setBudgetError(
-        `Minimum budget is ${formatMoney(minBudget, selectedCurrencyCode)} for ${selectedCountry.name}.`
-      );
+    const customBudget = formData.customBudget.trim();
+    const customAmount = Number(customBudget.replaceAll(",", ""));
+    if (formData.budget === "custom" && (
+      !/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(customBudget) ||
+      !Number.isFinite(customAmount) || customAmount < minBudget
+    )) {
+      setBudgetError(`Enter an amount of at least ${formatMoney(minBudget, selectedCurrencyCode)}.`);
+      customBudgetInput.current?.focus();
       return;
     }
 
     const pickedBudget = budgetOptions.find((option) => option.value === formData.budget);
     const budgetValue =
-      formData.budget === "custom" ? formData.customBudget : pickedBudget?.label || "Not specified";
+      formData.budget === "custom" ? `${customBudget} ${selectedCurrencyCode}` : pickedBudget?.label || "Not specified";
 
     const subject = `Project Request - ${formData.projectType || "New Inquiry"}`;
     const body =
@@ -206,6 +152,7 @@ ${formData.features}`;
 
     const requestPayload = {
       ...formData,
+      countryCode: selectedCountry.code,
       countryName: selectedCountry.name,
       currency: selectedCurrencyCode,
       budgetLabel: budgetValue,
@@ -223,126 +170,38 @@ ${formData.features}`;
       const result = await response.json().catch(() => ({}));
 
       if (response.ok && result?.ok) {
-        setSubmitStatus("Project request sent. I will get back to you as soon as possible.");
-        setFormData((prev) => ({
-          ...defaultForm,
-          countryCode: prev.countryCode,
-        }));
+        setSubmitStatus({ text: "Project request sent. I’ll get back to you soon." });
+        setBudgetPricing(null);
+        setFormData({ ...defaultForm, countryCode: selectedCountry.code });
         return;
       }
 
       if (result?.fallback === "mailto") {
-        setSubmitStatus("Email delivery is not configured yet. Your email app will open with the prepared brief.");
+        setSubmitStatus({ text: "Your email app will open with your project brief ready to send." });
         window.location.href = buildMailtoHref(subject, body);
         return;
       }
 
-      throw new Error(result?.error || "Could not send your request right now.");
-    } catch (error) {
-      setSubmitStatus(
-        error?.message || "Could not send your request right now. Please try again in a moment."
-      );
+      throw new Error("Project request could not be sent");
+    } catch {
+      setSubmitStatus({ error: true, text: "The request could not be sent. Try again or email me directly." });
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  function SelectArrow() {
-    return (
-      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-muted-foreground">
-        ▾
-      </span>
-    );
-  }
-
   return (
-    <motion.section
-      variants={activeContainerVariants}
-      initial={false}
-      animate="visible"
-      className="py-12 sm:py-20"
-    >
-      <div className="mx-auto mb-16 max-w-4xl text-center">
-        <motion.h1 variants={activeItemVariants} className="text-4xl font-extrabold text-foreground sm:text-7xl tracking-tight">
-          Let&apos;s Build <span className="text-gradient">Something Great</span>
-        </motion.h1>
-        <motion.p variants={activeItemVariants} className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl leading-relaxed">
-          Share your goals, requirements, timeline, and budget so I can propose the right solution for your next breakthrough.
-        </motion.p>
+    <section className="pb-16 pt-8 sm:pt-12">
+      <div className="mb-9 max-w-2xl sm:mb-12">
+        <h1 className="text-4xl font-extrabold text-foreground sm:text-6xl">Start a project</h1>
+        <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+          Tell me what you want to build, when you need it, and what you plan to spend.
+        </p>
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr]">
-        <motion.aside variants={activeItemVariants} className="glass-card rounded-[3rem] p-10 h-fit">
-          <h2 className="text-3xl font-bold text-foreground mb-6">Get In Touch</h2>
-          <p className="text-lg leading-relaxed text-muted-foreground mb-10">
-            I&apos;m open to project work, collaborations, and professional opportunities. Feel free to reach out through any channel.
-          </p>
-
-          <div className="space-y-6">
-            <div className="flex items-start gap-5 group">
-              <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-                <FiMail className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Email</p>
-                <a className="text-lg font-semibold text-foreground hover:text-primary transition-colors" href={`mailto:${CV_PROFILE.email}`}>
-                  {CV_PROFILE.email}
-                </a>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-5 group">
-              <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-                <FiMapPin className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Location</p>
-                <p className="text-lg font-semibold text-foreground">{CV_PROFILE.location}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-5 group">
-              <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-                <FiPhone className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Phone</p>
-                <p className="text-lg font-semibold text-foreground">{CV_PROFILE.phone}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-12 pt-10 border-t border-border/40">
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Profiles</p>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href={CV_PROFILE.githubUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-2xl bg-card border border-border px-5 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-95"
-              >
-                <FiGithub className="h-4 w-4" />
-                GitHub
-              </a>
-              <a
-                href={CV_PROFILE.portfolioUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95"
-              >
-                <FiGlobe className="h-4 w-4" />
-                Portfolio
-              </a>
-            </div>
-          </div>
-        </motion.aside>
-
-        <motion.form 
-          variants={activeItemVariants} 
-          onSubmit={handleSubmit} 
-          className="glass-card rounded-[3rem] p-10 shadow-xl"
-        >
-          <h2 className="text-3xl font-bold text-foreground mb-8">Project Request Form</h2>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:gap-8">
+        <form onSubmit={handleSubmit} className="min-w-0 rounded-3xl border border-border bg-card p-5 sm:p-8">
+          <h2 className="mb-6 text-2xl font-bold text-foreground">Project brief</h2>
 
           <div className="space-y-6">
             <input
@@ -356,41 +215,33 @@ ${formData.features}`;
               className="hidden"
             />
 
-            <div>
-              <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">I am a/an</p>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setClientType("Individual")}
-                  className={`rounded-2xl border px-6 py-4 text-lg font-bold transition-all active:scale-95 ${
-                    formData.clientType === "Individual"
-                      ? "border-primary bg-primary/5 text-primary shadow-inner"
-                      : "border-border bg-background/50 text-muted-foreground hover:border-primary/30"
-                  }`}
-                >
-                  👤 Individual
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setClientType("Organization")}
-                  className={`rounded-2xl border px-6 py-4 text-lg font-bold transition-all active:scale-95 ${
-                    formData.clientType === "Organization"
-                      ? "border-primary bg-primary/5 text-primary shadow-inner"
-                      : "border-border bg-background/50 text-muted-foreground hover:border-primary/30"
-                  }`}
-                >
-                  🏢 Organization
-                </button>
+            <fieldset className="min-w-0">
+              <legend className="mb-3 text-sm font-semibold text-foreground">Who is the project for?</legend>
+              <div className="flex flex-wrap gap-3">
+                {["Individual", "Organization"].map((type) => (
+                  <label key={type} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium has-checked:border-primary">
+                    <input
+                      type="radio"
+                      name="clientType"
+                      value={type}
+                      checked={formData.clientType === type}
+                      onChange={handleChange}
+                      className="accent-primary"
+                    />
+                    {type}
+                  </label>
+                ))}
               </div>
-            </div>
+            </fieldset>
 
             <div className="grid gap-6 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">
+                <span className="text-sm font-semibold text-muted-foreground px-1">
                   {formData.clientType === "Organization" ? "Organization Name *" : "Your Name *"}
                 </span>
                 <input
                   name="fullName"
+                  autoComplete={formData.clientType === "Organization" ? "organization" : "name"}
                   value={formData.fullName}
                   onChange={handleChange}
                   required
@@ -400,10 +251,12 @@ ${formData.features}`;
               </label>
 
               <label className="block">
-                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Email Address *</span>
+                <span className="text-sm font-semibold text-muted-foreground px-1">Email Address *</span>
                 <input
                   type="email"
                   name="email"
+                  autoComplete="email"
+                  spellCheck={false}
                   value={formData.email}
                   onChange={handleChange}
                   required
@@ -415,9 +268,11 @@ ${formData.features}`;
 
             <div className="grid gap-6 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Phone (Optional)</span>
+                <span className="text-sm font-semibold text-muted-foreground px-1">Phone (Optional)</span>
                 <input
                   name="phone"
+                  type="tel"
+                  autoComplete="tel"
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="+234 800 000 0000"
@@ -426,11 +281,12 @@ ${formData.features}`;
               </label>
 
               <label className="block">
-                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Country *</span>
+                <span className="text-sm font-semibold text-muted-foreground px-1">Country *</span>
                 <div className="relative">
                   <select
                     name="countryCode"
-                    value={formData.countryCode}
+                    autoComplete="country"
+                    value={countryCode}
                     onChange={handleChange}
                     required
                     className={selectClass}
@@ -447,7 +303,7 @@ ${formData.features}`;
             </div>
 
             <label className="block">
-              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Project Type *</span>
+              <span className="text-sm font-semibold text-muted-foreground px-1">Project Type *</span>
               <div className="relative">
                 <select
                   name="projectType"
@@ -470,7 +326,7 @@ ${formData.features}`;
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Detailed Description *</span>
+              <span className="text-sm font-semibold text-muted-foreground px-1">Detailed Description *</span>
               <textarea
                 rows="4"
                 name="goals"
@@ -483,7 +339,7 @@ ${formData.features}`;
             </label>
 
             <label className="block">
-              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Specific Requirements</span>
+              <span className="text-sm font-semibold text-muted-foreground px-1">Specific Requirements *</span>
               <textarea
                 rows="2"
                 name="features"
@@ -497,7 +353,7 @@ ${formData.features}`;
 
             <div className="grid gap-6 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Budget Range *</span>
+                <span className="text-sm font-semibold text-muted-foreground px-1">Budget Range *</span>
                 <div className="relative">
                   <select
                     name="budget"
@@ -506,7 +362,7 @@ ${formData.features}`;
                     required
                     className={selectClass}
                   >
-                    <option value="">Min {formatMoney(roundMoney(250 * selectedUsdRate * selectedCountryFactor), selectedCurrencyCode)}</option>
+                    <option value="">Select a range in {selectedCurrencyCode}</option>
                     {budgetOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -518,7 +374,7 @@ ${formData.features}`;
               </label>
 
               <label className="block">
-                <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Desired Timeline *</span>
+                <span className="text-sm font-semibold text-muted-foreground px-1">Desired Timeline *</span>
                 <div className="relative">
                   <select
                     name="timeline"
@@ -539,43 +395,107 @@ ${formData.features}`;
             </div>
 
             {formData.budget === "custom" && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-              >
+              <div>
                 <label className="block">
-                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Custom Amount *</span>
+                  <span className="text-sm font-semibold text-muted-foreground px-1">Custom Amount *</span>
                   <input
                     name="customBudget"
+                    ref={customBudgetInput}
+                    aria-invalid={Boolean(budgetError)}
+                    aria-describedby={budgetError ? "custom-budget-hint custom-budget-error" : "custom-budget-hint"}
                     value={formData.customBudget}
                     onChange={handleChange}
                     required
                     inputMode="decimal"
-                    placeholder={`Min ${formatMoney(roundMoney(250 * selectedUsdRate * selectedCountryFactor), selectedCurrencyCode)}`}
                     className={inputClass}
                   />
                 </label>
-                {budgetError && (
-                  <p role="alert" className="mt-2 text-sm font-medium text-red-500">{budgetError}</p>
-                )}
-              </motion.div>
+                <p id="custom-budget-hint" className="mt-2 text-sm text-muted-foreground">
+                  Minimum {formatMoney(minBudget, selectedCurrencyCode)} ({selectedCurrencyCode})
+                </p>
+                <p id="custom-budget-error" role="alert" className="text-sm font-medium text-red-700 dark:text-red-300">
+                  {budgetError}
+                </p>
+              </div>
             )}
 
-            {submitStatus && (
-              <p role="status" className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{submitStatus}</p>
-            )}
+            <p role="status" className={`text-sm font-medium ${submitStatus?.error ? "text-red-700 dark:text-red-300" : "text-muted-foreground"}`}>
+              {submitStatus?.text}
+            </p>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="group relative flex w-full items-center justify-center gap-3 rounded-[2rem] bg-foreground px-8 py-5 text-xl font-bold text-background transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-95"
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
-              <FiSend className="h-6 w-6 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-              {isSubmitting ? "Sending Request..." : "Send Project Request"}
+              <FiSend aria-hidden="true" />
+              {isSubmitting ? "Sending…" : "Send project request"}
             </button>
           </div>
-        </motion.form>
+        </form>
+
+        <aside className="h-fit min-w-0 rounded-3xl border border-border bg-card p-5 sm:p-8">
+          <h2 className="mb-6 text-2xl font-bold text-foreground">Contact details</h2>
+
+          <div className="space-y-6">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <FiMail aria-hidden="true" className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground">Email</p>
+                <a className="text-lg font-semibold text-foreground transition-colors [overflow-wrap:anywhere] hover:text-primary" href={`mailto:${PUBLIC_PROFILE.email}`}>
+                  {PUBLIC_PROFILE.email}
+                </a>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <FiMapPin aria-hidden="true" className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground">Location</p>
+                <p className="text-lg font-semibold text-foreground">{PUBLIC_PROFILE.location}</p>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <FiPhone aria-hidden="true" className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground">Phone</p>
+                <a href={`tel:${PUBLIC_PROFILE.phone.replaceAll(" ", "")}`} className="text-lg font-semibold text-foreground underline-offset-4 hover:underline">{PUBLIC_PROFILE.phone}</a>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 border-t border-border pt-6">
+            <p className="mb-3 text-sm font-semibold text-muted-foreground">Profiles</p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={PUBLIC_PROFILE.githubUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-2xl bg-card border border-border px-5 py-3 text-sm font-bold text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+              >
+                <FiGithub aria-hidden="true" className="h-4 w-4" />
+                GitHub
+              </a>
+              <a
+                href={PUBLIC_PROFILE.linkedinUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <FiLinkedin aria-hidden="true" className="h-4 w-4" />
+                LinkedIn
+              </a>
+            </div>
+          </div>
+        </aside>
       </div>
-    </motion.section>
+    </section>
   );
 }

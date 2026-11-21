@@ -30,3 +30,10 @@ export const ROUTES = [
 export const ROUTE_BY_KEY = Object.fromEntries(
   ROUTES.map((route) => [route.key, route])
 );
+
+export const NOT_FOUND_ROUTE = {
+  path: "/404",
+  title: `Page not found — ${SITE_NAME}`,
+  description: "The page you're looking for may have moved or been removed.",
+  noindex: true,
+};

@@ -1,55 +1,40 @@
+import { buildCvDocx } from "../shared/cv/docx.js";
+import { CV_FORMATS } from "../shared/cv/formats.js";
 import { buildCvPdf } from "../shared/cv/pdf.js";
 import { buildCvWordDocument } from "../shared/cv/word.js";
 
-function setCors(res, methods) {
+const METHODS = "GET, OPTIONS";
+const LEGACY_WORD_FORMAT = {
+  contentType: "application/msword; charset=utf-8",
+  fileName: "chineduDavidNwadialoCv.doc",
+};
+
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "https://sirdavid.site");
-  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Methods", METHODS);
   res.setHeader("Access-Control-Allow-Headers", "content-type");
-}
-
-function readFormat(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === "word" || normalized === "doc") return "word";
-  return "pdf";
-}
-
-function setCacheHeaders(res) {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-}
 
-export default function handler(req, res) {
-  const methods = "GET, OPTIONS";
-  setCors(res, methods);
+  if (req.method === "OPTIONS") return res.status(200).json({ ok: true });
+  if (req.method !== "GET") return res.status(405).json({ ok: false, error: "Method not allowed." });
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).json({ ok: true });
-  }
+  const url = new URL(req.url, "http://localhost");
+  const requested = url.searchParams.get("format")?.trim().toLowerCase();
+  const format = requested === "doc"
+    ? LEGACY_WORD_FORMAT
+    : requested === "word" || requested === "docx" ? CV_FORMATS.word : CV_FORMATS.pdf;
 
-  if (req.method !== "GET") {
-    return res.status(405).json({ ok: false, error: "Method not allowed." });
-  }
+  try {
+    const document = format === LEGACY_WORD_FORMAT
+      ? Buffer.from(buildCvWordDocument(), "utf8")
+      : format === CV_FORMATS.word ? await buildCvDocx() : Buffer.from(buildCvPdf());
 
-  const requestUrl = new URL(req.url, "http://localhost");
-  const format = readFormat(requestUrl.searchParams.get("format"));
-
-  if (format === "word") {
-    const docContent = buildCvWordDocument();
-    const docBuffer = Buffer.from(docContent, "utf8");
-    setCacheHeaders(res);
     res.status(200);
-    res.setHeader("Content-Type", "application/msword; charset=utf-8");
-    res.setHeader("Content-Disposition", "attachment; filename=\"chineduDavidNwadialoCv.doc\"");
-    res.setHeader("Content-Length", docBuffer.length);
-    return res.end(docBuffer);
+    res.setHeader("Content-Type", format.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${format.fileName}"`);
+    res.setHeader("Content-Length", document.length);
+    return res.end(document);
+  } catch {
+    return res.status(500).json({ ok: false, error: "The CV could not be generated. Try again shortly." });
   }
-
-  const pdf = buildCvPdf();
-  setCacheHeaders(res);
-  res.status(200);
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "attachment; filename=\"chineduDavidNwadialoCv.pdf\"");
-  res.setHeader("Content-Length", Buffer.from(pdf).length);
-  return res.end(Buffer.from(pdf));
 }

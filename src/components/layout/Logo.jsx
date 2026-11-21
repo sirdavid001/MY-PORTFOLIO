@@ -1,18 +1,15 @@
-import { NavLink } from "react-router-dom";
-import { CV_PROFILE } from "../../../shared/cv/profile.js";
+import { Link } from "react-router-dom";
+import { PUBLIC_PROFILE } from "../../../shared/profile.js";
 
-export default function Logo({ to = "/", compact = false }) {
+export default function Logo() {
   return (
-    <NavLink to={to} className="group inline-flex items-center gap-3">
-      <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-foreground text-sm font-extrabold text-background shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
-        <span className="absolute inset-0 bg-gradient-to-br from-primary via-indigo-500 to-purple-500 opacity-90" />
-        <span className="relative z-10 font-display">CD</span>
+    <Link to="/" className="inline-flex min-h-11 min-w-0 items-center gap-2.5">
+      <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-sm font-extrabold text-background">
+        CD
       </span>
-      {!compact && (
-        <span className="font-display text-lg font-bold tracking-tight text-foreground sm:text-2xl">
-          {CV_PROFILE.displayName}
-        </span>
-      )}
-    </NavLink>
+      <span className="font-display text-base font-bold tracking-tight text-foreground sm:text-xl">
+        {PUBLIC_PROFILE.displayName}
+      </span>
+    </Link>
   );
 }

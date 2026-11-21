@@ -1,7 +1,7 @@
 import { applyRateLimitAsync } from "./_lib/rate-limit.js";
 import { getClientIp } from "./_lib/security.js";
 import { normalizeCountryCode, normalizeCurrencyCode, resolveCountryName } from "../shared/location.js";
-import { CV_PROFILE } from "../shared/cv/profile.js";
+import { PUBLIC_PROFILE } from "../shared/profile.js";
 import { escapeHtml } from "../shared/utils.js";
 
 const MAX_BODY_BYTES = 16 * 1024;
@@ -136,7 +136,7 @@ export function normalizeContactPayload(payload) {
 
 export function buildContactEmailPayload(contact) {
   const recipient = String(
-    process.env.CONTACT_TO_EMAIL || process.env.SUPPORT_EMAIL || CV_PROFILE.email
+    process.env.CONTACT_TO_EMAIL || process.env.SUPPORT_EMAIL || PUBLIC_PROFILE.email
   ).trim();
   const subject = `Project Request - ${contact.projectType} - ${contact.fullName}`;
   const text = `New project request from sirdavid.site
@@ -283,7 +283,7 @@ export default async function handler(req, res) {
       );
     }
 
-    const configuredFromEmail = String(process.env.RESEND_FROM_EMAIL || CV_PROFILE.email).trim();
+    const configuredFromEmail = String(process.env.RESEND_FROM_EMAIL || PUBLIC_PROFILE.email).trim();
     if (!isValidEmail(configuredFromEmail)) {
       return json(
         res,

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { ROUTES, SITE_URL } from "../shared/seo.js";
+import { NOT_FOUND_ROUTE, ROUTES, SITE_URL } from "../shared/seo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "..", "dist");
@@ -47,7 +47,10 @@ function injectFor(route) {
   let html = baseHtml;
   html = replaceTag(html, /<title>[^<]*<\/title>/, `<title>${title}</title>`);
   html = replaceTag(html, /<meta\s+name="description"[^>]*\/>/, `<meta name="description" content="${desc}" />`);
-  html = replaceTag(html, /<link\s+rel="canonical"[^>]*\/>/, `<link rel="canonical" href="${urlEsc}" />`);
+  html = replaceTag(html, /<link\s+rel="canonical"[^>]*\/>/, route.noindex ? "" : `<link rel="canonical" href="${urlEsc}" />`);
+  if (route.noindex) {
+    html = replaceTag(html, /<meta\s+name="robots"[^>]*\/>/, '<meta name="robots" content="noindex,follow" />');
+  }
   html = replaceTag(html, /<meta\s+property="og:url"[^>]*\/>/, `<meta property="og:url" content="${urlEsc}" />`);
   html = replaceTag(html, /<meta\s+property="og:title"[^>]*\/>/, `<meta property="og:title" content="${title}" />`);
   html = replaceTag(html, /<meta\s+property="og:description"[^>]*\/>/, `<meta property="og:description" content="${desc}" />`);
@@ -65,10 +68,12 @@ function injectFor(route) {
 }
 
 let written = 0;
-for (const route of ROUTES) {
+for (const route of [...ROUTES, NOT_FOUND_ROUTE]) {
   const html = injectFor(route);
   let outPath;
-  if (route.path === "/") {
+  if (route.noindex) {
+    outPath = path.join(distDir, "404.html");
+  } else if (route.path === "/") {
     outPath = baseHtmlPath;
   } else {
     const segments = route.path.replace(/^\//, "").split("/");
