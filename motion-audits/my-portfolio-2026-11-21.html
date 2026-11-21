@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolio audit | 21 November 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&amp;family=Public+Sans:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* ——— Fixed identity: COOL slate-graphite + chalk (near-achromatic) ——— */
+    --ink:        oklch(0.155 0.006 255);
+    --surface:    oklch(0.195 0.007 255);
+    --surface-2:  oklch(0.235 0.008 255);
+    --paper:      oklch(0.945 0.004 255);
+    --paper-dim:  oklch(0.800 0.006 255);
+    --muted:      oklch(0.680 0.008 255);
+    --faint:      oklch(0.505 0.008 255);
+    --line:       oklch(0.95 0.01 255 / 0.09);
+    --line-strong:oklch(0.95 0.01 255 / 0.16);
+
+    /* ——— Accent (NEUTRAL BY DEFAULT) ———
+       The report has no primary color. --accent aliases the contrast
+       neutral (--paper) so any element that historically wanted a brand
+       splash now reads as quiet chrome. An individual audit can repoint
+       these three to a sampled brand color if appropriate, but the
+       default — and the worked example — keeps the chrome neutral and
+       lets severity be the only color in the report. */
+    --accent:      var(--paper);
+    --accent-soft: var(--paper-dim);
+    --accent-tint: color-mix(in oklch, var(--paper) 12%, transparent);
+
+    /* ——— Severity (FIXED — never adaptive) ——— */
+    --crit:      oklch(0.655 0.185 25);
+    --crit-tint: oklch(0.655 0.185 25 / 0.15);
+    --imp:       oklch(0.805 0.125 78);
+    --imp-tint:  oklch(0.805 0.125 78 / 0.15);
+    --opp:       oklch(0.745 0.135 152);
+    --opp-tint:  oklch(0.745 0.135 152 / 0.15);
+
+    /* ——— Timing-budget ramp (FIXED — diagram + its legend only) ——— */
+    --t-good:  oklch(0.745 0.135 152);  /* instant + responsive */
+    --t-mid:   oklch(0.805 0.125 78);   /* deliberate           */
+    --t-slow:  oklch(0.655 0.185 25);   /* sluggish             */
+
+    /* ——— Verdict (FIXED — lens table) ——— */
+    --strong:  var(--opp);
+    --concern: var(--imp);
+    --problem: var(--crit);
+
+    /* ——— Spacing (4pt scale, semantic) ——— */
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+    --s6:32px; --s7:48px; --s8:64px; --s9:96px;
+
+    --display: "Familjen Grotesk", "Hanken Grotesk", system-ui, sans-serif;
+    --sans: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  /* ═══════════════ LIGHT-MODE OVERRIDES ═══════════════
+     Activated when the global theme toggle is set to Light. Every token
+     above gets a counterpart here — same hue, mirrored L — so the report
+     reads cleanly on light backgrounds. Hue stays 255 (cool slate) so the
+     identity is the same character, just inverted. */
+  :root:has(#theme-light:checked) {
+    --ink:        oklch(0.985 0.003 255);  /* light page bg */
+    --surface:    oklch(0.965 0.004 255);
+    --surface-2:  oklch(0.940 0.005 255);
+    --paper:      oklch(0.180 0.006 255);  /* dark text */
+    --paper-dim:  oklch(0.330 0.008 255);
+    --muted:      oklch(0.475 0.010 255);
+    --faint:      oklch(0.640 0.009 255);
+    --line:       oklch(0.180 0.010 255 / 0.12);
+    --line-strong:oklch(0.180 0.010 255 / 0.22);
+
+    /* Accent stays aliased to --paper (now the dark ink in light mode),
+       so chrome inverts automatically. No additional override needed. */
+
+    /* Severity: same hues, deeper L for legibility on light bg */
+    --crit:      oklch(0.555 0.195 25);
+    --crit-tint: oklch(0.555 0.195 25 / 0.12);
+    --imp:       oklch(0.580 0.155 78);
+    --imp-tint:  oklch(0.580 0.155 78 / 0.14);
+    --opp:       oklch(0.555 0.140 152);
+    --opp-tint:  oklch(0.555 0.140 152 / 0.13);
+
+    /* Timing ramp follows severity */
+    --t-good: oklch(0.555 0.140 152);
+    --t-mid:  oklch(0.580 0.155 78);
+    --t-slow: oklch(0.555 0.195 25);
+  }
+
+  /* SVG dot label: light text in light-mode (deeper dots), dark text in dark-mode (lighter dots) */
+  :root:has(#theme-light:checked) .tf-dot-text { fill: oklch(0.985 0.003 255); }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: var(--accent-tint); }
+  a { color: var(--accent-soft); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: clamp(40px, 6vw, 72px) clamp(20px, 5vw, 40px) 96px; }
+
+  /* shared micro-label */
+  .mono-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  code { font-family: var(--mono); font-size: 0.86em; color: var(--paper-dim); }
+
+  /* visually-hidden (theme + stage radios) */
+  .vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  /* ───────────── Global theme switch ───────────── */
+  .theme-switch { display: flex; justify-content: flex-end; margin-bottom: var(--s5); }
+  .theme-switch__pill { display: inline-flex; align-items: center; gap: 0; border: 1px solid var(--line-strong); border-radius: 100px; overflow: hidden; }
+  .theme-switch__pill label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); padding: 6px 14px; cursor: pointer; user-select: none; transition: background 0.15s ease, color 0.15s ease; }
+  #theme-dark:checked  ~ .theme-switch__pill label[for="theme-dark"],
+  #theme-light:checked ~ .theme-switch__pill label[for="theme-light"] { background: var(--accent-tint); color: var(--accent-soft); }
+
+  /* ───────────── Header ───────────── */
+  header.doc { padding-bottom: var(--s7); margin-bottom: var(--s8); border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); display: inline-flex; align-items: center; gap: var(--s3);
+  }
+  .eyebrow::before { content: ""; width: 22px; height: 2px; background: var(--accent); display: inline-block; }
+  h1.title {
+    font-family: var(--display);
+    font-size: clamp(38px, 6vw, 60px);
+    font-weight: 700; letter-spacing: -0.025em; line-height: 1.02;
+    margin: var(--s5) 0 var(--s4); color: var(--paper); max-width: 17ch;
+  }
+  .lede { font-size: clamp(17px, 2.2vw, 19px); color: var(--paper-dim); max-width: 66ch; line-height: 1.6; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: var(--s6); margin-top: var(--s6); }
+  .meta-row .k { display: block; margin-bottom: 4px; }
+  .meta-row .v { font-size: 15px; color: var(--paper); }
+
+  .stats { display: flex; gap: clamp(20px, 4vw, 44px); margin-top: var(--s7); flex-wrap: wrap; }
+  .stat .num { font-family: var(--display); font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat.crit .num { color: var(--crit); }
+  .stat.imp .num  { color: var(--imp); }
+  .stat.opp .num  { color: var(--opp); }
+  .stat .lbl { margin-top: var(--s2); }
+  .stat a { color: inherit; text-decoration: none; }
+  .stat a:hover .num { text-decoration: underline; text-underline-offset: 5px; text-decoration-thickness: 2px; }
+
+  /* ───────────── Section scaffolding ───────────── */
+  section { margin-bottom: var(--s9); }
+  .sec-index { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; color: var(--accent-soft); }
+  h2.section-title {
+    font-family: var(--display);
+    font-size: clamp(24px, 3.4vw, 32px);
+    font-weight: 600; letter-spacing: -0.02em; line-height: 1.1;
+    margin: var(--s2) 0 var(--s4); color: var(--paper);
+  }
+  .section-sub { color: var(--paper-dim); max-width: 74ch; margin: 0 0 var(--s6); }
+  .section-sub em { color: var(--paper); font-style: italic; }
+
+  /* ───────────── Overall assessment ───────────── */
+  .assessment { border-top: 1px solid var(--line); padding-top: var(--s6); }
+  .assessment .mono-label { color: var(--accent-soft); }
+  .assessment p { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 2.8vw, 26px); line-height: 1.42; letter-spacing: -0.01em; color: var(--paper); max-width: 34ch; margin: var(--s4) 0 0; }
+  .assessment p em { font-style: italic; color: var(--accent-soft); }
+
+  /* ───────────── Lens summary table ───────────── */
+  .lens-table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); }
+  .lens-table th, .lens-table td { padding: var(--s4) var(--s5); text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .lens-table tr:last-child td { border-bottom: none; }
+  .lens-table thead th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+  .lens-table tbody tr:hover { background: oklch(0.95 0.01 255 / 0.018); }
+  .lens-name { font-weight: 600; color: var(--paper); width: 28%; }
+  .lens-name .who { display: block; margin-top: 2px; color: var(--muted); font-weight: 400; font-size: 13.5px; }
+  .lens-name .weight { display: inline-block; margin-top: 6px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-soft); }
+  .lens-read { color: var(--paper-dim); }
+  .lens-read em { color: var(--paper); font-style: italic; }
+  .verdict { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 500; }
+  .verdict::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .v-strong  { color: var(--strong); }  .v-strong::before  { background: var(--strong); }
+  .v-concern { color: var(--concern); } .v-concern::before { background: var(--concern); }
+  .v-problem { color: var(--problem); } .v-problem::before { background: var(--problem); }
+  .v-mixed   { color: var(--muted); }   .v-mixed::before   { background: var(--muted); }
+
+  /* ───────────── Timing-budget diagram ───────────── */
+  .timing-grid { display: grid; grid-template-columns: 1fr 320px; gap: clamp(28px, 5vw, 56px); align-items: start; }
+  @media (max-width: 860px) { .timing-grid { grid-template-columns: 1fr; } }
+  .timing-figure { width: 100%; height: auto; }
+  .timing-key h4 { margin: 0 0 var(--s4); }
+  .key-list { list-style: none; margin: 0 0 var(--s6); padding: 0; display: grid; gap: 2px; }
+  .key-list li { display: grid; grid-template-columns: 22px 1fr auto; align-items: baseline; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+  .key-list li:last-child { border-bottom: none; }
+  .key-list .kn { font-family: var(--mono); font-size: 12px; color: var(--paper); font-variant-numeric: tabular-nums; }
+  .key-list .ka { color: var(--paper-dim); }
+  .key-list .kt { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+  .kt.good { color: var(--t-good); }
+  .kt.mid  { color: var(--t-mid); }
+  .kt.slow { color: var(--t-slow); }
+  .kt.none { color: var(--faint); }
+  .zone-defs { display: grid; gap: var(--s3); margin-top: var(--s5); }
+  .zone-def { display: grid; grid-template-columns: 12px 1fr; gap: var(--s3); align-items: start; }
+  .zone-def .dot { width: 11px; height: 11px; border-radius: 50%; margin-top: 6px; }
+  .zone-def .zt { font-weight: 600; color: var(--paper); }
+  .zone-def .zd { font-size: 13.5px; color: var(--muted); }
+  .whats-off { margin-top: var(--s5); padding-top: var(--s5); border-top: 1px solid var(--line); }
+  .whats-off .mono-label { color: var(--accent-soft); }
+  .whats-off p { margin: var(--s2) 0 0; color: var(--paper-dim); font-size: 14px; max-width: 60ch; }
+
+  /* ───────────── Per-lens sections ───────────── */
+  .lens-sec { margin-bottom: var(--s9); padding-top: var(--s6); border-top: 1px solid var(--line); }
+  .lens-sec__head { display: flex; align-items: baseline; gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s2); }
+  .lens-sec__head h3 { font-family: var(--display); font-size: clamp(22px, 3vw, 28px); font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; margin: 0; color: var(--paper); }
+  .lens-sec__weight { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-soft); border: 1px solid var(--line-strong); border-radius: 100px; padding: 4px 10px; }
+  .lens-sec__verdict { margin: 0 0 var(--s6); }
+
+  .lens-block { margin: var(--s6) 0; }
+  .lens-block > .mono-label { display: block; margin-bottom: var(--s4); }
+  .lens-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); max-width: 78ch; }
+  .lens-list li { display: grid; grid-template-columns: 22px 1fr; gap: var(--s2); align-items: start; color: var(--paper-dim); }
+  .lens-list .mk { font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+  .lens-list.good .mk { color: var(--strong); }
+  .lens-list.opp .mk  { color: var(--accent-soft); }
+  .lens-list li em { color: var(--paper); font-style: italic; }
+
+  .lens-take { margin-top: var(--s6); background: var(--surface-2); border-radius: 10px; padding: var(--s5); }
+  .lens-take .mono-label { color: var(--accent-soft); display: block; margin-bottom: var(--s2); }
+  .lens-take p { margin: 0; color: var(--paper); max-width: 70ch; }
+
+  .lens-empty { font-style: italic; color: var(--faint); padding: var(--s3) 0; }
+
+  /* ───────────── Finding rows (prose + live demo card) ───────────── */
+  .findings { display: flex; flex-direction: column; gap: var(--s5); }
+  .finding-row { display: grid; grid-template-columns: 1fr 380px; gap: clamp(24px, 3vw, 36px); align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: clamp(22px, 3vw, 30px); }
+  .finding-row[data-sev="crit"] { border-color: var(--crit-tint); }
+  @media (max-width: 860px) { .finding-row { grid-template-columns: 1fr; } }
+
+  .find-tags { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; margin-bottom: var(--s3); }
+  .severity { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 500; padding: 4px 9px; border-radius: 100px; }
+  .severity.crit { background: var(--crit-tint); color: var(--crit); }
+  .severity.imp  { background: var(--imp-tint);  color: var(--imp); }
+  .severity.opp  { background: var(--opp-tint);  color: var(--opp); }
+  .lens-chip { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 4px 9px; border: 1px solid var(--line-strong); border-radius: 100px; }
+  .find-title { font-family: var(--display); font-size: clamp(19px, 2.4vw, 23px); font-weight: 600; letter-spacing: -0.015em; line-height: 1.22; margin: 0 0 var(--s4); color: var(--paper); }
+  .find-body { display: grid; gap: var(--s4); }
+  .find-body p { margin: 0; color: var(--paper-dim); }
+  .find-body p em { color: var(--paper); font-style: italic; }
+  .find-body .label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 3px; }
+  .fix { background: var(--surface-2); border-radius: 8px; padding: var(--s4) var(--s5); }
+  .fix .label { color: var(--accent-soft); }
+  .fix p { color: var(--paper); }
+  .find-loc { font-size: 13px; }
+
+  /* ───────────── Demo card (the centerpiece) ───────────── */
+  .demo { position: relative; align-self: start; position: sticky; top: var(--s5); }
+  @media (max-width: 860px) { .demo { position: static; } }
+  .demo__bar { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s3); }
+  .demo__meta { min-width: 0; }
+  .demo__title { display: block; font-size: 13.5px; font-weight: 600; color: var(--paper); line-height: 1.3; }
+  .demo__timing { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .demo__controls { display: flex; align-items: center; gap: var(--s3); flex-shrink: 0; }
+  .demo__loop { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+
+  /* segmented Auto/Light/Dark stage toggle (pure CSS).
+     Auto = follow global theme via theme tokens. Light/Dark = locked overrides. */
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 100px; overflow: hidden; }
+  .seg label { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 4px 9px; cursor: pointer; user-select: none; transition: background 0.15s ease, color 0.15s ease; }
+  .demo input[id$="-a"]:checked ~ .demo__bar .seg label[for$="-a"],
+  .demo input[id$="-l"]:checked ~ .demo__bar .seg label[for$="-l"],
+  .demo input[id$="-d"]:checked ~ .demo__bar .seg label[for$="-d"] { background: var(--accent-tint); color: var(--accent-soft); }
+
+  .demo__stage {
+    /* AUTO default — stage uses the report's elevated surface, follows theme */
+    --st-bg: var(--surface-2);
+    --st-fg: var(--paper);
+    --st-line: var(--line-strong);
+    --st-dim: color-mix(in oklch, var(--paper) 55%, transparent);
+    background: var(--st-bg); color: var(--st-fg);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: var(--s6) var(--s5); min-height: 168px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  /* Locked Light: hardcoded light, regardless of report theme */
+  .demo input[id$="-l"]:checked ~ .demo__stage {
+    --st-bg: oklch(0.985 0.003 255);
+    --st-fg: oklch(0.180 0.006 255);
+    --st-line: oklch(0.180 0.010 255 / 0.18);
+    --st-dim: oklch(0.180 0.010 255 / 0.45);
+  }
+  /* Locked Dark: hardcoded dark, regardless of report theme */
+  .demo input[id$="-d"]:checked ~ .demo__stage {
+    --st-bg: oklch(0.180 0.006 255);
+    --st-fg: oklch(0.985 0.003 255);
+    --st-line: oklch(0.985 0.010 255 / 0.18);
+    --st-dim: oklch(0.985 0.010 255 / 0.50);
+  }
+
+  /* generic demo primitives, themed by the stage vars
+     (intentionally follow --st-fg/--st-bg, NOT the page accent — so they
+     contrast correctly even when a stage is locked to a different theme
+     than the page). */
+  .ui-btn { display: inline-flex; align-items: center; justify-content: center; padding: 9px 18px; border-radius: 8px; background: var(--st-fg); color: var(--st-bg); font-family: var(--sans); font-size: 13px; font-weight: 600; }
+  .ui-card { background: var(--st-bg); border: 1px solid var(--st-line); border-radius: 10px; padding: 14px 16px; min-width: 180px; box-shadow: 0 8px 24px oklch(0 0 0 / 0.12); }
+  .ui-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--st-fg); }
+  .ui-check { width: 22px; height: 22px; border-radius: 7px; background: var(--st-fg); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ui-check svg { width: 13px; height: 13px; stroke: var(--st-bg); }
+  .ui-num { font-family: var(--display); font-size: 34px; font-weight: 700; color: var(--st-fg); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .ui-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--st-dim); }
+  /* milestone badge + sparks read off stage tokens (--st-fg disc, --st-bg ink),
+     set inline on the elements — same contract as every other stage primitive,
+     never --accent, correct in any locked stage. */
+
+  /* ───────────── Combined recommendations ───────────── */
+  .rec { margin-bottom: var(--s7); }
+  .rec .tier-label { display: flex; align-items: center; gap: var(--s4); margin: 0 0 var(--s4); }
+  .rec .tier-label .mono-label { white-space: nowrap; }
+  .rec .tier-label .rule { height: 1px; background: var(--line); flex: 1; }
+  .rec .tier-label .count { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .rec.crit .mono-label { color: var(--crit); }
+  .rec.imp  .mono-label { color: var(--imp); }
+  .rec.opp  .mono-label { color: var(--opp); }
+  .rec-table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); font-size: 14px; }
+  .rec-table th, .rec-table td { text-align: left; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); vertical-align: top; }
+  .rec-table tr:last-child td { border-bottom: none; }
+  .rec-table thead th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+  .rec-table td:first-child { color: var(--paper); }
+  .rec-table td:nth-child(2) { white-space: nowrap; }
+  .rec-table td { color: var(--paper-dim); }
+
+  /* ───────────── Reference summary (closing) ───────────── */
+  .ref-summary { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: clamp(24px, 4vw, 40px); }
+  .ref-summary .big { font-family: var(--display); font-size: clamp(18px, 2.4vw, 22px); font-weight: 600; letter-spacing: -0.015em; color: var(--paper); margin: var(--s2) 0 0; }
+  .ref-summary .why { color: var(--paper-dim); margin: var(--s3) 0 var(--s6); max-width: 64ch; }
+  .ref-lean { display: grid; gap: var(--s3); margin: 0; padding: 0; list-style: none; }
+  .ref-lean li { display: grid; grid-template-columns: 130px 1fr; gap: var(--s4); padding: var(--s3) 0; border-top: 1px solid var(--line); color: var(--paper-dim); font-size: 14px; }
+  .ref-lean .nm { font-weight: 600; color: var(--paper); }
+
+  footer.doc { margin-top: var(--s8); padding-top: var(--s5); border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--s3); }
+
+  /* ───────────── Narrow screens ───────────── */
+  @media (max-width: 600px) {
+    .lens-table { display: block; padding: var(--s2) var(--s4); }
+    .lens-table thead { display: none; }
+    .lens-table tbody, .lens-table tr, .lens-table td { display: block; }
+    .lens-table tr { padding: var(--s4) 0; border-bottom: 1px solid var(--line); }
+    .lens-table tr:last-child { border-bottom: none; }
+    .lens-table td { padding: 0; border: none; }
+    .lens-table .lens-name { width: auto; margin-bottom: var(--s2); }
+    .lens-table .verdict { margin-bottom: var(--s2); }
+    .ref-lean li { grid-template-columns: 1fr; gap: var(--s1); }
+  }
+
+  /* ───────────── The ONLY animation in the report: the demo cards ───────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .demo__loop { display: none; }
+    [class*="__mt"], [class*="__mt"] * { animation: none !important; transition: none !important; }
+    .demo-5__mt .spark { opacity: 0; }
+  }
+
+:root {--faint:var(--muted);--crit:oklch(.72 .16 25)} :root:has(#theme-light:checked){--faint:var(--muted);--crit:oklch(.43 .16 25);--imp:oklch(.44 .10 78);--opp:oklch(.43 .10 152)}
+.audit-findings article {border-top:1px solid var(--line);padding:20px 0;overflow-wrap:anywhere}
+.audit-findings h3 {margin:5px 0 10px;font-size:21px} .audit-findings p {margin:8px 0;color:var(--paper-dim)}
+.audit-findings .priority {font-weight:700;font-size:12px;color:var(--paper-dim)} .audit-findings .priority.high {color:var(--crit)}
+.audit-sources a,.find-loc a,.rec-table a {text-decoration:underline;text-underline-offset:.2em}
+.demo-pause {display:inline-flex;gap:.45rem;align-items:center;margin-bottom:1rem}
+:root:has(#pause-demos:checked) [class*="__mt"] {animation:none}
+.ui-label {color:var(--st-fg)} .theme-switch__pill label,.seg label {transition:none} .seg label {padding:4px 6px} .demo__bar {flex-wrap:wrap} .rec-table td {overflow-wrap:anywhere}
+.theme-switch:focus-within .theme-switch__pill,.demo:focus-within .seg {outline:2px solid var(--paper);outline-offset:2px}
+.rec-table {width:100%;table-layout:fixed} .rec-table td:nth-child(2),.rec-table td code,.find-loc code {white-space:normal;overflow-wrap:anywhere}
+.finding-row__prose,.demo,.demo__stage {min-width:0} .demo__stage>div,.ui-card {min-width:0;max-width:100%} footer.doc {flex-wrap:wrap}
+.lens-table td,.lens-table th,.find-body,.demo__meta {overflow-wrap:anywhere}
+@media (max-width:600px) {.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.rec-table th,.rec-table td{padding:6px;font-size:12px} .rec-table code{white-space:normal}}
+@media (prefers-reduced-motion:no-preference) { @keyframes motion-1-reveal {0% {opacity: .25} 66%,100% {opacity: 1}} .demo-1__mt {animation:motion-1-reveal 3s cubic-bezier(.2,.7,.2,1) infinite} }
+@media (prefers-reduced-motion:no-preference) { @keyframes motion-2-reveal {0% {opacity: .6; transform: translateY(4px)} 66%,100% {opacity: 1; transform: translateY(0)}} .demo-2__mt {animation:motion-2-reveal 3s cubic-bezier(.2,.7,.2,1) infinite} }
+@media (prefers-reduced-motion:no-preference) { @keyframes motion-3-reveal {0% {opacity: .2} 66%,100% {opacity: 1}} .demo-3__mt {animation:motion-3-reveal 3s cubic-bezier(.2,.7,.2,1) infinite} }
+@media (prefers-reduced-motion:no-preference) { @keyframes motion-4-reveal {0% {opacity: .35} 66%,100% {opacity: 1}} .demo-4__mt {animation:motion-4-reveal 3s cubic-bezier(.2,.7,.2,1) infinite} }</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="theme-switch" role="radiogroup" aria-label="Report theme">
+    <input class="vh" type="radio" name="theme" id="theme-dark" checked>
+    <input class="vh" type="radio" name="theme" id="theme-light">
+    <div class="theme-switch__pill"><label for="theme-dark">Dark</label><label for="theme-light">Light</label></div>
+  </div>
+  <header class="doc">
+    <div class="eyebrow">21 November 2026</div>
+    <h1 class="title">Portfolio audit</h1>
+    <p class="lede">Source review, desktop and mobile browser checks, live Vercel responses, and both CV export formats.</p>
+    <div class="meta-row"><div><span class="mono-label k">Build reviewed</span><span class="v">main · 1d7b9d6</span></div><div><span class="mono-label k">Stack</span><span class="v">React · Vite · Tailwind CSS · Vercel</span></div></div>
+    <div class="stats">
+      <div class="stat"><a href="#project-findings"><div class="num">12</div><div class="mono-label lbl">Project findings</div></a></div>
+      <div class="stat crit"><a href="#rec-crit"><div class="num">2</div><div class="mono-label lbl">Critical motion</div></a></div>
+      <div class="stat imp"><a href="#rec-imp"><div class="num">2</div><div class="mono-label lbl">Important motion</div></a></div>
+      <div class="stat opp"><a href="#rec-opp"><div class="num">3</div><div class="mono-label lbl">Motion opportunities</div></a></div>
+    </div>
+  </header>
+  <section class="assessment" aria-labelledby="priorities"><h2 id="priorities" class="section-title">First fixes</h2><p>Review the CV data shipped to browsers, preserve client-selected budgets, and make the project screenshots and contact form reliable through loading and narrow layouts.</p></section>
+  <section aria-labelledby="project-findings">
+    <h2 class="section-title" id="project-findings">Project findings</h2>
+    <div class="audit-findings"><article><span class="priority high">High</span><h3>CV details are part of the public frontend bundle</h3><p>The live JavaScript bundle includes the values for date of birth, full contact address, and personal phone fields. A visitor can receive these fields by loading the site, independently of the public CV download. The generated PDF also displays them.</p><p><strong>Recommended change</strong> Use a small public profile module for the site. Keep full résumé details server-side and decide which fields belong in a public CV.</p><p class="audit-sources"><a href="../shared/cv/profile.js"><code>shared/cv/profile.js:17</code></a> · <a href="../src/pages/Home.jsx"><code>src/pages/Home.jsx:20</code></a> · <a href="../api/cv-download.js"><code>api/cv-download.js:22</code></a></p></article><article><span class="priority high">High</span><h3>Location detection can change a budget already selected</h3><p>With location detection delayed in Chrome, selecting the UK and the first tier displayed £270–£540. The location response changed the country to the US and the same selected tier to $250–$500. Japan also inherited USD from a US visitor because its currency is absent from the mapping.</p><p><strong>Recommended change</strong> Apply automatic detection only before a manual choice, and use a complete country-to-currency mapping or display the chosen fallback currency explicitly.</p><p class="audit-sources"><a href="../src/pages/Contact.jsx"><code>src/pages/Contact.jsx:109</code></a> · <a href="../src/pages/Contact.jsx"><code>src/pages/Contact.jsx:130</code></a> · <a href="../shared/budgeting.js"><code>shared/budgeting.js:34</code></a></p></article><article><span class="priority high">High</span><h3>Project screenshots can stay hidden after they load</h3><p>The prerendered cards set their images to opacity: 0 until a React load callback runs. Local Chrome reproduced transparent images with valid dimensions on direct navigation. The screenshots were visible on the live sample. All four are hidden when JavaScript is disabled. Forced image failure kept four animated placeholders visible.</p><p><strong>Recommended change</strong> Render screenshots visible by default, reserve space with dimensions, and give load errors a visible terminal state.</p><p class="audit-sources"><a href="../src/pages/Projects.jsx"><code>src/pages/Projects.jsx:73</code></a> · <a href="../src/pages/Projects.jsx"><code>src/pages/Projects.jsx:83</code></a> · <a href="../src/components/ui/ImageWithFallback.jsx"><code>src/components/ui/ImageWithFallback.jsx:17</code></a></p></article><article><span class="priority high">High</span><h3>Contact overflows a narrow mobile screen</h3><p>At a 320 px viewport, Contact had a document width of 365 px in Chrome. The Contact sidebar extends past the viewport. Home and Projects fit the same width.</p><p><strong>Recommended change</strong> Allow both grid children to shrink, reduce card padding at narrow widths, and wrap long contact links.</p><p class="audit-sources"><a href="../src/pages/Contact.jsx"><code>src/pages/Contact.jsx:274</code></a> · <a href="../src/pages/Contact.jsx"><code>src/pages/Contact.jsx:288</code></a> · <a href="../src/pages/Contact.jsx"><code>src/pages/Contact.jsx:341</code></a></p></article><article><span class="priority medium">Medium</span><h3>Saved dark mode breaks hydration</h3><p>Opening each prerendered route with a saved dark preference produced React error #418. Static HTML renders the light-mode icon and the first client render expects the dark-mode icon. React recovers by rendering again on the client.</p><p><strong>Recommended change</strong> Align the prerendered markup with the first React render and apply the saved preference through a hydration-safe theme setup.</p><p class="audit-sources"><a href="../src/hooks/useTheme.jsx"><code>src/hooks/useTheme.jsx:6</code></a> · <a href="../src/components/layout/Navbar.jsx"><code>src/components/layout/Navbar.jsx:58</code></a> · <a href="../src/main.jsx"><code>src/main.jsx:8</code></a></p></article><article><span class="priority medium">Medium</span><h3>The live fallback returns a soft 404</h3><p>On the deployment, a missing route returned 200 with the homepage title and canonical URL. The three known routes returned 200 with their own canonical URLs.</p><p><strong>Recommended change</strong> Serve the prerendered routes directly and return HTTP 404 with a real error page for unknown paths.</p><p class="audit-sources"><a href="../vercel.json"><code>vercel.json:49</code></a> · <a href="../src/pages/NotFound.jsx"><code>src/pages/NotFound.jsx:5</code></a></p></article><article><span class="priority medium">Medium</span><h3>Mobile navigation and CV controls omit keyboard feedback</h3><p>The mobile menu exposes neither its open state nor a controlled region. Escape left it open, and expanding the viewport while the menu was open left body scrolling locked. The CV format selector computed an outline of none and no box shadow on keyboard focus. The CV email result has no live region.</p><p><strong>Recommended change</strong> Provide disclosure state and Escape handling, clear the scroll lock when the desktop layout takes over, and add visible focus and an announced result to the CV controls.</p><p class="audit-sources"><a href="../src/components/layout/Navbar.jsx"><code>src/components/layout/Navbar.jsx:18</code></a> · <a href="../src/components/layout/Navbar.jsx"><code>src/components/layout/Navbar.jsx:67</code></a> · <a href="../src/pages/Home.jsx"><code>src/pages/Home.jsx:353</code></a> · <a href="../src/pages/Home.jsx"><code>src/pages/Home.jsx:390</code></a></p></article><article><span class="priority medium">Medium</span><h3>Contact has a dark-mode contrast failure</h3><p>Axe measured 3.67:1 on the Portfolio link, below the 4.5:1 AA threshold for its text. Axe also flagged the shared footer heading jump across all scanned layouts.</p><p><strong>Recommended change</strong> Use the foreground token paired with the primary color and place the footer headings at the appropriate level.</p><p class="audit-sources"><a href="../src/pages/Contact.jsx"><code>src/pages/Contact.jsx:327</code></a> · <a href="../src/index.css"><code>src/index.css:49</code></a> · <a href="../src/components/layout/Footer.jsx"><code>src/components/layout/Footer.jsx:19</code></a></p></article><article><span class="priority medium">Medium</span><h3>Local email setup is easy to misconfigure</h3><p>The repository does not ignore .env.local. The README also lists RESEND_FROM_NAME although the route sender names are now fixed. Local browser tests verified the missing-configuration responses and simulated Resend confirmed handler payloads.</p><p><strong>Recommended change</strong> Ignore local credential overrides and document the sender address and display-name behavior the code uses.</p><p class="audit-sources"><a href="../.gitignore"><code>.gitignore:1</code></a> · <a href="../README.md"><code>README.md:41</code></a> · <a href="../api/send-cv.js"><code>api/send-cv.js:85</code></a> · <a href="../api/contact.js"><code>api/contact.js:52</code></a></p></article><article><span class="priority opportunity">Opportunity</span><h3>Home gives the evidence less space than the introduction</h3><p>The opening screen gives visitors your name and a route to the work. The long Home page follows with generic approach cards and a technology list before the CV. The Projects page already has four real screenshots and direct access to the work.</p><p><strong>Recommended change</strong> Bring one named project and a specific contribution or outcome into the first screen. Give CV access a shorter path and keep the existing direct project and contact actions.</p><p class="audit-sources"><a href="../src/pages/Home.jsx"><code>src/pages/Home.jsx:174</code></a> · <a href="../src/pages/Home.jsx"><code>src/pages/Home.jsx:320</code></a> · <a href="../src/pages/Projects.jsx"><code>src/pages/Projects.jsx:8</code></a></p></article><article><span class="priority medium">Medium</span><h3>Project screenshots are large and all load eagerly</h3><p>The browser performance check recorded about 3.6 MiB of images across four PNGs at both 390 and 1440 px. QuickPOS serves a 3840 px capture for a 356 px card on mobile. The cards reserve space with aspect ratios and could use responsive sources and lazy loading.</p><p><strong>Recommended change</strong> Measure WebP or AVIF variants at card widths, declare dimensions, and defer below-fold images.</p><p class="audit-sources"><a href="../src/pages/Projects.jsx"><code>src/pages/Projects.jsx:82</code></a></p></article><article><span class="priority opportunity">Opportunity</span><h3>Document export works, with accessibility and format tradeoffs</h3><p>The live PDF and Word endpoints returned 200. The live PDF matched the locally rendered two-page A4 document byte for byte. It has clear sections and selectable text. PDF tagging is absent. The .doc payload is HTML formatted for Word. Native Word rendering remains unverified.</p><p><strong>Recommended change</strong> For accessible or strict document workflows, generate a tagged PDF and an actual .docx.</p><p class="audit-sources"><a href="../shared/cv/pdf.js"><code>shared/cv/pdf.js:699</code></a> · <a href="../shared/cv/word.js"><code>shared/cv/word.js:113</code></a> · <a href="../api/cv-download.js"><code>api/cv-download.js:37</code></a></p></article></div>
+  </section>
+  <section aria-labelledby="motion">
+    <h2 class="section-title" id="motion">Motion review</h2>
+    <p class="section-sub">Production polish carries the most weight for a portfolio that serves recruiters and clients. Experimentation applies to the work itself. Restraint applies to navigation and forms.</p>
+    <label class="demo-pause"><input type="checkbox" id="pause-demos"> Pause motion demos</label>
+    <table class="lens-table"><thead><tr><th scope="col">Perspective</th><th scope="col">Verdict</th><th scope="col">Finding</th></tr></thead><tbody><tr><th scope="row" class="lens-name">Jakub Krehel<span class="who">Production polish</span><span class="weight">Primary</span></th><td><span class="verdict v-concern">Concern</span></td><td class="lens-read">Finish the loading and reveal states before adjusting their timing.</td></tr><tr><th scope="row" class="lens-name">Jhey Tompkins<span class="who">Experimentation and delight</span><span class="weight">Secondary</span></th><td><span class="verdict v-mixed">Mixed</span></td><td class="lens-read">The project screenshots are the strongest place for a little expressive motion.</td></tr><tr><th scope="row" class="lens-name">Emil Kowalski<span class="who">Restraint and speed</span><span class="weight">Selective</span></th><td><span class="verdict v-problem">Problem</span></td><td class="lens-read">Menu and form interactions need a fast, stable reduced-motion path.</td></tr></tbody></table>
+  </section>
+  <section aria-labelledby="timing-title">
+    <h2 class="section-title" id="timing-title">Timing and behavior</h2>
+    <table class="rec-table" id="timings"><thead><tr><th scope="col">Interaction</th><th scope="col">Current</th><th scope="col">Recommended</th></tr></thead><tbody>
+    <tr><td>Project loading</td><td>Repeated pulse while waiting</td><td>Static placeholder and a clear final state</td></tr>
+    <tr><td>Project image hover</td><td>700 ms image transform and separate card lift</td><td>220 ms image-only preview if needed</td></tr>
+    <tr><td>Mobile navigation</td><td>Height and opacity on open and close</td><td>Immediate for reduced motion, up to 160 ms opacity for pointer use</td></tr>
+    <tr><td>Custom budget field</td><td>Height and opacity on open, immediate removal</td><td>Stable layout with an optional 140 ms opacity reveal</td></tr>
+    </tbody></table>
+    <p class="section-sub">The demos use a three-second loop to make each proposed transition visible. The values above are implementation targets.</p>
+  </section>
+  <section class="lens-sec"><div class="lens-sec__head"><h2>Jakub Krehel · Production polish</h2><span class="lens-sec__weight">Primary</span></div><div class="lens-block"><h3>Working well</h3><ul class="lens-list good"><li><span class="mk" aria-hidden="true">✓</span><span>Home, Projects, and Contact render their main content in the initial HTML. Their page-level motion starts from the visible state.</span></li><li><span class="mk" aria-hidden="true">✓</span><span>The project card aspect-ratio box reserves space while the screenshot loads.</span></li></ul></div><div class="lens-block"><h3>Findings</h3><div class="findings"><article class="finding-row" data-sev="crit" id="finding-1"><div class="finding-row__prose"><div class="find-tags"><span class="severity crit">Critical</span><span class="lens-chip">Jakub Krehel</span></div><h4 class="find-title">Project placeholders can pulse indefinitely</h4><div class="find-body"><p>The pulse remains when the artwork loads before React catches its event or when the asset fails. The pulse has no reduced-motion guard.</p><div class="fix"><p>Show a stationary placeholder only while loading. Show the screenshot or a static fallback when the request settles.</p></div><p class="find-loc"><a href="../src/pages/Projects.jsx"><code>src/pages/Projects.jsx:83</code></a></p></div></div><div class="demo" role="group" aria-label="Artwork becomes available"><input class="vh" type="radio" name="st1" id="st1-a" checked><input class="vh" type="radio" name="st1" id="st1-l"><input class="vh" type="radio" name="st1" id="st1-d"><div class="demo__bar"><div class="demo__meta"><span class="demo__title">Artwork becomes available</span><span class="demo__timing">160 ms opacity target</span></div><div class="demo__controls"><div class="seg"><label for="st1-a">Auto</label><label for="st1-l">Light</label><label for="st1-d">Dark</label></div><span class="demo__loop" aria-hidden="true">↻</span></div></div><div class="demo__stage"><div class="demo-1__mt"><div class="ui-card"><div class="ui-label">Project preview</div><div class="ui-row">Screenshot loaded</div></div></div></div></div></article></div></div><div class="lens-block"><h3>Opportunity</h3><ul class="lens-list opp"><li><span class="mk" aria-hidden="true">+</span><span>Use a persistent result region for the CV email workflow. It can update in place and announce the result without shifting nearby controls.</span></li></ul></div><div class="lens-take"><p>A complete transition needs a usable start state and a reliable end state. Keep project artwork available throughout hydration and give failures a readable result.</p></div></section><section class="lens-sec"><div class="lens-sec__head"><h2>Jhey Tompkins · Experimentation and delight</h2><span class="lens-sec__weight">Secondary</span></div><div class="lens-block"><h3>Working well</h3><ul class="lens-list good"><li><span class="mk" aria-hidden="true">✓</span><span>Cards use real product captures. The portfolio can reveal a useful product detail with a short, intentional interaction.</span></li></ul></div><div class="lens-block"><h3>Findings</h3><div class="findings"><article class="finding-row" data-sev="imp" id="finding-2"><div class="finding-row__prose"><div class="find-tags"><span class="severity imp">Important</span><span class="lens-chip">Jhey Tompkins</span></div><h4 class="find-title">Project hover stacks a card lift with 700 ms image scaling</h4><div class="find-body"><p>A pointer can move the card by 8 px and zoom the screenshot at the same time. It repeats on every card, and the CSS zoom persists under reduced motion.</p><div class="fix"><p>Use one image-only reveal on a featured preview. Keep the card frame still and use a small transform of the image when motion is permitted.</p></div><p class="find-loc"><a href="../src/pages/Projects.jsx"><code>src/pages/Projects.jsx:77</code></a></p></div></div><div class="demo" role="group" aria-label="Featured project preview"><input class="vh" type="radio" name="st2" id="st2-a" checked><input class="vh" type="radio" name="st2" id="st2-l"><input class="vh" type="radio" name="st2" id="st2-d"><div class="demo__bar"><div class="demo__meta"><span class="demo__title">Featured project preview</span><span class="demo__timing">220 ms ease-out target</span></div><div class="demo__controls"><div class="seg"><label for="st2-a">Auto</label><label for="st2-l">Light</label><label for="st2-d">Dark</label></div><span class="demo__loop" aria-hidden="true">↻</span></div></div><div class="demo__stage"><div class="demo-2__mt"><div class="ui-card"><div class="ui-label">QuickPOS</div><div class="ui-row">Inventory dashboard preview</div></div></div></div></div></article></div></div><div class="lens-block"><h3>Opportunity</h3><ul class="lens-list opp"><li><span class="mk" aria-hidden="true">+</span><span>Use a single featured project to show an observable result, such as the exam workflow or the point-of-sale screen, with a stationary default and an optional pointer preview.</span></li></ul></div><div class="lens-take"><p>Let the software be the memorable part of the page. One intentional preview carries more information than four identical hover lifts.</p></div></section><section class="lens-sec"><div class="lens-sec__head"><h2>Emil Kowalski · Restraint and speed</h2><span class="lens-sec__weight">Selective</span></div><div class="lens-block"><h3>Working well</h3><ul class="lens-list good"><li><span class="mk" aria-hidden="true">✓</span><span>The desktop navigation underline communicates which route is active. The mobile menu already has enter and exit states.</span></li></ul></div><div class="lens-block"><h3>Findings</h3><div class="findings"><article class="finding-row" data-sev="crit" id="finding-3"><div class="finding-row__prose"><div class="find-tags"><span class="severity crit">Critical</span><span class="lens-chip">Emil Kowalski</span></div><h4 class="find-title">Mobile navigation and custom budget animate with reduced motion enabled</h4><div class="find-body"><p>Chrome observed the open menu and custom budget field partway through height animations after setting prefers-reduced-motion to reduce. Global scroll behavior remained smooth.</p><div class="fix"><p>Apply site-wide reduced-motion defaults and explicitly remove JavaScript height transitions on that path. A short opacity transition can accompany pointer-triggered opening when motion is permitted.</p></div><p class="find-loc"><a href="../src/components/layout/Navbar.jsx"><code>src/components/layout/Navbar.jsx:78</code></a></p></div></div><div class="demo" role="group" aria-label="Menu disclosure"><input class="vh" type="radio" name="st3" id="st3-a" checked><input class="vh" type="radio" name="st3" id="st3-l"><input class="vh" type="radio" name="st3" id="st3-d"><div class="demo__bar"><div class="demo__meta"><span class="demo__title">Menu disclosure</span><span class="demo__timing">160 ms opacity target</span></div><div class="demo__controls"><div class="seg"><label for="st3-a">Auto</label><label for="st3-l">Light</label><label for="st3-d">Dark</label></div><span class="demo__loop" aria-hidden="true">↻</span></div></div><div class="demo__stage"><div class="demo-3__mt"><div class="ui-card"><div class="ui-label">Navigation</div><div class="ui-row">Home · Projects · Contact</div></div></div></div></div></article><article class="finding-row" data-sev="imp" id="finding-4"><div class="finding-row__prose"><div class="find-tags"><span class="severity imp">Important</span><span class="lens-chip">Emil Kowalski</span></div><h4 class="find-title">The custom budget field has an animated entry and an instant exit</h4><div class="find-body"><p>Opening the field animates its height. Changing back removes it immediately. Other fields can move while the control opens. CV feedback and the 404 page also apply motion independently of the page-level preference.</p><div class="fix"><p>Reserve or insert the layout in one step and give the content a brief opacity reveal when it helps. Keep validation and confirmation text immediate and stationary.</p></div><p class="find-loc"><a href="../src/pages/Contact.jsx"><code>src/pages/Contact.jsx:541</code></a></p></div></div><div class="demo" role="group" aria-label="Custom budget disclosure"><input class="vh" type="radio" name="st4" id="st4-a" checked><input class="vh" type="radio" name="st4" id="st4-l"><input class="vh" type="radio" name="st4" id="st4-d"><div class="demo__bar"><div class="demo__meta"><span class="demo__title">Custom budget disclosure</span><span class="demo__timing">140 ms opacity target</span></div><div class="demo__controls"><div class="seg"><label for="st4-a">Auto</label><label for="st4-l">Light</label><label for="st4-d">Dark</label></div><span class="demo__loop" aria-hidden="true">↻</span></div></div><div class="demo__stage"><div class="demo-4__mt"><div class="ui-card"><div class="ui-label">Budget</div><div class="ui-row">Enter a custom amount</div></div></div></div></div></article></div></div><div class="lens-block"><h3>Opportunity</h3><ul class="lens-list opp"><li><span class="mk" aria-hidden="true">+</span><span>Keep theme-icon and submit-label changes immediate. Use a persistent text status for longer requests so the user can keep their place.</span></li></ul></div><div class="lens-take"><p>Use the responsive disclosure for orientation. Keep keyboard-driven and reduced-motion interactions immediate and spare visitors an animated document scroll.</p></div></section>
+  <section aria-labelledby="motion-changes">
+    <h2 class="section-title" id="motion-changes">Motion changes in priority order</h2>
+    <div class="rec crit" id="rec-crit"><div class="tier-label"><span class="mono-label">Critical</span><span class="rule"></span><span class="count">2</span></div><table class="rec-table"><thead><tr><th scope="col">Finding</th><th scope="col">Source</th><th scope="col">Change</th></tr></thead><tbody><tr><td><a href="#finding-1">Project placeholders can pulse indefinitely</a></td><td><a href="../src/pages/Projects.jsx"><code>src/pages/Projects.jsx:83</code></a></td><td>Show a stationary placeholder only while loading. Show the screenshot or a static fallback when the request settles.</td></tr><tr><td><a href="#finding-3">Mobile navigation and custom budget animate with reduced motion enabled</a></td><td><a href="../src/components/layout/Navbar.jsx"><code>src/components/layout/Navbar.jsx:78</code></a></td><td>Apply site-wide reduced-motion defaults and explicitly remove JavaScript height transitions on that path. A short opacity transition can accompany pointer-triggered opening when motion is permitted.</td></tr></tbody></table></div><div class="rec imp" id="rec-imp"><div class="tier-label"><span class="mono-label">Important</span><span class="rule"></span><span class="count">2</span></div><table class="rec-table"><thead><tr><th scope="col">Finding</th><th scope="col">Source</th><th scope="col">Change</th></tr></thead><tbody><tr><td><a href="#finding-2">Project hover stacks a card lift with 700 ms image scaling</a></td><td><a href="../src/pages/Projects.jsx"><code>src/pages/Projects.jsx:77</code></a></td><td>Use one image-only reveal on a featured preview. Keep the card frame still and use a small transform of the image when motion is permitted.</td></tr><tr><td><a href="#finding-4">The custom budget field has an animated entry and an instant exit</a></td><td><a href="../src/pages/Contact.jsx"><code>src/pages/Contact.jsx:541</code></a></td><td>Reserve or insert the layout in one step and give the content a brief opacity reveal when it helps. Keep validation and confirmation text immediate and stationary.</td></tr></tbody></table></div>
+    <div class="rec opp" id="rec-opp"><div class="tier-label"><span class="mono-label">Opportunities</span><span class="rule"></span></div>
+    <ul><li>Use a stable announcement region for the CV request.</li><li>Show one optional interaction on a featured project.</li><li>Keep theme and submit state changes immediate.</li></ul></div>
+  </section>
+  <section aria-labelledby="evidence">
+    <h2 class="section-title" id="evidence">Verification</h2>
+    <p class="section-sub">I used the installed frontend design, Design Taste, UI/UX Pro Max, Design Motion Principles, Web Accessibility, Web Interface Guidelines, and shadcn/ui form guidance, with Vercel and PDF checks for the deployed site and CV.</p>
+    <ul>
+      <li>All nine automated tests passed. The build generated distinct HTML and canonical URLs for Home, Projects, and Contact.</li>
+      <li>Chrome covered all three routes at 320, 390, and 1440 px, plus saved dark mode, keyboard navigation, and reduced motion. Axe ran at 390 and 1440 px and on the dark desktop views.</li>
+      <li>Production GET requests returned 200 for all three pages and both CV formats. The four featured demos responded over HTTPS. The UKM card begins with an HTTP link and can link directly to HTTPS. The PDF was rendered locally and the Word file type was checked from its payload.</li>
+      <li>Local browser and API checks covered the download handlers, contact fallback, location, and mocked Resend delivery. Production email receipt and native Word rendering remain unverified.</li>
+      <li>Design Taste’s consistency scan flagged the generic headline and opening layout. Its layout script expects a .wrap container from its own templates. Chromium measurements and screenshots supplied the responsive evidence.</li>
+    </ul>
+    <p class="audit-sources"><a href="https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md">Web Interface Guidelines</a> · <a href="https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html">WCAG contrast minimum</a> · <a href="https://react.dev/reference/react-dom/client/hydrateRoot">React hydration</a> · <a href="https://developers.google.com/crawling/docs/troubleshooting/http-status-codes">Google crawling status codes</a></p>
+  </section>
+  <footer class="doc"><span>Portfolio audit</span><span>21 November 2026</span></footer>
+</main>
+</body>
+</html>
