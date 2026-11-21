@@ -1,4 +1,4 @@
-import { FiExternalLink, FiGithub } from "react-icons/fi";
+import { FiExternalLink } from "react-icons/fi";
 import { ROUTE_BY_KEY } from "../../shared/seo.js";
 import { ImageWithFallback } from "../components/ui/ImageWithFallback";
 import { projects } from "../data/projects";
@@ -38,15 +38,6 @@ function ProjectCard({ project, eager }) {
           >
             Live demo <FiExternalLink aria-hidden="true" />
           </a>
-          <a
-            href={project.code}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-11 items-center gap-2 font-semibold text-foreground underline-offset-4 hover:underline"
-            aria-label={`View ${project.title} source on GitHub`}
-          >
-            GitHub <FiGithub aria-hidden="true" />
-          </a>
         </div>
       </div>
     </article>
@@ -61,7 +52,7 @@ export default function Projects() {
       <div className="max-w-2xl">
         <h1 className="text-4xl font-extrabold text-foreground sm:text-6xl">Projects</h1>
         <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-          Four applications for messaging, retail, and education. Explore the demos and source code.
+          Four applications for messaging, retail, and education. Explore the live demos.
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:gap-8">

@@ -14,7 +14,6 @@ export const projects = [
     description:
       "An anonymous inbox where people answer prompts and send feedback.",
     stack: ["Expo Router", "TypeScript", "NativeWind", "Supabase", "Zustand"],
-    code: "https://github.com/sirdavid001/ukm",
     link: "https://www.uknowme.sbs",
     image: preview("ukm", 2560, 1426, "UKM anonymous messaging homepage"),
     status: "Production Ready",
@@ -24,7 +23,6 @@ export const projects = [
     description:
       "An electronics storefront backed by a management API for running online stores.",
     stack: ["JavaScript", "Python", "Django", "PostgreSQL", "Tailwind CSS"],
-    code: "https://github.com/sirdavid001/Store",
     link: "https://sirdavidshop.sirdavid.site",
     image: preview("store", 2560, 1426, "Sirdavid Multi-Store storefront"),
     status: "MVP Stage",
@@ -34,7 +32,6 @@ export const projects = [
     description:
       "A retail point-of-sale system that supports offline sales and real-time inventory tracking.",
     stack: ["JavaScript", "CSS", "Chart.js", "Docker", "PWA"],
-    code: "https://github.com/sirdavid001/QuickPOS",
     link: "https://quickposs.vercel.app",
     image: preview("quickpos", 3840, 2224, "QuickPOS point-of-sale sign-in screen"),
     status: "Production Ready",
@@ -44,7 +41,6 @@ export const projects = [
     description:
       "A university exam portal with question authoring, timed tests, automated grading, and separate workflows for students, teachers, and administrators.",
     stack: ["TypeScript", "React", "NestJS", "Prisma", "PostgreSQL"],
-    code: "https://github.com/sirdavid001/OEMS",
     link: "https://oems-tau.vercel.app/login",
     image: preview("exam_system", 1200, 675, "OEMS examination portal sign-in screen"),
     status: "MVP Stage",
