@@ -123,21 +123,6 @@ export const projects = [
     link: "https://aroundyou.com.ng",
   },
   {
-    title: "Hopewithme",
-    sector: "Fundraising",
-    description:
-      "I built donation request forms and email confirmations that help donors request verified payment instructions.",
-    stack: ["Next.js", "React", "Resend", "Vercel Blob"],
-    link: "https://hopeforus.online",
-  },
-  {
-    title: "StarPass",
-    sector: "Experience booking",
-    description:
-      "A concierge booking platform for celebrity shoutouts, meet-and-greets, and VIP experiences. The concierge team manages requests in an admin dashboard.",
-    stack: ["Next.js", "TypeScript", "Supabase", "Brevo", "Twilio"],
-  },
-  {
     title: "SettleX",
     sector: "Fintech",
     status: "Prototype",
