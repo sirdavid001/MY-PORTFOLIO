@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { NOT_FOUND_ROUTE, ROUTES, SITE_URL } from "../shared/seo.js";
+import { DEFAULT_OG_IMAGE, NOT_FOUND_ROUTE, ROUTES, SITE_URL } from "../shared/seo.js";
+import { STRUCTURED_DATA_BY_ROUTE, buildSitemap, jsonLdScript } from "./seo-documents.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, "..", "dist");
@@ -57,6 +58,19 @@ function injectFor(route) {
   html = replaceTag(html, /<meta\s+name="twitter:title"[^>]*\/>/, `<meta name="twitter:title" content="${title}" />`);
   html = replaceTag(html, /<meta\s+name="twitter:description"[^>]*\/>/, `<meta name="twitter:description" content="${desc}" />`);
 
+  const ogImage = route.ogImage || DEFAULT_OG_IMAGE;
+  const imageUrl = escape(ogImage.url);
+  const imageAlt = escape(ogImage.alt);
+  html = replaceTag(html, /<meta\s+property="og:image"\s[^>]*\/>/, `<meta property="og:image" content="${imageUrl}" />`);
+  html = replaceTag(html, /<meta\s+property="og:image:alt"[^>]*\/>/, `<meta property="og:image:alt" content="${imageAlt}" />`);
+  html = replaceTag(html, /<meta\s+name="twitter:image"\s[^>]*\/>/, `<meta name="twitter:image" content="${imageUrl}" />`);
+  html = replaceTag(html, /<meta\s+name="twitter:image:alt"[^>]*\/>/, `<meta name="twitter:image:alt" content="${imageAlt}" />`);
+
+  const structuredData = STRUCTURED_DATA_BY_ROUTE[route.key];
+  if (structuredData) {
+    html = replaceTag(html, /<\/head>/, `    ${jsonLdScript(structuredData())}\n  </head>`);
+  }
+
   const appHtml = render(route.path);
   html = replaceTag(
     html,
@@ -86,3 +100,7 @@ for (const route of [...ROUTES, NOT_FOUND_ROUTE]) {
   written++;
 }
 console.log(`[build-seo-html] wrote ${written} per-route HTML file(s) with prerendered content.`);
+
+// Generated so its page list and project images always match ROUTES and the project data.
+fs.writeFileSync(path.join(distDir, "sitemap.xml"), buildSitemap());
+console.log("[build-seo-html] wrote dist/sitemap.xml");

@@ -12,8 +12,7 @@ function domainOf(url) {
   return new URL(url).hostname.replace(/^www\./, "");
 }
 
-// Every link points at the deployed site. Featured projects are live products on their own
-// domains; the rest follow, production-ready first.
+// Project links point to public deployments. A project can be listed without a deployment.
 export const projects = [
   {
     title: "Bookdara",
@@ -108,6 +107,76 @@ export const projects = [
     link: "https://oems-tau.vercel.app/login",
     image: preview("exam_system", 1200, 675, "OEMS examination portal sign-in screen"),
   },
-].map((project) => ({ ...project, domain: domainOf(project.link) }));
+  {
+    title: "TaxSense Nigeria",
+    sector: "Tax reporting",
+    description:
+      "A backend that imports bank statements, classifies transactions for Nigerian tax reporting, and generates reports for operator review.",
+    stack: ["Python", "FastAPI", "PostgreSQL", "Redis"],
+  },
+  {
+    title: "Around You",
+    sector: "Home services",
+    description:
+      "I contributed to the Django backend for a home services marketplace and built the public website’s waitlist signup and email sync.",
+    stack: ["Django", "Django REST Framework", "PostgreSQL", "Supabase", "Brevo"],
+    link: "https://aroundyou.com.ng",
+  },
+  {
+    title: "Hopewithme",
+    sector: "Fundraising",
+    description:
+      "I built donation request forms and email confirmations that help donors request verified payment instructions.",
+    stack: ["Next.js", "React", "Resend", "Vercel Blob"],
+    link: "https://hopeforus.online",
+  },
+  {
+    title: "StarPass",
+    sector: "Experience booking",
+    description:
+      "A concierge booking platform for celebrity shoutouts, meet-and-greets, and VIP experiences. The concierge team manages requests in an admin dashboard.",
+    stack: ["Next.js", "TypeScript", "Supabase", "Brevo", "Twilio"],
+  },
+  {
+    title: "SettleX",
+    sector: "Fintech",
+    status: "Prototype",
+    description:
+      "A crypto-to-cash and gift-card cashout prototype with an API, a mobile app, and an admin dashboard for settlement and payout review.",
+    stack: ["Fastify", "Prisma", "PostgreSQL", "Expo", "Next.js"],
+  },
+  {
+    title: "Sirdavid Gadgets (React)",
+    sector: "E-commerce",
+    status: "Earlier build",
+    description:
+      "An electronics storefront with product search, a shopping cart, Paystack checkout, and order tracking.",
+    stack: ["React", "TypeScript", "Supabase", "Paystack"],
+  },
+  {
+    title: "Online Exam System (Django)",
+    sector: "Education",
+    status: "Earlier build",
+    description:
+      "The earlier version of my exam platform, with timed assessments, separate student and teacher views, and results management.",
+    stack: ["Python", "Django", "PostgreSQL", "HTMX"],
+    link: "https://online-exam-system-nine-topaz.vercel.app",
+  },
+  {
+    title: "uKnowMe (Flask)",
+    sector: "Social messaging",
+    status: "Earlier build",
+    description:
+      "An earlier web version of uKnowMe where users could share an inbox link and receive anonymous messages.",
+    stack: ["Python", "Flask", "SQLAlchemy", "PostgreSQL"],
+  },
+  {
+    title: "Personal Portfolio",
+    sector: "Portfolio",
+    description:
+      "This site showcases my work, generates CVs in PDF and Word, and accepts project briefs with budgets in local currencies.",
+    stack: ["React", "Vite", "Tailwind CSS", "Vercel", "Resend"],
+  },
+].map((project) => ({ ...project, domain: project.link ? domainOf(project.link) : undefined }));
 
 export const featuredProject = projects.find((project) => project.title === "Sirdavid Multi-Store");

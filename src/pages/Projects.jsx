@@ -5,10 +5,11 @@ import { projects } from "../data/projects";
 import useSEO from "../hooks/useSEO";
 
 const featured = projects.filter((project) => project.featured);
-const more = projects.filter((project) => !project.featured);
+const more = projects.filter((project) => !project.featured && project.image);
+const otherWork = projects.filter((project) => !project.featured && !project.image);
 
 function headingId(project) {
-  return `project-${project.domain.replace(/[^a-z0-9]+/gi, "-")}`;
+  return `project-${(project.domain || project.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-$/, "")}`;
 }
 
 // Duplicate of each project's visible link for pointer users; kept out of the tab order.
@@ -39,8 +40,12 @@ function ProjectFacts({ project }) {
     <dl className="grid w-full grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-2.5 text-sm">
       <dt className="text-muted-foreground">Sector</dt>
       <dd className="font-medium text-foreground">{project.sector}</dd>
-      <dt className="text-muted-foreground">Status</dt>
-      <dd className="font-medium text-foreground">{project.status}</dd>
+      {project.status && (
+        <>
+          <dt className="text-muted-foreground">Status</dt>
+          <dd className="font-medium text-foreground">{project.status}</dd>
+        </>
+      )}
       <dt className="text-muted-foreground">Built with</dt>
       <dd className="text-foreground">{project.stack.join(", ")}</dd>
     </dl>
@@ -91,30 +96,37 @@ function FeaturedProject({ project, first }) {
 }
 
 function MoreProject({ project }) {
+  const layout = project.image
+    ? "row-span-5 grid grid-rows-subgrid gap-y-0"
+    : "flex flex-col border-t border-border pt-5";
+
   return (
-    // Subgrid: cards in the same grid row share track heights, so titles, facts, and links line up.
-    <article aria-labelledby={headingId(project)} className="row-span-5 grid min-w-0 grid-rows-subgrid gap-y-0">
-      <Screenshot
-        project={project}
-        sizes="(min-width: 72rem) 21rem, (min-width: 64rem) calc((100vw - 8rem) / 3), (min-width: 48rem) calc((100vw - 5rem) / 2), calc(100vw - 2rem)"
-      />
-      <h3 id={headingId(project)} className="mt-5 text-xl font-bold text-foreground">
+    <article aria-labelledby={headingId(project)} className={`min-w-0 ${layout}`}>
+      {project.image && (
+        <Screenshot
+          project={project}
+          sizes="(min-width: 72rem) 21rem, (min-width: 64rem) calc((100vw - 8rem) / 3), (min-width: 48rem) calc((100vw - 5rem) / 2), calc(100vw - 2rem)"
+        />
+      )}
+      <h3 id={headingId(project)} className={`text-xl font-bold text-foreground ${project.image ? "mt-5" : ""}`}>
         {project.title}
       </h3>
       <p className="mt-2 leading-relaxed text-muted-foreground">{project.description}</p>
       <div className="mt-5 border-t border-border pt-4">
         <ProjectFacts project={project} />
       </div>
-      <div className="pt-4">
-        <a
-          href={project.link}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex min-h-11 max-w-full items-center gap-2 font-semibold text-primary underline-offset-4 hover:underline"
-        >
-          <VisitLabel project={project} />
-        </a>
-      </div>
+      {project.link && (
+        <div className={project.image ? "pt-4" : "mt-auto pt-4"}>
+          <a
+            href={project.link}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 max-w-full items-center gap-2 font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            <VisitLabel project={project} />
+          </a>
+        </div>
+      )}
     </article>
   );
 }
@@ -127,13 +139,23 @@ export default function Projects() {
       <div className="max-w-2xl">
         <h1 className="text-4xl font-extrabold text-foreground sm:text-6xl">Projects</h1>
         <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-          Applications for booking, careers, retail, messaging, entertainment, property, trade, and education. Each
-          one is live and open to use.
+          Web apps, mobile apps, and backend systems I&apos;ve built or contributed to.
         </p>
+        <nav aria-label="Project sections" className="mt-3 flex flex-wrap gap-x-5">
+          <a href="#featured-projects" className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-4 hover:underline">
+            Featured
+          </a>
+          <a href="#more-projects" className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-4 hover:underline">
+            More projects
+          </a>
+          <a href="#other-work" className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-4 hover:underline">
+            Other builds and contributions
+          </a>
+        </nav>
       </div>
 
       <section aria-labelledby="featured-projects" className="mt-10 border-t border-border pt-10 sm:mt-12 sm:pt-12">
-        <h2 id="featured-projects" className="text-xl font-bold text-foreground">Featured projects</h2>
+        <h2 id="featured-projects" className="scroll-mt-24 text-xl font-bold text-foreground">Featured projects</h2>
         <div className="divide-y divide-border">
           {featured.map((project, index) => (
             <FeaturedProject key={project.title} project={project} first={index === 0} />
@@ -142,9 +164,18 @@ export default function Projects() {
       </section>
 
       <section aria-labelledby="more-projects" className="border-t border-border pt-10 sm:pt-12 lg:pt-14">
-        <h2 id="more-projects" className="text-xl font-bold text-foreground">More projects</h2>
+        <h2 id="more-projects" className="scroll-mt-24 text-xl font-bold text-foreground">More projects</h2>
         <div className="mt-8 grid gap-x-8 gap-y-14 md:grid-cols-2 lg:grid-cols-3">
           {more.map((project) => (
+            <MoreProject key={project.title} project={project} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="other-work" className="mt-12 border-t border-border pt-10 sm:mt-16 sm:pt-12">
+        <h2 id="other-work" className="scroll-mt-24 text-xl font-bold text-foreground">Other builds and contributions</h2>
+        <div className="mt-8 grid gap-x-8 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
+          {otherWork.map((project) => (
             <MoreProject key={project.title} project={project} />
           ))}
         </div>
